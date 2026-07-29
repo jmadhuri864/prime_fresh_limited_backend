@@ -25,6 +25,7 @@ import {
   LPVoucherUpdateFormDto,
   BulkDeleteLPVoucherResultDto,
 } from '../dtos/labourPaymentVoucher.dto';
+import { BulkDeleteResultDto, DeleteResultDto } from '../dtos/general.dto';
 
 @injectable()
 export class LabourPaymentVoucherService {
@@ -419,17 +420,20 @@ remark : voucher.remark || null,
     return updatedVoucher;
   }
 
-  async deleteLPVoucher(id: string): Promise<boolean> {
+  async deleteLPVoucher(id: string): Promise<DeleteResultDto | null> {
     const exists = await this.lpVoucherRepository.count({ where: { id } });
     if (!exists) throw new AppError(404, `LP Voucher with ID ${id} not found`);
-
+    const voucher=await this.lpVoucherRepository.findOne({where:{id}});
+    if(!voucher){
+      throw new AppError(404,`Lp Voucher with ID ${id} not found`);
+    }
     const sixMonthsFromNow = new Date();
     sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
     sixMonthsFromNow.setHours(0, 0, 0, 0);
 
     await this.lpVoucherRepository.update({ id }, { deletionScheduledAt: sixMonthsFromNow } as any);
     await this.invalidateCache(id);
-    return true;
+    return {No:voucher.voucherNo};
   }
 
   public async generateVoucherNo(): Promise<string> {
@@ -451,8 +455,10 @@ remark : voucher.remark || null,
     return `LV-${formattedDate}`;
   }
 
-  public async deleteMultipleLPVoucher(ids: string[]): Promise<BulkDeleteLPVoucherResultDto> {
-    if (!ids.length) return { message: 'No IDs provided' };
+  public async deleteMultipleLPVoucher(ids: string[]): Promise<BulkDeleteResultDto> {
+    //if (!ids.length) return { message: 'No IDs provided' };
+    const success: { id: string; No: string }[] = [];
+  const failed: { id: string; reason: string }[] = [];  
 
     const [lpVouchers, relatedDocuments] = await Promise.all([
       this.lpVoucherRepository.find({ where: { id: In(ids) } }),
@@ -494,7 +500,11 @@ remark : voucher.remark || null,
       this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:recycle:*`),
     ]);
 
-    return { message: 'LP Voucher records marked for deletion successfully' };
+    lpVouchers.map((v)=>{
+      success.push({id:v.id,No:v.voucherNo});
+    })
+
+    return { success,failed,message: 'LP Voucher records marked for deletion successfully' };
   }
 
 }

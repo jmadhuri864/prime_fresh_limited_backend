@@ -142,7 +142,7 @@ export class FinalInvoiceController {
             module: ActivityModule.INVOICE,
             entityName: 'INVOICE',
             entityId: invoice.id,
-            description: `${userName} has created INVOICE ${invoice.invoiceNo || invoice.id}`,
+            description: `${userName} has created Final Invoice ${invoice.invoiceNo || invoice.id}`,
             ipAddress: req.ip || '',
             userAgent: req.get('user-agent'),
             endpoint: req.originalUrl,
@@ -200,11 +200,6 @@ export class FinalInvoiceController {
       next(err);
     }
   }
-
-  
-
-  
-
 
   @httpPost('/pdf/download')
   public async downloadInvoicePdf(
@@ -294,7 +289,7 @@ export class FinalInvoiceController {
         action: ActivityAction.DELETE,
         module: ActivityModule.INVOICE,
         entityName: 'INVOICE',
-        description: `${userName} has bulk deleted ${result.success.length} INVOICE(s): ${deletedNos}`,
+        description: `${userName} has bulk deleted ${result.success.length} Final Invoice(s): ${deletedNos}`,
         metadata: { ids, count: ids.length },
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),

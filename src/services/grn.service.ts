@@ -21,6 +21,7 @@ import { BranchessRepository } from '../repositories/branches.repository';
 import { CreateGrnDto, GrnDetailDto, GrnListItemDto, UpdateGrnDto } from '../dtos/grn.dto';
 import { GrnProductHistoryService } from './grnProductHistory.service';
 import { GrnProduct } from '../entities/grnProduct.entity';
+import { BulkDeleteResultDto, DeleteResultDto } from '../dtos/general.dto';
 
 interface SourceMetrics {
   totalPurchases: number;
@@ -831,9 +832,19 @@ public async getAllGrns(queryOptions: PaginationOptions, userId: string): Promis
       throw new AppError(404, 'Document not found');
     }
     let approvalFlowNeedsRestart = false;
-    if (document.status === DocumentStatus.APPROVED) {
-      // Reset status and clear approval info so the document goes back through
-      // the approval flow — keeps same document ID and audit trail intact
+
+    // These statuses mean the document has progressed through the approval flow.
+    // If the GRN is edited at any of these stages, reset back to HOLD so the
+    // entire approval cycle restarts from scratch.
+    const progressedStatuses = new Set([
+      DocumentStatus.VERIFIED,
+      DocumentStatus.APPROVED,
+      DocumentStatus.FINALIZING,
+      DocumentStatus.FINALIZED,
+      DocumentStatus.COMPLETE,
+    ]);
+
+    if (progressedStatuses.has(document.status)) {
       document.status = DocumentStatus.HOLD;
       document.approvalInfo = null as any;
       document.remarks = 'Document reset to hold due to GRN edit after approval';
@@ -911,17 +922,22 @@ public async getAllGrns(queryOptions: PaginationOptions, userId: string): Promis
     }));
   }
 
-  public async deleteGrn(id: string): Promise<boolean> {
+  public async deleteGrn(id: string): Promise<DeleteResultDto | null> {
     const exists = await this.grnRepository.count({ where: { id } });
     if (!exists) throw new AppError(404, `GRN with ID ${id} not found`);
 
+    const grn=await this.grnRepository.findOne({where:{id}});
+    if(!grn)
+    {
+      throw new AppError(404,`Grn With ID ${id} not found`);
+    }
     const sixMonthsFromNow = new Date();
     sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
     sixMonthsFromNow.setHours(0, 0, 0, 0);
 
     await this.grnRepository.update({ id }, { deletionScheduledAt: sixMonthsFromNow } as any);
     await this.invalidateCache(id);
-    return true;
+    return {No:grn.grnNo};
   }
 
   /**
@@ -1159,9 +1175,11 @@ public async getAllGrns(queryOptions: PaginationOptions, userId: string): Promis
     return serialNo;
   }
 
-  public async deleteMultipleGrns(ids: string[]) {
-    if (!ids.length) return { message: 'No IDs provided' };
+  public async deleteMultipleGrns(ids: string[]):Promise<BulkDeleteResultDto> {
+    //if (!ids.length) return { message: 'No IDs provided' };
 
+     const success: { id: string; No: string }[] = [];
+    const failed: { id: string; reason: string }[] = [];
     const [grns, relatedDocuments] = await Promise.all([
       this.grnRepository.find({ where: { id: In(ids) } }),
       this.documentbRepository
@@ -1189,8 +1207,11 @@ public async getAllGrns(queryOptions: PaginationOptions, userId: string): Promis
     ]);
 
     await Promise.all(ids.map(id => this.invalidateCache(id)));
+    grns.map((v)=>{
+      success.push({ id:v.id, No: v.grnNo });
+    })
 
-    return { message: 'GRN records marked for deletion successfully' };
+    return { success,failed,message: 'GRN records marked for deletion successfully' };
   }
 
 }
