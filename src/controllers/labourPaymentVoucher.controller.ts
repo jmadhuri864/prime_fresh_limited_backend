@@ -23,12 +23,17 @@ import {
   BulkDeleteLPVoucherDto,
   BulkDeleteLPVoucherResultDto,
 } from "../dtos/labourPaymentVoucher.dto";
+import { ActivityAction, ActivityModule } from "../entities/userActivityLog.entity";
+import { UserActivityLogService } from "../services/userActivityLog.service";
+import { BulkDeleteResultDto } from "../dtos/general.dto";
 
 @controller("/lpvoucher", deserializeUser, requireUser)
 export class LabourPaymentVoucherController {
   constructor(
     @inject(TYPES.LabourPaymentVoucherService) private lpVoucherService: LabourPaymentVoucherService,
-    @inject(TYPES.NotificationService) private notificationService: NotificationService
+    @inject(TYPES.NotificationService) private notificationService: NotificationService,
+    @inject(TYPES.UserActivityLogService) private activityLogService: UserActivityLogService,
+    
   ) {}
 
   // Get all Labour Payment Vouchers
@@ -174,6 +179,24 @@ export class LabourPaymentVoucherController {
         );
       }
 
+      // Single activity log
+            const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+                this.activityLogService.logActivity({
+                  userId: res.locals.user.id,
+                  userName,
+                  action: ActivityAction.CREATE,
+                  module: ActivityModule.LABOUR_PAYMENT,
+                  entityName: 'Labour Payment Voucher',
+                  entityId: newVoucher.id,
+                  description: `${userName} has created Labour Payment Voucher ${newVoucher.voucherNo || newVoucher.id}`,
+                  ipAddress: req.ip || '',
+                  userAgent: req.get('user-agent'),
+                  endpoint: req.originalUrl,
+                  httpMethod: req.method,
+                  statusCode: 201,
+                }).catch(() => {});
+                
+
       res.status(201).json({
         status: "success",
         message: 'Labour Payment Voucher created successfully',
@@ -228,6 +251,23 @@ export class LabourPaymentVoucherController {
         );
       }
 
+      // Activity log
+      const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      this.activityLogService.logActivity({
+        userId: res.locals.user.id,
+        userName,
+        action: ActivityAction.UPDATE,
+        module: ActivityModule.LABOUR_PAYMENT,
+        entityName: 'Labour Payment Voucher',
+        entityId: id,
+        description: `${userName} has updated Labour Payment Voucher ${updatedVoucher.voucherNo || id}`,
+        ipAddress: req.ip || '',
+        userAgent: req.get('user-agent'),
+        endpoint: req.originalUrl,
+        httpMethod: req.method,
+        statusCode: 200,
+      }).catch(() => {});
+    
       res.status(200).json({
         status: "success",
         //data: updatedVoucher,
@@ -249,7 +289,7 @@ export class LabourPaymentVoucherController {
     try {
       logger.info(`Deleting Labour Payment Voucher with ID`);
       const { id } = req.params;
-      await this.lpVoucherService.deleteLPVoucher(id);
+      let result=await this.lpVoucherService.deleteLPVoucher(id);
       logger.info(`Labour Payment Voucher with ID: ${id} deleted successfully`);
       ControllerLogger.logSuccess('Labour Payment Voucher deleted', id, req, res);
 
@@ -261,6 +301,23 @@ export class LabourPaymentVoucherController {
       //     userId
       //   );
       // }
+
+      // Activity log
+       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      this.activityLogService.logActivity({
+        userId: res.locals.user.id,
+        userName,
+        action: ActivityAction.DELETE,
+        module: ActivityModule.LABOUR_PAYMENT,
+        entityName: 'Labour Payment Voucher',
+        entityId: id,
+        description: `${userName} has deleted Labour Payment Voucher ${result?.No || id}`,
+        ipAddress: req.ip || '',
+        userAgent: req.get('user-agent'),
+        endpoint: req.originalUrl,
+        httpMethod: req.method,
+        statusCode: 200,
+      }).catch(() => {});
 
       res.status(200).json({ 
         status: "success", 
@@ -320,8 +377,27 @@ export class LabourPaymentVoucherController {
           if (!Array.isArray(ids) || ids.length === 0) {
             return next(new AppError(400, 'An array of AQR IDs is required'));
           }
-          const result: BulkDeleteLPVoucherResultDto = await this.lpVoucherService.deleteMultipleLPVoucher(ids);
+          const result: BulkDeleteResultDto = await this.lpVoucherService.deleteMultipleLPVoucher(ids);
+          const deletedNos = result.success.map(s => s.No || s.id).join(', ');
+   
           ControllerLogger.logSuccess(`${ids.length} Labour Payment Vouchers deleted`, ids.join(', '), req, res);
+
+          // Activity log
+        const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      this.activityLogService.logActivity({
+        userId: res.locals.user.id,
+        userName,
+        action: ActivityAction.DELETE,
+        module: ActivityModule.LABOUR_PAYMENT,
+        entityName: 'Labour Payment Voucher',
+        description: `${userName} has bulk deleted ${result.success.length} Labour Payment Voucher(s): ${deletedNos}`,
+        metadata: { ids, count: ids.length },
+        ipAddress: req.ip || '',
+        userAgent: req.get('user-agent'),
+        endpoint: req.originalUrl,
+        httpMethod: req.method,
+        statusCode: 200,
+      }).catch(() => {});
 
           res.status(200).json({
             message: result.message,

@@ -42,7 +42,8 @@ export class EodStockController {
     private eodStockService: EodStockService,
     @inject(TYPES.NotificationService)
     private notificationService: NotificationService,
-    @inject(TYPES.UserActivityLogService) private activityLogService: UserActivityLogService,
+    @inject(TYPES.UserActivityLogService) 
+    private activityLogService: UserActivityLogService,
   ) {}
 
   @httpPost('/')

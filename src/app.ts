@@ -1,7 +1,8 @@
-import "@aws-sdk/crc64-nvme-crt";
-import 'reflect-metadata';
 import dotenv from 'dotenv';
 dotenv.config();
+import "@aws-sdk/crc64-nvme-crt";
+import 'reflect-metadata';
+
 import { authRateLimit, apiRateLimit } from './middleware/performance.middleware';
 
 import express, { Request, Response, NextFunction } from 'express';

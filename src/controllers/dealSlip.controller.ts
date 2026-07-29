@@ -228,8 +228,9 @@ export class DealSlipController {
       } catch (notifError) {
       }
 
-      
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      
+      //const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
      
       // Single activity log
       this.activityLogService.logActivity({
@@ -239,7 +240,7 @@ export class DealSlipController {
         module: ActivityModule.DEAL_SLIP,
         entityName: 'DealSlip',
         entityId: dealSlip.id,
-        description: `${userName} has created deal slip ${dealSlip.dealSlipNo || dealSlip.id}`,
+        description: `${userName} has created DealSlip ${dealSlip.dealSlipNo || dealSlip.id}`,
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),
         endpoint: req.originalUrl,
@@ -305,7 +306,7 @@ export class DealSlipController {
         module: ActivityModule.DEAL_SLIP,
         entityName: 'DealSlip',
         entityId: dealSlipId,
-        description: `${userName} has updated deal slip ${updatedDealSlip.dealSlipNo || dealSlipId}`,
+        description: `${userName} has updated DealSlip ${updatedDealSlip.dealSlipNo || dealSlipId}`,
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),
         endpoint: req.originalUrl,
@@ -426,7 +427,7 @@ export class DealSlipController {
         module: ActivityModule.DEAL_SLIP,
         entityName: 'DealSlip',
         entityId: id,
-        description: `${userName} has deleted deal slip ${success.dealSlipNo || id}`,
+        description: `${userName} has deleted DealSlip ${success.dealSlipNo || id}`,
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),
         endpoint: req.originalUrl,
@@ -496,7 +497,7 @@ export class DealSlipController {
         action: ActivityAction.DELETE,
         module: ActivityModule.DEAL_SLIP,
         entityName: 'DealSlip',
-        description: `${userName} has bulk deleted ${body.ids.length} deal slip(s): ${deletedList}`,
+        description: `${userName} has bulk deleted ${body.ids.length} DealSlip(s): ${deletedList}`,
         metadata: { ids: body.ids, count: body.ids.length },
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),

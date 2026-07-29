@@ -87,15 +87,16 @@ export class InwardRegisterController {
             userName,
             action: ActivityAction.CREATE,
             module: ActivityModule.INWARD_REGISTER,
-            entityName: 'INWARD_REGISTER',
+            entityName: 'Inward Register',
             entityId: inwardRegister.id,
-            description: `${userName} has created INWARD_REGISTER ${inwardRegister.inwardNo || inwardRegister.id}`,
+            description: `${userName} has created Inward Register ${inwardRegister.inwardNo || inwardRegister.id}`,
             ipAddress: req.ip || '',
             userAgent: req.get('user-agent'),
             endpoint: req.originalUrl,
             httpMethod: req.method,
             statusCode: 201,
           }).catch(() => {});
+
       res.status(201).json({
         status: 'success',
         message: 'Inward register created successfully',
@@ -265,15 +266,16 @@ export class InwardRegisterController {
         userName,
         action: ActivityAction.UPDATE,
         module: ActivityModule.INWARD_REGISTER,
-        entityName: 'INWARD_REGISTER',
+        entityName: 'Inward Register',
         entityId: id,
-        description: `${userName} has updated INWARD_REGISTER ${updatedInwardRegister.inwardNo || id}`,
+        description: `${userName} has updated Inward Register ${updatedInwardRegister.inwardNo || id}`,
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),
         endpoint: req.originalUrl,
         httpMethod: req.method,
         statusCode: 200,
       }).catch(() => {});
+
       ControllerLogger.logSuccess('Inward_Register updated', updatedInwardRegister.id, req, res);
       res.status(200).json({
         status: 'success',
@@ -313,9 +315,9 @@ export class InwardRegisterController {
         userName,
         action: ActivityAction.DELETE,
         module: ActivityModule.INWARD_REGISTER,
-        entityName: 'INWARD_REGISTER',
+        entityName: 'Inward Register',
         entityId: id,
-        description: `${userName} has deleted INWARD_REGISTER ${result.No || id}`,
+        description: `${userName} has deleted Inward Register ${result.No || id}`,
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),
         endpoint: req.originalUrl,
@@ -464,8 +466,8 @@ export class InwardRegisterController {
         userName,
         action: ActivityAction.DELETE,
         module: ActivityModule.INWARD_REGISTER,
-        entityName: 'INWARD_REGISTER',
-        description: `${userName} has bulk deleted ${result.success.length} INWARD_REGISTER(s): ${deletedNos}`,
+        entityName: 'Inward Register',
+        description: `${userName} has bulk deleted ${result.success.length} Inward Register(s): ${deletedNos}`,
         metadata: { ids, count: ids.length },
         ipAddress: req.ip || '',
         userAgent: req.get('user-agent'),
@@ -473,6 +475,7 @@ export class InwardRegisterController {
         httpMethod: req.method,
         statusCode: 200,
       }).catch(() => {});
+      
         res.status(200).json({
           message: result.message,
           success: result.success,
