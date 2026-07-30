@@ -197,8 +197,6 @@ export class DocumentbService {
         where: { id },
         relations: [
           'lastActionBy',
-          'approvalFlow',
-          'approvalFlow.creator',
           'approvalInfo',
           'approvalInfo.firstFinalized',
           'approvalInfo.secondFinalized',
@@ -216,65 +214,66 @@ export class DocumentbService {
      
 
       const approvalInfo = document.approvalInfo;
-      const creator = document.approvalFlow?.creator ?? null;
-      const approvalInfoSummary = approvalInfo
-        ? {
-          createdBy: creator
-            ? {
-              userId: creator.id,
-              name: `${creator.firstName} ${creator.lastName}`.trim(),
+      // Prefer createdBy stored on approvalInfo; fall back to approvalFlow.creator for older records
+     
+      // When status is 'hold', approvalInfo is null (not yet created).
+      // Still return approvalSummary with createdBy so the frontend always has creator info.
+      const approvalInfoSummary = {
+        createdBy: document.lastActionBy
+          ? {
+              userId: document.lastActionBy.id,
+              name: `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`.trim(),
             }
-            : null,
-          verified: approvalInfo.verified
-            ? {
-              userId: approvalInfo.verified.userId,
-              name: approvalInfo.verified.userName,
-              status: approvalInfo.verified.status,
-              reason: approvalInfo.verified?.reason || null,
-            }
-            : null,
-          firstApproved: approvalInfo.firstApproved
-            ? {
-              userId: approvalInfo.firstApproved.userId,
-              name: approvalInfo.firstApproved.userName,
-              status: approvalInfo.firstApproved.status,
-              reason: approvalInfo.firstApproved?.reason || null,
-            }
-            : null,
-          secondApproved: approvalInfo.secondApproved
-            ? {
-              userId: approvalInfo.secondApproved.userId,
-              name: approvalInfo.secondApproved.userName,
-              status: approvalInfo.secondApproved.status,
-              reason: approvalInfo.secondApproved?.reason || null,
-            }
-            : null,
-          thirdApproved: approvalInfo.thirdApproved
-            ? {
-              userId: approvalInfo.thirdApproved.userId,
-              name: approvalInfo.thirdApproved.userName,
-              status: approvalInfo.thirdApproved.status,
-              reason: approvalInfo.thirdApproved?.reason || null,
-            }
-            : null,
-          firstFinalized: approvalInfo.firstFinalized
-            ? {
-              userId: approvalInfo.firstFinalized.userId,
-              name: approvalInfo.firstFinalized.userName,
-              status: approvalInfo.firstFinalized.status,
-              reason: approvalInfo.firstFinalized?.reason || null,
-            }
-            : null,
-          secondFinalized: approvalInfo.secondFinalized
-            ? {
-              userId: approvalInfo.secondFinalized.userId,
-              name: approvalInfo.secondFinalized.userName,
-              status: approvalInfo.secondFinalized.status,
-              reason: approvalInfo.secondFinalized?.reason || null,
-            }
-            : null,
-        }
-        : null;
+          : null,
+        verified: approvalInfo?.verified
+          ? {
+            userId: approvalInfo.verified.userId,
+            name: approvalInfo.verified.userName,
+            status: approvalInfo.verified.status,
+            reason: approvalInfo.verified?.reason || null,
+          }
+          : null,
+        firstApproved: approvalInfo?.firstApproved
+          ? {
+            userId: approvalInfo.firstApproved.userId,
+            name: approvalInfo.firstApproved.userName,
+            status: approvalInfo.firstApproved.status,
+            reason: approvalInfo.firstApproved?.reason || null,
+          }
+          : null,
+        secondApproved: approvalInfo?.secondApproved
+          ? {
+            userId: approvalInfo.secondApproved.userId,
+            name: approvalInfo.secondApproved.userName,
+            status: approvalInfo.secondApproved.status,
+            reason: approvalInfo.secondApproved?.reason || null,
+          }
+          : null,
+        thirdApproved: approvalInfo?.thirdApproved
+          ? {
+            userId: approvalInfo.thirdApproved.userId,
+            name: approvalInfo.thirdApproved.userName,
+            status: approvalInfo.thirdApproved.status,
+            reason: approvalInfo.thirdApproved?.reason || null,
+          }
+          : null,
+        firstFinalized: approvalInfo?.firstFinalized
+          ? {
+            userId: approvalInfo.firstFinalized.userId,
+            name: approvalInfo.firstFinalized.userName,
+            status: approvalInfo.firstFinalized.status,
+            reason: approvalInfo.firstFinalized?.reason || null,
+          }
+          : null,
+        secondFinalized: approvalInfo?.secondFinalized
+          ? {
+            userId: approvalInfo.secondFinalized.userId,
+            name: approvalInfo.secondFinalized.userName,
+            status: approvalInfo.secondFinalized.status,
+            reason: approvalInfo.secondFinalized?.reason || null,
+          }
+          : null,
+      };
       const result = {
         documentId: document.id,
         documentTypeId: document.document_type_id,
@@ -414,8 +413,9 @@ export class DocumentbService {
     const document = await this.documentbRepository.findOne({
       where: { id: documentId },
       relations: [
+        'lastActionBy',
         'approvalFlow',
-        'approvalFlow.creator',
+        
         'approvalFlow.verifiers',
         'approvalFlow.approvers.firstApprover.users',
         'approvalFlow.approvers.secondApprover.users',
@@ -423,6 +423,7 @@ export class DocumentbService {
         'approvalFlow.finalizers.firstFinalizers',
         'approvalFlow.finalizers.secondFinalizers',
         'approvalInfo',
+        
         'approvalInfo.verified',
         'approvalInfo.firstApproved',
         'approvalInfo.secondApproved',
@@ -448,6 +449,7 @@ export class DocumentbService {
         [DocumentTypeEnum.RFPA]: [
           'rfpa:list:*', 'rfpa:all:*', 'rfpa:recycle:*', 'rfpa:rfpanumbers:*',
           ...(typeId ? [`rfpa:id:${typeId}`, `rfpa:view:${typeId}`, `rfpa:update:${typeId}`] : []),
+          `rfpa:docview:${documentId}`,
         ],
         [DocumentTypeEnum.DEAL_SLIP]: [
           'dealslip:list:*', 'dealslip:all:*', 'dealslip:recycle:*', 'dealslip:nos:*',
@@ -461,63 +463,78 @@ export class DocumentbService {
         ],
         [DocumentTypeEnum.AQR]: [
           'aqr:list:*', 'aqr:all:*', 'aqr:recycle:*',
-          ...(typeId ? [`aqr:id:${typeId}`, `aqr:view:${typeId}`, `aqr:update:${typeId}`] : []),
+          ...(typeId ? [`aqr:id:${typeId}`, `aqr:update:${typeId}`] : []),
+          `aqr:view:${documentId}`,
         ],
         [DocumentTypeEnum.INWARD_REGISTER]: [
           'iwr:list:*', 'iwr:all:*', 'iwr:recycle:*',
-          ...(typeId ? [`iwr:id:${typeId}`, `iwr:view:${typeId}`, `iwr:update:${typeId}`] : []),
+          ...(typeId ? [`iwr:id:${typeId}`, `iwr:update:${typeId}`] : []),
+          `iwr:view:${documentId}`,
         ],
         [DocumentTypeEnum.DUMP_REGISTER]: [
           'dump:list:*', 'dump:all:*', 'dump:recycle:*',
-          ...(typeId ? [`dump:id:${typeId}`, `dump:view:${typeId}`, `dump:update:${typeId}`] : []),
+          ...(typeId ? [`dump:id:${typeId}`, `dump:update:${typeId}`] : []),
+          `dump:view:${documentId}`,
         ],
         [DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER]: [
           'vehicleDispatch:list:*', 'vehicleDispatch:all:*', 'vehicleDispatch:recycle:*',
-          ...(typeId ? [`vehicleDispatch:id:${typeId}`, `vehicleDispatch:view:${documentId}`] : []),
+          ...(typeId ? [`vehicleDispatch:id:${typeId}`, `vehicleDispatch:update:${typeId}`] : []),
+          `vehicleDispatch:view:${documentId}`,
         ],
         [DocumentTypeEnum.SECOND_SALE]: [
           'secondSale:list:*', 'secondSale:all:*', 'secondSale:recycle:*',
-          ...(typeId ? [`secondSale:id:${typeId}`, `secondSale:view:${typeId}`, `secondSale:update:${typeId}`] : []),
+          ...(typeId ? [`secondSale:id:${typeId}`, `secondSale:update:${typeId}`] : []),
+          `secondSale:view:${documentId}`,
         ],
         [DocumentTypeEnum.MULTI_CASH_VOUCHER]: [
           'mcv:list:*', 'mcv:all:*', 'mcv:recycle:*',
-          ...(typeId ? [`mcv:id:${typeId}`, `mcv:view:${typeId}`, `mcv:update:${typeId}`] : []),
+          ...(typeId ? [`mcv:id:${typeId}`, `mcv:update:${typeId}`] : []),
+          `mcv:view:${documentId}`,
         ],
         [DocumentTypeEnum.LABOR_PAYMENT_VOUCHER]: [
           'lpv:list:*', 'lpv:all:*', 'lpv:recycle:*',
-          ...(typeId ? [`lpv:id:${typeId}`, `lpv:view:${typeId}`, `lpv:update:${typeId}`] : []),
+          ...(typeId ? [`lpv:id:${typeId}`, `lpv:update:${typeId}`] : []),
+          `lpv:view:${documentId}`,
         ],
         [DocumentTypeEnum.TRANSPORT_PAYMENT_VOUCHER]: [
           'tpVoucher:list:*', 'tpVoucher:all:*', 'tpVoucher:recycle:*',
-          ...(typeId ? [`tpVoucher:id:${typeId}`, `tpVoucher:view:${typeId}`, `tpVoucher:update:${typeId}`] : []),
+          ...(typeId ? [`tpVoucher:id:${typeId}`, `tpVoucher:update:${typeId}`] : []),
+          `tpVoucher:view:${documentId}`,
         ],
         [DocumentTypeEnum.PACKAGING_MATERIAL_VOUCHER]: [
           'pmpv:list:*', 'pmpv:all:*', 'pmpv:recycle:*',
-          ...(typeId ? [`pmpv:id:${typeId}`, `pmpv:view:${typeId}`, `pmpv:update:${typeId}`] : []),
+          ...(typeId ? [`pmpv:id:${typeId}`, `pmpv:update:${typeId}`] : []),
+          `pmpv:view:${documentId}`,
         ],
         [DocumentTypeEnum.DC_TYPE_CUSTOMER]: [
           'cdc:list:*', 'cdc:all:*', 'cdc:recycle:*',
-          ...(typeId ? [`cdc:id:${typeId}`, `cdc:view:${typeId}`, `cdc:update:${typeId}`] : []),
+          ...(typeId ? [`cdc:id:${typeId}`, `cdc:update:${typeId}`] : []),
+          `cdc:view:${documentId}`,
         ],
         [DocumentTypeEnum.DC_TYPE_STOCK_TRANSFER]: [
           'stockTransferChallan:list:*', 'stockTransferChallan:all:*',
-          ...(typeId ? [`stockTransferChallan:id:${typeId}`, `stockTransferChallan:view:${documentId}`, `stockTransferChallan:update:${typeId}`] : []),
+          ...(typeId ? [`stockTransferChallan:id:${typeId}`, `stockTransferChallan:update:${typeId}`] : []),
+          `stockTransferChallan:view:${documentId}`,
         ],
         [DocumentTypeEnum.DC_TYPE_OTHER]: [
           'odc:list:*', 'odc:all:*',
-          ...(typeId ? [`odc:id:${typeId}`, `odc:view:${typeId}`, `odc:update:${typeId}`] : []),
+          ...(typeId ? [`odc:id:${typeId}`, `odc:update:${typeId}`] : []),
+          `odc:view:${documentId}`,
         ],
         [DocumentTypeEnum.RETURN_BY_CUSTOMER]: [
           'rbc:list:*', 'rbc:all:*', 'rbc:recycle:*',
-          ...(typeId ? [`rbc:id:${typeId}`, `rbc:view:${typeId}`, `rbc:update:${typeId}`] : []),
+          ...(typeId ? [`rbc:id:${typeId}`, `rbc:update:${typeId}`] : []),
+          `rbc:view:${documentId}`,
         ],
         [DocumentTypeEnum.RETURN_TO_VENDOR]: [
           'returnToVendor:list:*', 'returnToVendor:all:*', 'returnToVendor:recycle:*',
-          ...(typeId ? [`returnToVendor:id:${typeId}`, `returnToVendor:view:${typeId}`, `returnToVendor:update:${typeId}`] : []),
+          ...(typeId ? [`returnToVendor:id:${typeId}`, `returnToVendor:update:${typeId}`] : []),
+          `returnToVendor:view:${documentId}`,
         ],
         [DocumentTypeEnum.FINAL_INVOICE]: [
           'finv:list:*', 'finv:all:*', 'finv:recycle:*',
-          ...(typeId ? [`finv:id:${typeId}`, `finv:view:${typeId}`, `finv:update:${typeId}`] : []),
+          ...(typeId ? [`finv:id:${typeId}`, `finv:update:${typeId}`] : []),
+          `finv:view:${documentId}`,
         ],
         [DocumentTypeEnum.EOD_REPORT]: [],
         [DocumentTypeEnum.PROFORMA_INVOICE]: [],
@@ -537,6 +554,7 @@ export class DocumentbService {
 
     try {
 
+    
     if (!document.approvalInfo) {
       document.approvalInfo = await this.documentApprovalFlowRepository.save(
         this.documentApprovalFlowRepository.create()

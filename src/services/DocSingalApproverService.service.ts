@@ -53,6 +53,8 @@ export class DocSingalApproverService {
       [DocumentTypeEnum.RFPA]: ['rfpa:list:*', 'rfpa:all:*', 'rfpa:rfpanumbers:*', 'rfpa:recycle:*'],
       [DocumentTypeEnum.DEAL_SLIP]: ['dealslip:list:*', 'dealslip:all:*', 'dealslip:nos:*'],
       [DocumentTypeEnum.AQR]: ['aqr:list:*', 'aqr:all:*', 'aqr:recycle:*'],
+      [DocumentTypeEnum.INWARD_REGISTER]: ['iwr:list:*', 'iwr:all:*', 'iwr:recycle:*'],
+      [DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER]: ['vehicleDispatch:list:*', 'vehicleDispatch:all:*', 'vehicleDispatch:recycle:*'],
     };
     const patterns = prefixMap[type] ?? [];
     const tasks: Promise<any>[] = patterns.map(p => this.cacheService.invalidatePattern(p));
@@ -77,10 +79,27 @@ export class DocSingalApproverService {
           ...(documentId ? [this.cacheService.del(`dealslip:docview:${documentId}`)] : []),
         );
       } else if (type === DocumentTypeEnum.AQR) {
+        // AQR view key includes userId: aqr:view:{docid}:{userId} — use pattern to bust all users
         tasks.push(
-          this.cacheService.del(`aqr:view:${documentTypeId}`),
+          this.cacheService.invalidatePattern(`aqr:view:${documentTypeId}:*`),
           this.cacheService.del(`aqr:id:${documentTypeId}`),
           this.cacheService.del(`aqr:update:${documentTypeId}`),
+        );
+        // also bust by documentId (the document UUID used as docid in getAQRByIdForView)
+        if (documentId) {
+          tasks.push(this.cacheService.invalidatePattern(`aqr:view:${documentId}:*`));
+        }
+      } else if (type === DocumentTypeEnum.INWARD_REGISTER) {
+        tasks.push(
+          this.cacheService.del(`iwr:view:${documentTypeId}`),
+          this.cacheService.del(`iwr:id:${documentTypeId}`),
+          this.cacheService.del(`iwr:update:${documentTypeId}`),
+        );
+      } else if (type === DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER) {
+        tasks.push(
+          this.cacheService.del(`vehicleDispatch:id:${documentTypeId}`),
+          this.cacheService.del(`vehicleDispatch:update:${documentTypeId}`),
+          ...(documentId ? [this.cacheService.del(`vehicleDispatch:view:${documentId}`)] : []),
         );
       }
     }
@@ -309,8 +328,8 @@ async getSingleApprovalDocumentById(documentId: string, userId: string): Promise
     const creator = document.approvalFlow?.creator ?? null;
     const approvalInfoSummary = approvalInfo
       ? {
-          createdBy: creator
-            ? { userId: creator.id, name: `${creator.firstName} ${creator.lastName}`.trim() }
+          createdBy: document.lastActionBy
+            ? { userId: document.lastActionBy.id, name: `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`.trim() }
             : null,
           firstApproved: approvalInfo.firstApproved
             ? {

@@ -6,21 +6,6 @@ export interface MultiCashVoucherParticularDto {
   amt?: number;
 }
 
-export interface CompanyRefDto {
-  id?: string | null;
-  companyName?: string | null;
-}
-
-export interface GrnRefDto {
-  id?: string | null;
-  grnNo?: string | null;
-}
-
-export interface ChallanRefDto {
-  id?: string | null;
-  challanNo?: string | null;
-}
-
 export interface UserRefDto {
   id?: string | null;
   firstName?: string | null;
@@ -76,10 +61,9 @@ export interface MultiCashVoucherListItemDto {
 
 export interface MultiCashVoucherDetailDto {
   id: string;
-  requestingDepartment?: Department | null;
-  companyName?: CompanyRefDto | null;
-  grnNo?: GrnRefDto | null;
-  challanNo?: ChallanRefDto | null;
+  companyName?: string | null;
+  grnNo?: string | null;
+  challanNo?: string | null;
   debitCreditTo?: string | null;
   voucherNo?: string | null;
   payReceivedFrom?: string | null;
@@ -90,14 +74,12 @@ export interface MultiCashVoucherDetailDto {
   paymentMode?: string | null;
   receiverName?: string | null;
   anyAttachment?: string[] | null;
-  approvalStatus?: Status | null;
   requestedBy?: UserRefDto | null;
-  passBy?: UserRefDto | null;
-  approveBy?: UserRefDto | null;
   remark?: string | null;
   createdDate?: string | null;
   createdTime?: string | null;
   overAllStatus?: string | null;
   documentId?: string | null;
   createdBy?: string | null;
+  approvalSummary?: any | null;
 }

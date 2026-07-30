@@ -19,22 +19,6 @@ export interface PMPVoucherAddressDto {
   pincode?: string | null;
 }
 
-export interface PMPVoucherCompanyRefDto {
-  id?: string | null;
-  companyName?: string | null;
-}
-
-export interface PMPVoucherGrnRefDto {
-  id?: string | null;
-  grnNo?: string | null;
-}
-
-export interface PMPVoucherUserRefDto {
-  id?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-}
-
 export interface CreatePMPVoucherDto {
   voucherNo?: string;
   grnNo?: string | null;
@@ -105,7 +89,7 @@ id?: string;
 export interface PMPVoucherDetailDto {
   id: string;
   voucherNo?: string | null;
-  grnNo?: PMPVoucherGrnRefDto | null;
+  grnNo?: string | null;
   approvalStatus?: Status | null;
   debitCreditTo?: string | null;
   payReceivedFrom?: string | null;
@@ -123,10 +107,10 @@ export interface PMPVoucherDetailDto {
   anyAttachment?: string[] | null;
   requestingDepartment?: Department | null;
   kyc?: boolean | null;
-  companyName?: PMPVoucherCompanyRefDto | null;
-  requestedBy?: PMPVoucherUserRefDto | null;
-  passBy?: PMPVoucherUserRefDto | null;
-  approveBy?: PMPVoucherUserRefDto | null;
+  companyName?: string | null;
+  requestedBy?: string | null;
+  passBy?: string | null;
+  approveBy?: string | null;
   remark?: string | null;
   createdDate?: string | null;
   createdTime?: string | null;

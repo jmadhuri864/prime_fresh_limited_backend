@@ -57,7 +57,7 @@ export const uploadFlexible = multer({
   storage: multerS3({
     s3,
     bucket: process.env.DO_SPACES_BUCKET!,
-    acl: 'private', // Sensitive documents — use pre-signed URLs for access
+    acl: 'public-read',
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (_req, file, cb) => {
       const timestamp = Date.now();

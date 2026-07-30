@@ -285,7 +285,8 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
       .leftJoinAndSelect('pmpVoucher.requestedBy', 'requestedBy')
       .leftJoinAndSelect('pmpVoucher.companyName', 'company')
       .leftJoinAndSelect('pmpVoucher.grnNo', 'grn')
-     
+      .leftJoinAndSelect('pmpVoucher.passBy', 'passBy')
+      .leftJoinAndSelect('pmpVoucher.approveBy', 'approveBy')
       .where('pmpVoucher.id = :id', { id })
       .getOne();
     if (!voucher) return null;
@@ -294,7 +295,6 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
     const formatResponse: PMPVoucherDetailDto = {
       id: voucher.id,
       voucherNo: voucher.voucherNo,
-      approvalStatus: voucher.approvalStatus,
       debitCreditTo: voucher.debitCreditTo,
       payReceivedFrom: voucher.payReceivedFrom,
       location: voucher.location,
@@ -315,25 +315,18 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
       paymentMode: voucher.paymentMode,
       totalAmt: voucher.totalAmt,
       amtWords: voucher.amtWords,
-      companyName: voucher.companyName
-        ? {
-            id: voucher.companyName.id ?? null,
-            companyName: voucher.companyName.name ?? null,
-          }
-        : null,
+      companyName: voucher.companyName?.name ?? null,
       requestedBy: voucher.requestedBy
-        ? {
-            id: voucher.requestedBy.id ?? null,
-            firstName: voucher.requestedBy.firstName ?? null,
-            lastName: voucher.requestedBy.lastName ?? null,
-          }
+        ? `${voucher.requestedBy.firstName ?? ''} ${voucher.requestedBy.lastName ?? ''}`.trim()
         : null,
-      grnNo: voucher.grnNo
-        ? {
-            id: voucher.grnNo.id ?? null,
-            grnNo: voucher.grnNo.grnNo ?? null,
-          }
+      passBy: voucher.passBy
+        ? `${voucher.passBy.firstName ?? ''} ${voucher.passBy.lastName ?? ''}`.trim()
         : null,
+      approveBy: voucher.approveBy
+        ? `${voucher.approveBy.firstName ?? ''} ${voucher.approveBy.lastName ?? ''}`.trim()
+        : null,
+      approvalStatus: voucher.approvalStatus ?? null,
+      grnNo: voucher.grnNo?.grnNo ?? null,
       createdTime: createdTime,
       remark: voucher.remark,
       createdDate: createdDate,

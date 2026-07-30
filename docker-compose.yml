@@ -30,7 +30,7 @@ services:
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: db
+      POSTGRES_DB: node_typeorm
       TZ: Asia/Kolkata
     restart: unless-stopped
     networks:

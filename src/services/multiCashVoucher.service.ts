@@ -308,17 +308,29 @@ export class MultiCashVoucherService {
     const { createdDate, createdTime } = formatDateTime(rawDate);
 
     const viewResult: MultiCashVoucherDetailDto = {
-      ...voucher,
-      grnNo: voucher.grnNo ? { id: voucher.grnNo.id || null, grnNo: voucher.grnNo.grnNo || null } : null,
-      challanNo: voucher.challanNo ? { id: voucher.challanNo.id || null, challanNo: voucher.challanNo.challanNo || null } : null,
+      id: voucher.id,
+      voucherNo: voucher.voucherNo,
+      debitCreditTo: voucher.debitCreditTo,
+      payReceivedFrom: voucher.payReceivedFrom,
+      location: voucher.location,
+      totalAmt: voucher.totalAmt,
+      amtWords: voucher.amtWords,
+      paymentMode: voucher.paymentMode,
+      anyAttachment: voucher.anyAttachment,
+      receiverName: voucher.receiverName,
+      remark: voucher.remark,
+      particulars: voucher.particulars,
       requestedBy: voucher.requestedBy
         ? { id: voucher.requestedBy.id || null, firstName: voucher.requestedBy.firstName || null, lastName: voucher.requestedBy.lastName || null }
         : null,
-      companyName: voucher.companyName ? { id: voucher.companyName.id || null, companyName: voucher.companyName.name || null } : null,
+      companyName: voucher.companyName?.name || null,
+      grnNo: voucher.grnNo?.grnNo || null,
+      challanNo: voucher.challanNo?.challanNo || null,
       createdTime,
       createdDate,
       overAllStatus: document.overAllStatus,
       createdBy: document.createdBy,
+      approvalSummary: document.approvalSummary ?? null,
       documentId: document.id,
     };
     await this.cacheService.set(cacheKey, viewResult, this.CACHE_TTL);

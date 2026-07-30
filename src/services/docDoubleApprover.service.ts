@@ -334,8 +334,8 @@ export class DocDoubleApproverService {
       overAllStatus: document.status,
       createdBy: document.lastActionBy?.firstName ?? null,
       approvalSummary: a ? {
-        createdBy: creator
-          ? { userId: creator.id, name: `${creator.firstName} ${creator.lastName}`.trim() }
+        createdBy: document.lastActionBy
+          ? { userId: document.lastActionBy.id, name: `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`.trim() }
           : null,
         verified: mapStage(a.verified),
         firstApproved: mapStage(a.firstApproved),
