@@ -2,7 +2,7 @@ import { classToPlain, instanceToPlain } from 'class-transformer';
 import { NextFunction,Request,Response } from 'express';
 import moment from 'moment-timezone';
 import { BaseEntity } from 'typeorm';
-import Model from '../entities/model.entity';
+import Model from '../global/model.entity';
 
 export const timezoneMiddleware = (req:Request, res:Response, next:NextFunction) => {
   const oldJson = res.json;

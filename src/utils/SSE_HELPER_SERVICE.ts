@@ -2,7 +2,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../types';
 
-import { UserRepository } from '../repositories/user.repository';
+import { UserRepository } from '../employee/repository/user.repository';
 import logger from '../utils/logger';
 import { NotificationService } from '../services/notification.service';
 import { DocumentbService } from '../services/documentb.service';

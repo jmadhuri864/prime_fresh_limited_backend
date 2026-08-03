@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AppDataSource } from '../utils/data-source';
 
-import { DocumentDefinition } from '../entities/documentdef.entity';
+import { DocumentDefinition } from '../documentDef/documentdef.entity';
 import logger from '../utils/logger';
 
 export async function seedDocumentDefDatabase() {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { CacheService } from '../services/cache.service';
+import { CacheService } from '../global/cache.service';
 import { container } from '../inversify.config';
 import { TYPES } from '../types';
 

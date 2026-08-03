@@ -1,4 +1,4 @@
-import { Address } from "../entities/address.entity";
+import { Address } from "../address/address.entity";
 
 export function formatAddress(address?: Address): string {
   if (!address) return '';

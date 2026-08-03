@@ -7,7 +7,7 @@ import { AppDataSource } from '../utils/data-source';
 import { User } from '../entities/user.entity';
 import logger from '../utils/logger';
 
-import { BlacklistedToken } from '../entities/blacklistedToken.entity';
+import { BlacklistedToken } from './entity/blacklistedToken.entity';
 
 const userrepo = AppDataSource.getRepository(User);
 const blacklistedTokensRepo = AppDataSource.getRepository(BlacklistedToken);

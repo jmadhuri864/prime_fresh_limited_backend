@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { container } from '../inversify.config';
 import { TYPES } from '../types';
-import { UserActivityLogService } from '../services/userActivityLog.service';
-import { ActivityAction, ActivityModule } from '../entities/userActivityLog.entity';
+import { UserActivityLogService } from '../employeeActivity/service/userActivityLog.service';
+import { ActivityAction, ActivityModule } from '../employeeActivity/userActivityLog.entity';
 import logger from '../utils/logger';
 
 /**

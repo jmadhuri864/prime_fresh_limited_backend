@@ -2,8 +2,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AppDataSource } from '../utils/data-source';
-import { DocumentDefinition } from '../entities/documentdef.entity';
-import { DocumentPermission } from '../entities/permission.entity';
+import { DocumentDefinition } from '../documentDef/documentdef.entity';
+import { DocumentPermission } from '../employee/permission.entity';
 
 
 type ActionType = 'create' | 'view' | 'edit' | 'delete' | 'download';

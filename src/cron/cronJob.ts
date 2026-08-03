@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { AppDataSource } from '../utils/data-source';
-import { OverdueDeletionService } from '../services/overdueDeletion.service';
+import { OverdueDeletionService } from '../global/overdueDeletion.service';
 import { InwardRegister } from '../entities/inwardRegister.entity';
 import { Farmer } from '../entities/farmer.entity';
 import { Product } from '../entities/product.entity';

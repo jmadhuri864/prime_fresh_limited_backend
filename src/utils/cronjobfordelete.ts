@@ -2,18 +2,18 @@ import cron from 'node-cron';
 import { LessThan } from 'typeorm';
 import { DealSlip } from '../entities/dealSlip.entity';
 import { AppDataSource } from './data-source';
-import { GRN } from '../entities/grn.entity';
-import { RFPA } from '../entities/rfpa.entity';
+import { GRN } from '../grn/grn.entity';
+import { RFPA } from '../rfpa/rfpa.entity';
 import { InwardRegister } from '../entities/inwardRegister.entity';
 import { VehicleDispatch } from '../entities/vehicleDispatch.entity';
 import { Aqr } from '../entities/aqr.entity';
 import { PackingMaterial } from '../entities/packingMaterial.entity';
-import { CashVoucher } from '../entities/mCashVoucher.entity';
+import { CashVoucher } from '../vouchers/multiCashV/entity/mCashVoucher.entity';
 
-import { TPVoucher } from '../entities/transportPaymentvoucher.entity';
+import { TPVoucher } from '../vouchers/tranportPaymentV/entity/transportPaymentvoucher.entity';
 import { DumpRegister } from '../entities/dumpRegister.entity';
 import { StockReportEod } from '../entities/eodReportforinvendtory.entity';
-import { PostReturnByCustomer } from '../entities/postReturnByCustomer.entity';
+import { PostReturnByCustomer } from '../returnByCustomer/postReturnByCustomer.entity';
 import { SecondSale } from '../entities/secondSale.entity';
 
 import {Invoice} from '../entities/invoice.entity';

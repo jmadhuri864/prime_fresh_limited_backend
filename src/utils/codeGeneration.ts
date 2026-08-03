@@ -65,7 +65,7 @@
 //Code by shri 
 import { AppDataSource } from "./data-source";
 import { Farmer } from '../entities/farmer.entity';
-import { Vendor } from '../entities/vendor.entity';
+import { Vendor } from '../vendor/createVendor/vendor.entity';
 import { Customer } from '../entities/customer.entity';
 
 // function formatDateToYYYYMMDD(date: Date): string {

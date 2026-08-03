@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AppDataSource } from '../utils/data-source';
 import { Company } from '../entities/company.entity';
-import { BankDetails } from '../entities/bankDetailsCompany.entity';
+import { BankDetails } from '../company/bankDetailsCompany.entity';
 import logger from '../utils/logger';
 
 export async function seedDatabase() {
