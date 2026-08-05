@@ -295,68 +295,85 @@ async getSingleApprovalDocumentById(documentId: string, userId: string): Promise
   if (cached) return cached;
 
   try {
-    const document = await this.documentbRepository.findOne({
-      where: { id: documentId },
-      relations: [
-        'approvalInfo',
-        'approvalInfo.firstApproved', // include nested relation if needed
-        'lastActionBy',
-        'approvalFlow',
-        'approvalFlow.creator',
-        'approvalFlow.approvers',
-        'approvalFlow.approvers.firstApprover',
-        'approvalFlow.approvers.firstApprover.users',
-      ],
-    });
+    // Tight query — only join lastActionBy, approvalInfo, firstApproved.
+    // No approvalFlow/creator/verifier/thirdApproved/finalizer joins so they
+    // can never leak into the response.
+    const document = await this.documentbRepository
+      .createQueryBuilder('document')
+      .leftJoin('document.lastActionBy', 'lastActionBy')
+      .leftJoin('document.approvalFlow', 'approvalFlow')
+      .leftJoin('approvalFlow.approvers', 'approvalLevel')
+      .leftJoin('approvalLevel.firstApprover', 'firstApproverBlock')
+      .leftJoin('firstApproverBlock.users', 'firstApproverUser')
+      .leftJoin('document.approvalInfo', 'approvalInfo')
+      .leftJoin('approvalInfo.firstApproved', 'firstApproved')
+      .select([
+        'document.id',
+        'document.document_type_id',
+        'document.status',
+        'document.createdAt',
+        // lastActionBy — need id for access check + name for response
+        'lastActionBy.id',
+        'lastActionBy.firstName',
+        'lastActionBy.lastName',
+        // approvalFlow approvers — only to check if userId is a first-level approver
+        'approvalFlow.id',
+        'approvalLevel.id',
+        'firstApproverBlock.id',
+        'firstApproverUser.id',
+        // approvalInfo — only firstApproved stage
+        'approvalInfo.id',
+        'firstApproved.userId',
+        'firstApproved.userName',
+        'firstApproved.status',
+        'firstApproved.reason',
+      ])
+      .where('document.id = :documentId', { documentId })
+      .getOne();
 
     if (!document) {
       throw new Error(`Document with ID ${documentId} not found`);
     }
 
     const isCreator = document.lastActionBy?.id === userId;
-
-    // first-level approvers
     const firstLevelUsers = document.approvalFlow?.approvers?.firstApprover?.users ?? [];
-    const isFirstApprover = firstLevelUsers.some(u => u.id === userId);
+    const isFirstApprover = firstLevelUsers.some((u: any) => u.id === userId);
 
     if (!isCreator && !isFirstApprover) {
-      // user has no access
-      //throw new Error('Access denied: you are neither creator nor first-level approver');
-        return null;
+      return null;
     }
 
-    // build approvalSummary if needed (reuse your logic)
     const approvalInfo = document.approvalInfo;
-    const creator = document.approvalFlow?.creator ?? null;
-    const approvalInfoSummary = approvalInfo
-      ? {
-          createdBy: document.lastActionBy
-            ? { userId: document.lastActionBy.id, name: `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`.trim() }
-            : null,
-          firstApproved: approvalInfo.firstApproved
-            ? {
-                userId: approvalInfo.firstApproved.userId,
-                name: approvalInfo.firstApproved.userName,
-                status: approvalInfo.firstApproved.status,
-                reason: approvalInfo.firstApproved.reason,
-              }
-            : null,
-        }
-      : null;
 
     const result = {
       documentId: document.id,
       documentTypeId: document.document_type_id,
       status: document.status,
       overAllStatus: document.status,
-      createdBy: document.lastActionBy ? `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}` : null,
-      approvalSummary: approvalInfoSummary,
-      // documentType: document.type,
-      //type: document.type,
-       createdAt: document.createdAt,
-       
+      createdAt: document.createdAt,
+      lastActionBy: document.lastActionBy ?? null,
+      createdBy: document.lastActionBy
+        ? `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`
+        : null,
+      approvalSummary: {
+        createdBy: document.lastActionBy
+          ? {
+              userId: document.lastActionBy.id,
+              name: `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`.trim(),
+            }
+          : null,
+        firstApproved: approvalInfo?.firstApproved
+          ? {
+              userId: approvalInfo.firstApproved.userId,
+              name: approvalInfo.firstApproved.userName,
+              status: approvalInfo.firstApproved.status,
+              reason: approvalInfo.firstApproved.reason ?? null,
+            }
+          : null,
+      },
     };
-    await this.cacheService.set(cacheKey, result, 30); // 30s TTL — status changes quickly
+
+    await this.cacheService.set(cacheKey, result, 30);
     return result;
   } catch (error) {
     throw new Error(`Error fetching single-approval document: ${error}`);

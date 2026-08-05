@@ -45,19 +45,30 @@ export class ReturnToVendorService {
     private readonly CACHE_PREFIX = 'returnToVendor';
     private readonly CACHE_TTL = 180;
 
-    private async invalidateCache(id?: string): Promise<void> {
+    /**
+     * Invalidate RTV caches.
+     * @param rtvId   - The ReturnToVendor entity id (used by getById / getByIdForUpdate)
+     * @param docId   - The Documentb id (used by getByIdForView whose key is returnToVendor:view:{docId})
+     */
+    private async invalidateCache(rtvId?: string, docId?: string): Promise<void> {
         const tasks: Promise<any>[] = [
             this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:list:*`),
+            this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:all:*`),
         ];
-        if (id) {
+        if (rtvId) {
             tasks.push(
-                this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-                this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
-                this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+                this.cacheService.del(`${this.CACHE_PREFIX}:id:${rtvId}`),
+                this.cacheService.del(`${this.CACHE_PREFIX}:update:${rtvId}`),
+                // view key when called with the RTV entity id directly
+                this.cacheService.del(`${this.CACHE_PREFIX}:view:${rtvId}`),
             );
         }
+        if (docId) {
+            // view key when called with the Documentb id (used by getByIdForView)
+            tasks.push(this.cacheService.del(`${this.CACHE_PREFIX}:view:${docId}`));
+        }
         await Promise.all(tasks);
-    }   
+    }
 
     private async generateSerialNo(): Promise<string> {
       const now = new Date();
@@ -519,7 +530,12 @@ export class ReturnToVendorService {
             Object.assign(existingRecord, updateData);
 
             const updatedRecord = await this.postReturnToVendorRepository.save(existingRecord);
-            await this.invalidateCache(id);
+            // Also bust the view cache keyed by documentId
+            const rtvWithDoc = await this.postReturnToVendorRepository.findOne({
+                where: { id },
+                relations: ['document'],
+            });
+            await this.invalidateCache(id, rtvWithDoc?.document?.id);
             return updatedRecord;
         } catch (error) {
             logger.error('Error updating return to vendor:', error);
@@ -659,7 +675,13 @@ export class ReturnToVendorService {
         record.isDeleted = true;
         record.deletedAtNew = new Date();
         await this.postReturnToVendorRepository.save(record);
-        await this.invalidateCache(id);
+        // Also bust the view cache keyed by documentId
+        const rtvWithDoc = await this.postReturnToVendorRepository.findOne({
+            where: { id },
+            relations: ['document'],
+            withDeleted: true,
+        });
+        await this.invalidateCache(id, rtvWithDoc?.document?.id);
 
         return { message: "Return to vendor soft deleted successfully", id };
     } catch (error) {

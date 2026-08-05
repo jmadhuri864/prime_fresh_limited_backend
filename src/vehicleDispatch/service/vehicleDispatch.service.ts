@@ -77,14 +77,14 @@ private async generateSerialNo(): Promise<string> {
 
   async create(data: CreateVehicleDispatchDto): Promise<VehicleDispatch> {
     // Check approval flow exists for logged user
-    const approvalFlowExit = await this.approvalFlowService.findApprovalFlowForLoggedUser(
-      data.requestedBy!,
-      DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER,
-    );
+    // const approvalFlowExit = await this.approvalFlowService.findApprovalFlowForLoggedUser(
+    //   data.requestedBy!,
+    //   DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER,
+    // );
 
-    if (!approvalFlowExit) {
-      throw new Error('Approval flow not found');
-    }
+    // if (!approvalFlowExit) {
+    //   throw new Error('Approval flow not found');
+    // }
 
 const serialNo = await this.generateSerialNo();
     const vehicleDispatch = this.vehicleDispatchRepository.create({

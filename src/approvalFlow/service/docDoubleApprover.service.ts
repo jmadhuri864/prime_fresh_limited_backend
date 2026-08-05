@@ -32,12 +32,91 @@ export class DocDoubleApproverService {
   ) {
   }
 
-  // Invalidate all caches that depend on a document's status
-  private async invalidateDocumentCache(documentId: string): Promise<void> {
-    await Promise.all([
-      this.cacheService.del(`finv:view:${documentId}`),
-      this.cacheService.invalidatePattern('finv:all:*'),
-    ]);
+  // Invalidate all caches that depend on a document's status.
+  // Accepts the document so it can bust the correct module's cache keys.
+  private async invalidateDocumentCache(documentId: string, document?: any): Promise<void> {
+    const typeId = document?.document_type_id;
+    const type: DocumentTypeEnum | undefined = document?.type;
+
+    // Per-type cache prefix map — mirrors the bustDocCache map in documentb.service.ts
+    const prefixMap: Partial<Record<DocumentTypeEnum, string[]>> = {
+      [DocumentTypeEnum.FINAL_INVOICE]: [
+        'finv:list:*', 'finv:all:*', 'finv:recycle:*',
+        ...(typeId ? [`finv:id:${typeId}`, `finv:view:${typeId}`, `finv:update:${typeId}`] : []),
+        `finv:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.RETURN_TO_VENDOR]: [
+        'returnToVendor:list:*', 'returnToVendor:all:*', 'returnToVendor:recycle:*',
+        ...(typeId ? [
+          `returnToVendor:id:${typeId}`,
+          `returnToVendor:view:${typeId}`,
+          `returnToVendor:update:${typeId}`,
+        ] : []),
+        `returnToVendor:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.RETURN_BY_CUSTOMER]: [
+        'rbc:list:*', 'rbc:all:*', 'rbc:recycle:*',
+        ...(typeId ? [`rbc:id:${typeId}`, `rbc:view:${typeId}`, `rbc:update:${typeId}`] : []),
+        `rbc:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.SECOND_SALE]: [
+        'secondSale:list:*', 'secondSale:all:*', 'secondSale:recycle:*',
+        ...(typeId ? [`secondSale:id:${typeId}`, `secondSale:update:${typeId}`] : []),
+        `secondSale:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.DC_TYPE_CUSTOMER]: [
+        'cdc:list:*', 'cdc:all:*', 'cdc:recycle:*',
+        ...(typeId ? [`cdc:id:${typeId}`, `cdc:update:${typeId}`] : []),
+        `cdc:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.DC_TYPE_STOCK_TRANSFER]: [
+        'stockTransferChallan:list:*', 'stockTransferChallan:all:*',
+        ...(typeId ? [`stockTransferChallan:id:${typeId}`, `stockTransferChallan:update:${typeId}`] : []),
+        `stockTransferChallan:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.DC_TYPE_OTHER]: [
+        'odc:list:*', 'odc:all:*',
+        ...(typeId ? [`odc:id:${typeId}`, `odc:update:${typeId}`] : []),
+        `odc:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.DUMP_REGISTER]: [
+        'dump:list:*', 'dump:all:*', 'dump:recycle:*',
+        ...(typeId ? [`dump:id:${typeId}`, `dump:update:${typeId}`] : []),
+        `dump:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.MULTI_CASH_VOUCHER]: [
+        'mcv:list:*', 'mcv:all:*', 'mcv:recycle:*',
+        ...(typeId ? [`mcv:id:${typeId}`, `mcv:update:${typeId}`] : []),
+        `mcv:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.LABOR_PAYMENT_VOUCHER]: [
+        'lpv:list:*', 'lpv:all:*', 'lpv:recycle:*',
+        ...(typeId ? [`lpv:id:${typeId}`, `lpv:update:${typeId}`] : []),
+        `lpv:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.TRANSPORT_PAYMENT_VOUCHER]: [
+        'tpVoucher:list:*', 'tpVoucher:all:*', 'tpVoucher:recycle:*',
+        ...(typeId ? [`tpVoucher:id:${typeId}`, `tpVoucher:update:${typeId}`] : []),
+        `tpVoucher:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.PACKAGING_MATERIAL_VOUCHER]: [
+        'pmpv:list:*', 'pmpv:all:*', 'pmpv:recycle:*',
+        ...(typeId ? [`pmpv:id:${typeId}`, `pmpv:update:${typeId}`] : []),
+        `pmpv:view:${documentId}`,
+      ],
+      [DocumentTypeEnum.EOD_REPORT]: [],
+    };
+
+    const keys = type ? (prefixMap[type] ?? []) : [];
+    const tasks: Promise<any>[] = [this.cacheService.del(`doc:byid:${documentId}`)];
+    for (const key of keys) {
+      if (key.endsWith(':*')) {
+        tasks.push(this.cacheService.invalidatePattern(key));
+      } else {
+        tasks.push(this.cacheService.del(key));
+      }
+    }
+    await Promise.all(tasks);
   }
 
   // Convert document type to readable format — moved to src/utils/documentTypeLabel.ts
@@ -115,7 +194,7 @@ export class DocDoubleApproverService {
     document.status = DocumentStatus.REJECT;
     await this.documentApprovalFlowRepository.save(info);
     await this.documentbRepository.save(document);
-    await this.invalidateDocumentCache(documentId);
+    await this.invalidateDocumentCache(documentId, document);
 
     const docNo = await this.documentBService.resolveDocumentTypeNo(document);
     const readableType = getReadableDocumentType(document.type);
@@ -175,7 +254,7 @@ export class DocDoubleApproverService {
     const otherLevelUsers = isFirstApprover ? secondBlock?.users ?? [] : firstBlock?.users ?? [];
 
     // Invalidate cache on every approval action (approvalSummary changes)
-    await this.invalidateDocumentCache(documentId);
+    await this.invalidateDocumentCache(documentId, document);
 
     // Check if both levels approved
     const firstApproved = info.firstApproved?.status === ApproverStatus.APPROVED;
@@ -185,7 +264,7 @@ export class DocDoubleApproverService {
       document.status = DocumentStatus.COMPLETE;
       document.remarks = `${document.type} Approved by Required Approvers`;
       await this.documentbRepository.save(document);
-      await this.invalidateDocumentCache(documentId);
+      await this.invalidateDocumentCache(documentId, document);
 
       // 🔔 Actor
       await this.notificationService.createNoti(`You approved ${docLabel2} at ${approvedLevel}`, userId);
@@ -293,32 +372,31 @@ export class DocDoubleApproverService {
     };
   }
 
-  //TODO: For View
-   async getDocumentById(id: string): Promise<any> {
+  //TODO: For View — double-level approval only (firstApproved + secondApproved)
+  async getDocumentById(id: string): Promise<any> {
     const document = await this.documentbRepository
       .createQueryBuilder('document')
       .leftJoin('document.lastActionBy', 'lastActionBy')
-      .leftJoin('document.approvalFlow', 'approvalFlow')
-      .leftJoin('approvalFlow.creator', 'creator')
       .leftJoin('document.approvalInfo', 'approvalInfo')
-      .leftJoin('approvalInfo.verified', 'verified')
       .leftJoin('approvalInfo.firstApproved', 'firstApproved')
       .leftJoin('approvalInfo.secondApproved', 'secondApproved')
-      .leftJoin('approvalInfo.thirdApproved', 'thirdApproved')
-      .leftJoin('approvalInfo.firstFinalized', 'firstFinalized')
-      .leftJoin('approvalInfo.secondFinalized', 'secondFinalized')
       .select([
-        'document.id', 'document.document_type_id', 'document.status',
+        'document.id',
+        'document.document_type_id',
+        'document.status',
+        'document.createdAt',
+        'lastActionBy.id',
         'lastActionBy.firstName',
-        'approvalFlow.id',
-        'creator.id', 'creator.firstName', 'creator.lastName',
+        'lastActionBy.lastName',
         'approvalInfo.id',
-        'verified.userId', 'verified.userName', 'verified.status',
-        'firstApproved.userId', 'firstApproved.userName', 'firstApproved.status',
-        'secondApproved.userId', 'secondApproved.userName', 'secondApproved.status',
-        'thirdApproved.userId', 'thirdApproved.userName', 'thirdApproved.status',
-        'firstFinalized.userId', 'firstFinalized.userName', 'firstFinalized.status',
-        'secondFinalized.userId', 'secondFinalized.userName', 'secondFinalized.status',
+        'firstApproved.userId',
+        'firstApproved.userName',
+        'firstApproved.status',
+        'firstApproved.reason',
+        'secondApproved.userId',
+        'secondApproved.userName',
+        'secondApproved.status',
+        'secondApproved.reason',
       ])
       .where('document.id = :id', { id })
       .getOne();
@@ -326,26 +404,33 @@ export class DocDoubleApproverService {
     if (!document) throw new Error(`Document with ID ${id} not found`);
 
     const a = document.approvalInfo;
-    const creator = document.approvalFlow?.creator ?? null;
-    const mapStage = (stage: any) => stage ? { userId: stage.userId, name: stage.userName, status: stage.status } : null;
+    const mapStage = (stage: any) =>
+      stage
+        ? {
+            userId: stage.userId,
+            name: stage.userName,
+            status: stage.status,
+            reason: stage.reason ?? null,
+          }
+        : null;
 
     return {
       documentId: document.id,
       documentTypeId: document.document_type_id,
       status: document.status,
       overAllStatus: document.status,
-      createdBy: document.lastActionBy?.firstName ?? null,
-      approvalSummary: a ? {
+      createdAt: document.createdAt,
+      lastActionBy: document.lastActionBy ?? null,
+      approvalSummary: {
         createdBy: document.lastActionBy
-          ? { userId: document.lastActionBy.id, name: `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`.trim() }
+          ? {
+              userId: document.lastActionBy.id,
+              name: `${document.lastActionBy.firstName} ${document.lastActionBy.lastName}`.trim(),
+            }
           : null,
-        verified: mapStage(a.verified),
-        firstApproved: mapStage(a.firstApproved),
-        secondApproved: mapStage(a.secondApproved),
-        thirdApproved: mapStage(a.thirdApproved),
-        firstFinalized: mapStage(a.firstFinalized),
-        secondFinalized: mapStage(a.secondFinalized),
-      } : null,
+        firstApproved: mapStage(a?.firstApproved ?? null),
+        secondApproved: mapStage(a?.secondApproved ?? null),
+      },
     };
   }
 

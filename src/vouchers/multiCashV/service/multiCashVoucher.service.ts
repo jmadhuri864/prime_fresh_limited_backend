@@ -2,7 +2,7 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from '../../../types';
 import { CashVoucher } from '../entity/mCashVoucher.entity';
 import { DocumentTypeEnum as DocDefEnum } from '../../../documentDef/entity/documentdef.entity';
-import { CreateMultiCashVoucherDto, UpdateMultiCashVoucherDto, MultiCashVoucherListItemDto, MultiCashVoucherDetailDto } from '../multiCashV/multiCashVoucher.dto';
+import { CreateMultiCashVoucherDto, UpdateMultiCashVoucherDto, MultiCashVoucherListItemDto, MultiCashVoucherDetailDto } from '../dto/multiCashVoucher.dto';
 
 import { DeliveryChallanRepository } from '../../../deliveryChallans/deliverychllan/repository/deliveryChallan.repository';
 
