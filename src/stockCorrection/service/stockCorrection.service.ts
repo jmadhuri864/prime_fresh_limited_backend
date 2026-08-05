@@ -1,14 +1,13 @@
 import { inject, injectable } from "inversify";
 import { DataSource, DeepPartial } from "typeorm";
-import { StockCorrection } from "./stockCorrection.entity";
+
 import { TYPES } from "../../types";
 import { StockCorrectionRepository } from "../repository/stockCorrection.repository";
 import { InventoryStockRepository } from "../../inventoryStock/repository/inventoryStock.repository";
-import {
-  CorrectionStatus,
-  CorrectionType,
-} from "./stockCorrection.entity";
-import { CreateStockCorrectionDto, ApproveRejectDto } from "../dtos/stockCorrection.dto";
+import { ApproveRejectDto, CreateStockCorrectionDto } from "../dto/stockCorrection.dto";
+import { CorrectionStatus, CorrectionType, StockCorrection } from "../entity/stockCorrection.entity";
+
+
 
 @injectable()
 export class StockCorrectionService {

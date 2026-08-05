@@ -1,18 +1,21 @@
 import { inject, injectable } from "inversify";
-import { VendorCategoryRepository } from "./vendorCategory.repository";
+
 import { VendorCategory } from "../entity/vendorCategory.entity";
 import { TYPES } from "../../../types";
-import { AuditLogService } from "./auditLog.service";
+
 import AppError from "../../../utils/appError";
 import { buildQuery, PaginationOptions } from "../../../utils/pagination";
 import { In } from "typeorm";
-import { CacheService } from "./cache.service";
+
 import {
   CreateVendorCategoryDto,
   UpdateVendorCategoryDto,
   VendorCategoryResponseDto,
   VendorCategoryListResponseDto,
 } from "../dto/vendorCategory.dto";
+import { VendorCategoryRepository } from "../repository/vendorCategory.repository";
+import { AuditLogService } from "../../../employeeActivity/service/auditLog.service";
+import { CacheService } from "../../../global/cache.service";
 
 const CACHE_PREFIX = "vendorCategory";
 const CACHE_TTL = 300;

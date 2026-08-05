@@ -1,6 +1,7 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne } from "typeorm";
-import Model from "../global/model.entity";
-import { User } from "./user.entity";
+import { User } from "../../employee/entity/user.entity";
+import Model from "../../global/model.entity";
+
 
 @Entity('notifications')
 export class Notification extends Model {

@@ -1,8 +1,8 @@
 import { Entity, Column, ManyToOne, OneToMany } from "typeorm";
+import Model from "../../../global/model.entity";
+import { VendorCategory } from "../../vendorCategory/entity/vendorCategory.entity";
 
-import Model from "./model.entity";
-import { VendorCategory } from "./vendorCategory.entity";
-import { Vendor } from "./vendor.entity";
+
 
 @Entity("vendor_subcategory")
 export class VendorSubcategory extends Model {

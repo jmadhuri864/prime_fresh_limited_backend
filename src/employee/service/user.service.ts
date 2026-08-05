@@ -7,34 +7,28 @@ import { merge } from 'lodash';
 dotenv.config();
 import config from 'config';
 
-import { Role, User } from '../entities/user.entity';
+import { Role, User } from '../entity/user.entity';
 import { signJwt } from '../../utils/jwt';
 
 import { DataSource, In } from 'typeorm';
 
-import { Address } from '../address/address.entity';
+
 
 import AppError from '../../utils/appError';
 
 import { UserRepository } from '../repository/user.repository';
 import { RoleRepository } from '../../sse/role.repository';
 import { TYPES } from '../../types';
-import { AddressService } from './address.service';
-import { AddressRepository } from '../repositories/address.repository';
 
-import { AuditLogService } from './auditLog.service';
 import { buildQuery, PaginationOptions } from '../../utils/pagination';
-import { BranchessRepository } from '../repositories/branches.repository';
+
 import { formatDateTime } from '../../utils/dateUtils';
 import { CompanyRepository } from '../../company/repository/company.repository';
 import { Department } from '../../utils/status.enum';
 import { parseExcelDate } from '../../utils/excelParser';
-import { Company } from '../entities/company.entity';
-import { Branches } from '../entities/branches.entity';
-import { DocumentDefinition, DocumentTypeEnum } from '../documentDef/documentdef.entity';
-import { DocumentPermission } from './permission.entity';
+
 import { WorkflowHierarchyRepository } from '../../workFlow/repository/WorkflowHierarchy.repository';
-import { CacheService } from './cache.service';
+
 import logger from '../../utils/logger';
 import {
   CreateUserDto,
@@ -45,6 +39,16 @@ import {
   UserPartialResponseDto,
   UserExcelRowDto,
 } from '../dto/user.dto';
+import { AddressRepository } from '../../address/repository/address.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { BranchessRepository } from '../../branch/repository/branches.repository';
+import { AddressService } from '../../address/service/address.service';
+import { CacheService } from '../../global/cache.service';
+import { Address } from '../../address/entity/address.entity';
+import { Company } from '../../company/entity/company.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { DocumentDefinition, DocumentTypeEnum } from '../../documentDef/entity/documentdef.entity';
+import { DocumentPermission } from '../entity/permission.entity';
 
 const CACHE_PREFIX = 'user';
 const CACHE_TTL = 300; // 5 minutes

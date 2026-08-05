@@ -15,7 +15,7 @@ import {
 import { TYPES } from '../../types';
 import { NextFunction, Request, Response } from 'express';
 import AppError from '../../utils/appError'; // Custom error handling
-import { GrnService } from '../services/grn.service';
+
 import {
   captureUser,
   deserializeUser,
@@ -28,16 +28,21 @@ import { http } from 'winston';
 
 import ExcelJS from 'exceljs';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { NotificationService } from '../services/notification.service';
+
 import { PaginationOptions } from '../../utils/pagination';
-import { DocumentbService } from '../services/documentb.service';
-import { GrnRepository } from '../repositories/grn.repository';
+
 import { UserRepository } from '../../employee/repository/user.repository';
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
-import { ActivityAction, ActivityModule } from '../employeeActivity/userActivityLog.entity';
+
 import { ControllerLogger } from '../../utils/controllerLogger';
 import { uploadSingle } from '../../middleware/uploadsingle.middleware';
-import { CreateGrnDto, UpdateGrnDto } from '../dtos/grn.dto';
+import { NotificationService } from '../../notification/service/notification.service';
+import { DocumentbService } from '../../approvalFlow/service/documentb.service';
+import { GrnService } from '../service/grn.service';
+import { GrnRepository } from '../repository/grn.repository';
+import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
+import { CreateGrnDto, UpdateGrnDto } from '../dto/grn.dto';
+
 
 @controller('/grns', deserializeUser, requireUser)
 export class GrnController {

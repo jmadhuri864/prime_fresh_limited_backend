@@ -1,47 +1,44 @@
 import { inject, injectable } from "inversify";
 import { format } from "date-fns"; // Make sure to install the date-fns library
-import { Vendor } from "./vendor.entity";
+
 import { VendorRepository } from "../repository/vendor.repository";
 import { TYPES } from "../../../types";
 import AppError from "../../../utils/appError";
 import * as XLSX from "xlsx";
-import { AddressService } from "../address/address.service";
-import { VendorCategoryService } from "./vendorCategory.service";
-import { VendorSubcategoryService } from "./vendorSubcategory.service";
-import { BankDetailsvendService } from "../services/vendorBankDetails.service";
-import { VendorSaleInfoService } from "../vendorsaleinfo.service";
-import { AuditLogService } from "../services/auditLog.service";
+
 import { AppDataSource } from "../../../utils/data-source";
 import { buildQuery, PaginationOptions } from "../../../utils/pagination";
-import { Address } from "../address/address.entity";
-import { BankDetailsvend } from "../entities/bankDetailsVend.entity";
-import { VendorSaleInfo } from "../entities/vendorsaleinfo.entity";
-import { VendorCategoryRepository } from "../../vendor/vendorCategory/vendorCategory.repository";
+
 import { VendorSubcategoryRepository } from "../../vendorSubcategory/repository/vendorSubcategory.repository";
 import { VendorCategory } from "../../vendorCategory/entity/vendorCategory.entity";
-import { VendorSubcategory } from "../entities/vendorSubcategory.entity";
-import { Product } from "../entities/product.entity";
-import { User } from "../entities/user.entity";
+
 import { In } from "typeorm";
 import { ProductRepository } from "../../../product/createproduct/repository/product.repository";
 import { UserRepository } from "../../../employee/repository/user.repository";
 import { PackingMaterialRepository } from "../../../packingMaterial/repository/packingMaterial.repository";
-import { Role } from "../entities/user.entity";
+
 import { Status } from "../../../utils/status.enum";
 import { formatDateTime } from "../../../utils/dateUtils";
-import { PackingMaterial } from "../entities/packingMaterial.entity";
+
 import { formatAddress } from "../../../utils/addressFormate.utils";
 import { CacheService } from "../../../global/cache.service";
 import { createHash } from "crypto";
-import {
-  CreateVendorDto,
-  UpdateVendorDto,
-  VendorListResponseDto,
-  VendorViewResponseDto,
-  VendorUpdateFormDto,
-  VendorDropdownDto,
-  VendorFilterDto,
-} from "../dtos/vendor.dto";
+import { VendorCategoryRepository } from "../../vendorCategory/repository/vendorCategory.repository";
+import { AddressService } from "../../../address/service/address.service";
+import { VendorCategoryService } from "../../vendorCategory/service/vendorCategory.service";
+import { BankDetailsvendService } from "./vendorBankDetails.service";
+import { VendorSaleInfoService } from "./vendorsaleinfo.service";
+import { VendorSubcategoryService } from "../../vendorSubcategory/service/vendorSubcategory.service";
+import { AuditLogService } from "../../../employeeActivity/service/auditLog.service";
+import { CreateVendorDto, UpdateVendorDto, VendorDropdownDto, VendorListResponseDto, VendorUpdateFormDto, VendorViewResponseDto } from "../dto/vendor.dto";
+import { Vendor } from "../entity/vendor.entity";
+import { Role } from "../../../employee/entity/user.entity";
+import { Address } from "../../../address/entity/address.entity";
+import { VendorSaleInfo } from "../entity/vendorsaleinfo.entity";
+import { BankDetailsvend } from "../entity/bankDetailsVend.entity";
+import { PackingMaterial } from "../../../packingMaterial/entity/packingMaterial.entity";
+import { Product } from "../../../product/createproduct/entity/product.entity";
+
 
 const CACHE_PREFIX = "vendor";
 const CACHE_TTL = 180;

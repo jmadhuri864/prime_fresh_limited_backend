@@ -25,7 +25,7 @@ import { UserRepository } from '../../../employee/repository/user.repository';
 import { Status } from '../../../utils/status.enum';
 import { formatDateTime } from '../../../utils/dateUtils';
 import { CacheService } from '../../../global/cache.service';
-import { CreateCustomerDto, CustomerListResponseDto, CustomerViewResponseDto, PaginatedResponse } from '../dtos/createCustomer.dto';
+import { CreateCustomerDto, CustomerListResponseDto, CustomerViewResponseDto, PaginatedResponse } from '../dto/createCustomer.dto';
 import { CustomerCategoryService } from '../../customerCategory/service/customerCategory.service';
 import { CustomerTypeService } from '../../customerType/service/customerType.service';
 import { AddressService } from '../../../address/service/address.service';

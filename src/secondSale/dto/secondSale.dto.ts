@@ -1,7 +1,4 @@
-import { Company } from '../entities/company.entity';
-import { Branches } from '../entities/branches.entity';
-import { DeliveryChallanPurchase } from '../entities/deliveryChallan.entity';
-import { Address } from '../address/address.entity';
+
 
 export interface SecondSaleProductDto {
   id?: string | null;

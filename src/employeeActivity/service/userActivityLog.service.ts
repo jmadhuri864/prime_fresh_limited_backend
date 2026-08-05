@@ -1,9 +1,10 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
-import { UserActivityLog, ActivityAction, ActivityModule } from './userActivityLog.entity';
-import { UserActivityLogRepository } from '../repositories/userActivityLog.repository';
+
 import { Between, FindOptionsWhere, In } from 'typeorm';
 import logger from '../../utils/logger';
+import { ActivityAction, ActivityModule, UserActivityLog } from '../entity/userActivityLog.entity';
+import { UserActivityLogRepository } from '../repository/userActivityLog.repository';
 
 export interface LogActivityOptions {
     userId: string;

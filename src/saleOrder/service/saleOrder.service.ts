@@ -1,8 +1,9 @@
 import { inject, injectable } from "inversify";
 import { TYPES } from "../../types";
-import { SaleOrderRepository } from "../repositories/saleOrder.repository";
-import { SaleOrder } from "../saleOrder/saleOrder.entity";
-import { AuditLogService } from "./auditLog.service";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { SaleOrderRepository } from "../repository/saleOrder.repository";
+import { SaleOrder } from "../entity/saleOrder.entity";
+
 
 
 @injectable()

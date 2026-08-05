@@ -1,13 +1,16 @@
 import { controller, httpGet, next, request, response } from "inversify-express-utils";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+
 import { inject } from "inversify";
-import { TYPES } from "../types";
+
 import { NextFunction ,Response,Request} from "express";
-import { NotificationService } from "../services/notification.service";
-import { ControllerLogger } from "../utils/controllerLogger";
+
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { s3 } from '../middleware/spaces.config';
-import { FinalInvoiceReportService } from "./finalInvoiceReport.service";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { NotificationService } from "../../notification/service/notification.service";
+import { FinalInvoiceReportService } from "../service/finalInvoiceReport.service";
+import { ControllerLogger } from "../../utils/controllerLogger";
+
 
 @controller('/final-invoice-report', deserializeUser, requireUser)
 export class FinalInvoiceReportController {

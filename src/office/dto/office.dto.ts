@@ -1,8 +1,10 @@
-import { OFFICE_TYPE } from '../entities/offices.entity';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared sub-types
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { OFFICE_TYPE } from "../entity/offices.entity";
 
 export interface OfficeAddressDto {
   id?: string;

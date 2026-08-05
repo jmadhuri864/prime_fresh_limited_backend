@@ -1,8 +1,10 @@
-import { Department, Source } from '../utils/status.enum';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared sub-types
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { Department, Source } from "../../utils/status.enum";
 
 /** Payment info — used in create, update, view and update-form responses. */
 export interface RfpaPaymentInfoDto {

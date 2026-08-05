@@ -1,22 +1,16 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { OfficesRepository } from "./offices.repository";
-import { AddressService } from "../address/address.service";
-import { OFFICE_TYPE, OfficesData } from "../entities/offices.entity";
-import { AuditLogService } from "../services/auditLog.service";
-import AppError from "../utils/appError";
-import { buildQuery, PaginationOptions } from "../utils/pagination";
+
 import { In } from "typeorm";
-import { CacheService } from "../global/cache.service";
-import {
-  CreateOfficeDto,
-  UpdateOfficeDto,
-  OfficeDetailDto,
-  OfficeListResponseDto,
-  OfficeFilterItemDto,
-  OfficeSearchItemDto,
-  BulkDeleteOfficeResultDto,
-} from "./dto/office.dto";
+import { TYPES } from "../../types";
+import { OfficesRepository } from "../repository/offices.repository";
+import { AddressService } from "../../address/service/address.service";
+import { CacheService } from "../../global/cache.service";
+import { BulkDeleteOfficeResultDto, CreateOfficeDto, OfficeDetailDto, OfficeFilterItemDto, OfficeListResponseDto, OfficeSearchItemDto, UpdateOfficeDto } from "../dto/office.dto";
+import { OFFICE_TYPE, OfficesData } from "../entity/offices.entity";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { buildQuery, PaginationOptions } from "../../utils/pagination";
+import AppError from "../../utils/appError";
+
 
 @injectable()
 export class OfficesService {

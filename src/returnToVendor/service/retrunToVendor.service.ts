@@ -1,18 +1,14 @@
 import { inject, injectable } from "inversify";
 import { TYPES } from "../../types";
-import { GrnRepository } from "../repositories/grn.repository";
 import { ProductVarientRepository } from "../../product/productVarient/repository/varients.repository";
 import { DataSource, In } from "typeorm";
 import logger, { UserLogger } from "../../utils/logger";
 import { ReturnToVendorRepository } from "../repository/returnToVendor.repository";
 import { InventoryStockRepository } from "../../inventoryStock/repository/inventoryStock.repository";
-import { DocumentbService, DocumentWithRelatedData } from "../services/documentb.service";
 import { DocumentStatus, DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
-import { DocumentTypeEnum as DocDefEnum } from "../documentDef/documentdef.entity";
-import { DocDoubleApproverService } from "../services/docDoubleApprover.service";
+import { DocumentTypeEnum as DocDefEnum } from "../../documentDef/entity/documentdef.entity";
 import { PaginationOptions } from "../../utils/pagination";
 import { formatDateTime } from "../../utils/dateUtils";
-import { ReturnToVendor } from "../entities/returnToVendor.entity";
 import { CacheService } from "../../global/cache.service";
 import { createHash } from "crypto";
 import {
@@ -25,6 +21,10 @@ import {
   BulkDeleteRTVResultDto,
 } from "../dto/returnToVendor.dto";
 import { BulkDeleteResultDto } from "../../global/general.dto";
+import { GrnRepository } from "../../grn/repository/grn.repository";
+import { DocumentbService, DocumentWithRelatedData } from "../../approvalFlow/service/documentb.service";
+import { DocDoubleApproverService } from "../../approvalFlow/service/docDoubleApprover.service";
+import { ReturnToVendor } from "../entity/returnToVendor.entity";
 
 @injectable()
 export class ReturnToVendorService {

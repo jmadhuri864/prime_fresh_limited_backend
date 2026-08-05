@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, Unique } from "typeorm";
-import Model from "./model.entity";
-import { User } from "./user.entity";
+import Model from "../../global/model.entity";
+import { User } from "../../employee/entity/user.entity";
+
 
 export enum DepartmentEnum {
   PURCHASE = "procurement",

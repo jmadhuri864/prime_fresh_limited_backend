@@ -1,6 +1,7 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { DocumentPermissionRepository } from "../repositories/documentPermission.repository";
+import { TYPES } from "../../types";
+import { DocumentPermissionRepository } from "../repository/documentPermission.repository";
+
 
 @injectable()
 export class   DocumentPermissionService {

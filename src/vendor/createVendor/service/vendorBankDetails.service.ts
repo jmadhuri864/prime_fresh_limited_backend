@@ -1,10 +1,9 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { BankDetailsvendRepository } from "./repository/vendorBankDetails.repository";
-import { BankDetailsvend } from "../entities/bankDetailsVend.entity";
-import { BankDetailsVendSchema } from "../schemas/vendorBankDetails.schema";
-import { AddressService } from "./address.service";
-import { Address } from "../address/address.entity";
+import { TYPES } from "../../../types";
+import { BankDetailsvendRepository } from "../repository/vendorBankDetails.repository";
+import { AddressService } from "../../../address/service/address.service";
+import { BankDetailsvend } from "../entity/bankDetailsVend.entity";
+
 
 @injectable()
 export class BankDetailsvendService {
@@ -35,7 +34,7 @@ export class BankDetailsvendService {
     return await this.bankDetailsvendRepository.findOneBy({ id });
   }
 
-  async updateBankDetails(id: string, data: BankDetailsVendSchema): Promise<BankDetailsvend | null> {
+  async updateBankDetails(id: string, data: any): Promise<BankDetailsvend | null> {
     const bankDetails = await this.bankDetailsvendRepository.findOneBy({ id });
 
     if (!bankDetails) {

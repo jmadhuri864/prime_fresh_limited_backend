@@ -1,6 +1,7 @@
 import { Column, Entity, ManyToOne } from "typeorm";
-import Model from "./model.entity";
-import { Address } from "../address/address.entity";
+import Model from "../../global/model.entity";
+import { Address } from "../../address/entity/address.entity";
+
 
 export enum OFFICE_TYPE {
 REGISTERED_OFFICE = "registered-office",

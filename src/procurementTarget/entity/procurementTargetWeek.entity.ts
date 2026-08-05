@@ -4,8 +4,9 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import Model from './model.entity';
+
 import { ProcurementTargetProduct } from './procurementTargetProduct.entity';
+import Model from '../../global/model.entity';
 
 
 export enum WeekNo {

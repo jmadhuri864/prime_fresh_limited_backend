@@ -1,9 +1,6 @@
-import {
-  ammountStatus,
-  Department,
-  Source,
-} from '../utils/status.enum';
-import { GrnType, LocationType, PurchaseType } from '../grn/grn.entity';
+import { ammountStatus, Department, Source } from "../../utils/status.enum";
+import { GrnType, LocationType, PurchaseType } from "../entity/grn.entity";
+
 
 export interface GrnProductDto {
   id?: string;

@@ -29,7 +29,7 @@ export const AppDataSource = new DataSource({
   poolSize: 20,
   maxQueryExecutionTime: 5000,
   
-  entities: ['src/entities/**/*.entity{.ts,.js}'],
+  entities: ['src/**/*.entity{.ts,.js}'],
   migrations: ['src/migrations/**/*{.ts,.js}'],
   subscribers: ['src/subscribers/**/*{.ts,.js}'],
   

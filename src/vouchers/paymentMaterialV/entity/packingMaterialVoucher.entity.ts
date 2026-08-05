@@ -6,14 +6,17 @@ import {
     ManyToOne,
     JoinColumn,
   } from 'typeorm';
-import { Address } from '../address/address.entity';
+
 import { Materials } from './material.entity';
 import Model from '../../../global/model.entity';
-import { User } from './user.entity';
-import { GRN } from '../grn/grn.entity';
+
 import { Department, Status } from '../../../utils/status.enum';
 import { truncate } from 'fs';
-import { Company } from '../entities/company.entity';
+import { GRN } from '../../../grn/entity/grn.entity';
+import { Address } from '../../../address/entity/address.entity';
+import { Company } from '../../../company/entity/company.entity';
+import { User } from '../../../employee/entity/user.entity';
+
  
   @Entity("packing_material_payment")
   export class PMPVoucher extends Model {

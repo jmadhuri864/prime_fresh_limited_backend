@@ -1,52 +1,48 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { RfpaRepository } from '../repositories/rfpa.repository';
-import { RFPA } from './rfpa.entity';
-import { RFPAProduct } from '../entity/rfpaProduct.entity';
-import { Product } from '../entities/product.entity';
-import { ProductVarient } from '../entities/productVarient.entity';
-import { UOM } from '../entities/uom.entity';
-import { Company } from '../entities/company.entity';
-import { Branches } from '../entities/branches.entity';
-import { Vendor } from '../../vendor/createVendor/vendor.entity';
-import { Farmer } from '../entities/farmer.entity';
-import { PaymentInfoForRFPA } from '../entities/rfpaPayementInfo.entity';
+
 import { DeepPartial, In, SelectQueryBuilder, DataSource } from 'typeorm';
 import { UOMRepository } from '../../uom/repository/uom.repository';
 import { ProductRepository } from '../../product/createproduct/repository/product.repository';
 import { VendorService } from '../../vendor/createVendor/service/vendor.service';
 import { FarmerService } from '../../farmer/service/farmer.service';
-import { UserService } from './user.service';
-import { NotificationService } from '../services/notification.service';
+
 import AppError from '../../utils/appError';
-import { AuditLogService } from '../services/auditLog.service';
+
 import { buildQueryFromArray, PaginationOptions } from '../../utils/pagination';
 import { formatDateTime } from '../../utils/dateUtils';
 import { createHash } from 'crypto';
-import { DocumentbService, DocumentWithRelatedData } from '../services/documentb.service';
+
 import { DocumentTypeEnum } from '../../approvalFlow/entity/docuemnt.entity';
 import { DocumentStatus } from '../../approvalFlow/entity/docuemnt.entity';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { DocSingalApproverService } from '../services/DocSingalApproverService.service';
-import { ApprovalFlowService } from '../services/approvalFlow.service';
-import { DocumentbRepository } from '../repositories/documentb.repository';
+import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
+
 import { ProductVarientRepository } from '../../product/productVarient/repository/varients.repository';
 import { RfpaPaymentInfoRepository } from '../repository/rfpaPaymentInfo.repository';
 import { ApprovalFlowRepository } from '../../approvalFlow/repository/approvalFlow.repository';
 import { CacheService } from '../../global/cache.service';
 import logger from '../../utils/logger';
-import {
-  CreateRfpaDto,
-  UpdateRfpaDto,
-  RfpaListResponseDto,
-  RfpaViewResponseDto,
-  RfpaUpdateFormDto,
-  RfpaNumbersResponseDto,
-  RfpaRecycleBinResponseDto,
-  BulkDeleteRfpaResultDto,
-  RfpaDocumentViewResponseDto,
-} from './rfpa.dto';
+
 import { BulkDeleteResultDto, DeleteResultDto } from '../../global/general.dto';
+import { RFPA } from '../entity/rfpa.entity';
+import { RfpaRepository } from '../repository/rfpa.repository';
+import { UserService } from '../../employee/service/user.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { DocumentbService, DocumentWithRelatedData } from '../../approvalFlow/service/documentb.service';
+import { DocSingalApproverService } from '../../approvalFlow/service/DocSingalApproverService.service';
+import { ApprovalFlowService } from '../../approvalFlow/service/approvalFlow.service';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
+import { CreateRfpaDto, RfpaDocumentViewResponseDto, RfpaListResponseDto, RfpaNumbersResponseDto, RfpaRecycleBinResponseDto, RfpaUpdateFormDto, UpdateRfpaDto } from '../dto/rfpa.dto';
+import { PaymentInfoForRFPA } from '../entity/rfpaPayementInfo.entity';
+import { RFPAProduct } from '../entity/rfpaProduct.entity';
+import { Company } from '../../company/entity/company.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { Vendor } from '../../vendor/createVendor/entity/vendor.entity';
+import { Farmer } from '../../farmer/entity/farmer.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
+import { ProductVarient } from '../../product/productVarient/entity/productVarient.entity';
+import { UOM } from '../../uom/entity/uom.entity';
 
 export interface RFPAWithRelatedData extends RFPA {
   relatedData?: any;

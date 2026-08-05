@@ -1,6 +1,7 @@
 import { injectable } from 'inversify';
-import { AppDataSource } from '../utils/data-source';
+
 import * as ExcelJS from 'exceljs';
+import { AppDataSource } from '../../utils/data-source';
 
 export interface SalesReportFilters {
   reportBased: 'employee' | 'location' | 'company' | 'customer' | 'product';

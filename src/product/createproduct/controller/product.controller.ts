@@ -12,24 +12,23 @@ import {
   request,
   httpPut,
 } from 'inversify-express-utils';
-import { TYPES } from '../types';
-import { ProductService } from './product.service';
-import AppError from '../utils/appError';
+
 import { NextFunction, Request, Response } from 'express';
-import {
-  captureUser,
-  deserializeUser,
-  requireUser,
-} from '../middleware/deserializeUser';
-import logger from '../utils/logger';
+import { captureUser, deserializeUser, requireUser } from '../../../middleware/deserializeUser';
+import { TYPES } from '../../../types';
+import { ProductService } from '../service/product.service';
+import { PdfGeneratorService } from '../../../utils/pdfGenerator';
+import { NotificationService } from '../../../notification/service/notification.service';
+import { PaginationOptions } from '../../../utils/pagination';
+import logger from '../../../utils/logger';
+import { ControllerLogger } from '../../../utils/controllerLogger';
+import AppError from '../../../utils/appError';
+import { uploadSingle } from '../../../middleware/uploadsingle.middleware';
+import { CreateProductDto } from '../dto/createProduct.dto';
 
-import { uploadSingle } from '../middleware/uploadsingle.middleware';
-import { NotificationService } from '../services/notification.service';
-import { PaginationOptions } from '../utils/pagination';
-import { PdfGeneratorService } from '../utils/pdfGenerator';
 
-import { ControllerLogger } from '../utils/controllerLogger'
-import { CreateProductDto } from './product.dto';
+
+
  @controller('/products', deserializeUser, requireUser)
 export class ProductController {
   constructor(

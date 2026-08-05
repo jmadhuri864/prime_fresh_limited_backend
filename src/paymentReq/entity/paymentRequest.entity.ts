@@ -1,8 +1,9 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import Model from './model.entity';
-import { User } from './user.entity';
-import { GRN } from '../grn/grn.entity';
+
 import { format, toZonedTime } from 'date-fns-tz';
+import Model from '../../global/model.entity';
+import { GRN } from '../../grn/entity/grn.entity';
+import { User } from '../../employee/entity/user.entity';
 
 @Entity("payment_request")
 export class PaymentRequest extends Model {

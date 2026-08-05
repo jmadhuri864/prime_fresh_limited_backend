@@ -1,10 +1,11 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import Model from '../../global/model.entity';
 import { SecondSale } from './secondSale.entity';
-import { Product } from '../entities/product.entity';
-import { UOM } from './uom.entity';
-import { ProductVarient } from './productVarient.entity';
-import { PackingMaterial } from '../entities/packingMaterial.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
+import { ProductVarient } from '../../product/productVarient/entity/productVarient.entity';
+import { UOM } from '../../uom/entity/uom.entity';
+import { PackingMaterial } from '../../packingMaterial/entity/packingMaterial.entity';
+
 
 @Entity({ name: 'second_sale_product' })
 export class SecondSaleProduct extends Model {

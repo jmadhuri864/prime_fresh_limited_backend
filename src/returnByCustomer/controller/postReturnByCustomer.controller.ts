@@ -1,14 +1,14 @@
 import { inject } from "inversify";
 import { controller, httpGet, next, response,request, requestParam, httpPost, requestBody, httpPatch, httpDelete } from "inversify-express-utils";
 import { TYPES } from "../../types";
-import { PostReturnByCustomerService } from "../services/postReturnByCustomer.service";
+
 import { NextFunction,Request,Response } from "express";
 import AppError from "../../utils/appError";
 import { captureUser, deserializeUser, requireUser } from "../../middleware/deserializeUser";
 import logger, { UserLogger } from "../../utils/logger";
 import { PaginationOptions } from "../../utils/pagination";
 import { ControllerLogger } from "../../utils/controllerLogger";
-import { NotificationService } from "../services/notification.service";
+
 import {
   CreateRBCDto,
   UpdateRBCDto,
@@ -21,7 +21,10 @@ import {
   BulkDeleteRBCResultDto,
 } from "../dto/postReturnByCustomer.dto";
 import { UserActivityLogService } from "../../employeeActivity/service/userActivityLog.service";
-import { ActivityAction, ActivityModule } from "../employeeActivity/userActivityLog.entity";
+import { PostReturnByCustomerService } from "../service/postReturnByCustomer.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import { ActivityAction, ActivityModule } from "../../employeeActivity/entity/userActivityLog.entity";
+
 
 
 @controller("/returns",deserializeUser,requireUser)

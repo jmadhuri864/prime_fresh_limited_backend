@@ -1,7 +1,7 @@
 
-import { Role } from "./entities/user.entity";
+import { Role } from "./employee/entity/user.entity";
 import { container } from "./inversify.config";
-import { UserService } from "./services/user.service";
+import { UserService } from "./employee/service/user.service";
 import { TYPES } from "./types";
 import { seedDocumentDefDatabase } from "./seed/documentSeed";
 

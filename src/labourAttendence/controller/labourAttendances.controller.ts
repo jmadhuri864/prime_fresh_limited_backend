@@ -11,17 +11,16 @@ import {
   next,
 } from "inversify-express-utils";
 import { Request, Response, NextFunction } from "express";
-import { TYPES } from "../types";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { LaborAttendancesService } from "../service/labourAttendence.service";
+import { TYPES } from "../../types";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import { PaginationOptions } from "../../utils/pagination";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import AppError from "../../utils/appError";
+import logger from "../../utils/logger";
 
-import { AuditLogService } from "../services/auditLog.service";
-import AppError from "../utils/appError";
-import { LaborAttendancesService } from "./labourAttendence.service";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-
-import logger from "../utils/logger";
-import { PaginationOptions } from "../utils/pagination";
-import { ControllerLogger } from '../utils/controllerLogger';
-import { NotificationService } from "../services/notification.service";
 
 @controller("/laborAttendances" ,deserializeUser,requireUser)
 export class LaborAttendancesController {

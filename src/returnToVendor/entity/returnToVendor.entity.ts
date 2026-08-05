@@ -1,15 +1,17 @@
 import { Column, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import Model from "./model.entity";
-import { User } from "./user.entity";
+
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { GRN } from "../grn/grn.entity";
-import { Company } from "./company.entity";
-import { Branches } from "./branches.entity";
-import { Vendor } from "../../vendor/createVendor/vendor.entity";
-import { DocumentDefinition } from "./documentdef.entity";
-import { Documentb } from "./docuemnt.entity";
+
 import { ProductReturnToVendor } from "./productReturnToVendor.entity";
+import Model from "../../global/model.entity";
+import { User } from "../../employee/entity/user.entity";
+import { Documentb } from "../../approvalFlow/entity/docuemnt.entity";
+import { DocumentDefinition } from "../../documentDef/entity/documentdef.entity";
+import { GRN } from "../../grn/entity/grn.entity";
+import { Company } from "../../company/entity/company.entity";
+import { Branches } from "../../branch/entity/branches.entity";
+import { Vendor } from "../../vendor/createVendor/entity/vendor.entity";
 
 
 @Entity('return_to_vendor')

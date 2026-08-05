@@ -1,8 +1,9 @@
 import { inject, injectable } from "inversify";
-import { DepartmentEnum, WorkflowHierarchy } from "../entities/workflowClosure.entity";
-import { TYPES } from "../types";
-import { WorkflowHierarchyRepository } from "./repository/WorkflowHierarchy.repository";
+import { DepartmentEnum, WorkflowHierarchy } from "../entity/workflowClosure.entity";
+
 import { MoreThan } from "typeorm";
+import { TYPES } from "../../types";
+import { WorkflowHierarchyRepository } from "../repository/WorkflowHierarchy.repository";
 
 
 @injectable()

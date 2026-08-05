@@ -6,16 +6,17 @@ import {
   OneToMany,
   OneToOne,
 } from 'typeorm';
-import Model from '../global/model.entity';
-import { Vendor } from '../vendor/vendor.entity';
-import { Farmer } from './farmer.entity';
-import { PaymentInfoForRFPA } from '../entities/rfpaPayementInfo.entity';
-import { Department, Source } from '../utils/status.enum';
-import { RFPAProduct } from './rfpaProduct.entity'; // Import the RFPAProduct entity
 
-import { Branches } from '../entities/branches.entity';
-import { Company } from './company.entity';
-import { User } from './user.entity';
+import { RFPAProduct } from './rfpaProduct.entity'; // Import the RFPAProduct entity
+import Model from '../../global/model.entity';
+import { Department, Source } from '../../utils/status.enum';
+import { Company } from '../../company/entity/company.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { Vendor } from '../../vendor/createVendor/entity/vendor.entity';
+import { Farmer } from '../../farmer/entity/farmer.entity';
+import { PaymentInfoForRFPA } from './rfpaPayementInfo.entity';
+import { User } from '../../employee/entity/user.entity';
+
 
 @Entity('rfpa')
 export class RFPA extends Model {

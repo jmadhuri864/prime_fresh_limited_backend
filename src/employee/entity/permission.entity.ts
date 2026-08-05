@@ -1,7 +1,8 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
-import Model from '../global/model.entity';
-import { DocumentDefinition } from '../documentDef/documentdef.entity';
+
 import { User } from './user.entity';
+import { DocumentDefinition } from '../../documentDef/entity/documentdef.entity';
+import Model from '../../global/model.entity';
 
 /**
  * PERMISSION DESIGN

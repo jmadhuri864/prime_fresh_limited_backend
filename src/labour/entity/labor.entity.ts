@@ -2,11 +2,12 @@ import { Entity, Column, OneToOne, JoinColumn, OneToMany, ManyToOne } from "type
 import { BankDetails } from "./laborBankDetails.entity";
 import { FamilyDetails } from "./laborfamilyDetails.entity";
 import { WorkExperience } from "./laborWorkEx.entity";
-import Model from "../global/model.entity";
-import { Address } from "../address/address.entity";
-import { Branches } from "../entities/branches.entity";
-import { Company } from "./company.entity";
+
 import { format } from "date-fns-tz";
+import Model from "../../global/model.entity";
+import { Company } from "../../company/entity/company.entity";
+import { Branches } from "../../branch/entity/branches.entity";
+import { Address } from "../../address/entity/address.entity";
 
 @Entity("permenat_labor")
 export class Labor extends Model {

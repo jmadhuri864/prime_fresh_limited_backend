@@ -1,7 +1,9 @@
 import { injectable } from 'inversify';
-import { AppDataSource } from '../utils/data-source';
+
 import * as ExcelJS from 'exceljs';
-import logger from '../utils/logger';
+import logger from '../../utils/logger';
+import { AppDataSource } from '../../utils/data-source';
+
 
 /**
  * REGISTRATION REPORT SERVICE

@@ -1,24 +1,23 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import { InventoryStockRepository } from './repository/inventoryStock.repository';
-import { PaginationOptions } from '../utils/pagination';
-import { UserRepository } from '../employee/repository/user.repository';
-import { InwardProductRepository } from '../inwardRegister/inwardProduct.repository';
-import { GrnProductRepository } from '../repositories/grnProduct.repository';
-import { DumpProductRepository } from '../dumpRegister/repository/dumpProduct.repository';
-import { GrnRepository } from '../repositories/grn.repository';
-import { DumpRegisterRepository } from '../dumpRegister/repository/dumpRegister.repository';
-import { CustomerDeliveryChallanRepository } from '../deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository';
-import { InwardRepository } from '../inwardRegister/inwardRegister.repository';
-import { InvoiceRepository } from '../invoice/invoice.repository';
-import { SecondSaleRepository } from '../secondSale/secondSale.repository';
-import { StockTransferDeliveryChallanRepository } from '../deliveryChallans/stockTransferDC/repository/stockTransferDeliveryChallan.repository';
-import { PostReturnByCustomerRepository } from '../repositories/postReturnByCustomer.repository';
-import { LabourPaymentVoucherRepository } from '../repositories/labourPaymentVoucher.repository';
-import { TPVoucherRepository } from '../tranportPaymentV/transportPaymentV.repository';
 import { number } from 'zod';
-
 import { randomUUID } from 'crypto';
+import { TYPES } from '../../types';
+import { InventoryStockRepository } from '../repository/inventoryStock.repository';
+import { UserRepository } from '../../employee/repository/user.repository';
+import { InwardProductRepository } from '../../inwardRegister/repository/inwardProduct.repository';
+import { GrnProductRepository } from '../../grn/repository/grnProduct.repository';
+import { DumpProductRepository } from '../../dumpRegister/repository/dumpProduct.repository';
+import { GrnRepository } from '../../grn/repository/grn.repository';
+import { DumpRegisterRepository } from '../../dumpRegister/repository/dumpRegister.repository';
+import { CustomerDeliveryChallanRepository } from '../../deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository';
+import { InwardRepository } from '../../inwardRegister/repository/inwardRegister.repository';
+import { InvoiceRepository } from '../../invoice/repository/invoice.repository';
+import { SecondSaleRepository } from '../../secondSale/repository/secondSale.repository';
+import { StockTransferDeliveryChallanRepository } from '../../deliveryChallans/stockTransferDC/repository/stockTransferDeliveryChallan.repository';
+import { PostReturnByCustomerRepository } from '../../returnByCustomer/repository/postReturnByCustomer.repository';
+import { LabourPaymentVoucherRepository } from '../../vouchers/labourPaymentV/repository/labourPaymentVoucher.repository';
+import { TPVoucherRepository } from '../../vouchers/tranportPaymentV/repository/transportPaymentV.repository';
+import { PaginationOptions } from '../../utils/pagination';
 
 // Helper function to generate UUID
 function generateUUID(): string {

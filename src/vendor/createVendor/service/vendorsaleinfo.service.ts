@@ -1,9 +1,9 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
+import { VendorSaleInfoRepository } from "../repository/vendorSaleInfo.repository";
+import { TYPES } from "../../../types";
+import { AnyARecord } from "node:dns";
+import { VendorSaleInfo } from "../entity/vendorsaleinfo.entity";
 
-import { VendorSaleInfoRepository } from "./repository/vendorSaleInfo.repository";
-import { VendorSaleInfo } from "../entities/vendorsaleinfo.entity";
-import { CreateVendorSaleInfoSchema } from "../schemas/vendorsaleinfo.schema";
 
 @injectable()
 export class VendorSaleInfoService {
@@ -15,7 +15,7 @@ export class VendorSaleInfoService {
   ) {}
 
  // Create a new VendorSaleInfo
- async createVendorSaleInfo(data: CreateVendorSaleInfoSchema): Promise<VendorSaleInfo> {
+ async createVendorSaleInfo(data:any): Promise<any> {
     const vendorSaleInfo = this.vendorSaleInfoRepository.create(data);
     return await this.vendorSaleInfoRepository.save(vendorSaleInfo);
   }
@@ -29,7 +29,7 @@ export class VendorSaleInfoService {
   }
 
   // Update an existing VendorSaleInfo
-  async updateVendorSaleInfo(id: string, data: Partial<CreateVendorSaleInfoSchema>): Promise<VendorSaleInfo | null> {
+  async updateVendorSaleInfo(id: string, data:any): Promise<VendorSaleInfo | null> {
     await this.vendorSaleInfoRepository.update(id, data);
     return this.getVendorSaleInfoById(id);
   }

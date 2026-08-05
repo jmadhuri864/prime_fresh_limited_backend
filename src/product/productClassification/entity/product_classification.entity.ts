@@ -1,7 +1,7 @@
 import { Column, Entity, OneToMany } from "typeorm";
-import { Product } from "./product.entity";
 import Model from "../../../global/model.entity";
-import { ProductCategory } from "../productCategory/product_category.entity";
+import { ProductCategory } from "../../productCategory/entity/product_category.entity";
+
 
 @Entity("product_classification")
 export class ProductClassification extends Model {

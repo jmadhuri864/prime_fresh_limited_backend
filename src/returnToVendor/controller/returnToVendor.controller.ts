@@ -5,10 +5,12 @@ import { TYPES } from "../../types";
 import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
 import { NextFunction, Request, Response } from "express";
 import { ControllerLogger } from "../../utils/controllerLogger";
-import { NotificationService } from "../services/notification.service";
+
 import { ReturnToVendorService } from "../service/retrunToVendor.service";
-import { ActivityAction, ActivityModule } from "../employeeActivity/userActivityLog.entity";
+
 import { UserActivityLogService } from "../../employeeActivity/service/userActivityLog.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import { ActivityAction, ActivityModule} from "../../employeeActivity/entity/userActivityLog.entity";
 
 @controller("/return-to-vendor", deserializeUser, requireUser)
 export class ReturnToVendorController {

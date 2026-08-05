@@ -6,16 +6,19 @@ import {
   response,
   next,
 } from 'inversify-express-utils';
-import { TYPES } from '../types';
+
 import { NextFunction, Request, Response } from 'express';
-import { ReportService } from '../services/report.service';
-import { SalesReportService } from './salesReport.service';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
-import { ControllerLogger } from '../utils/controllerLogger';
-import { NotificationService } from '../services/notification.service';
-import AppError from '../utils/appError';
+
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3 } from '../middleware/spaces.config';
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { TYPES } from '../../types';
+import { ReportService } from '../service/report.service';
+import { SalesReportService } from '../service/salesReport.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { s3 } from '../../middleware/spaces.config';
+import { ControllerLogger } from '../../utils/controllerLogger';
+import AppError from '../../utils/appError';
+
 
 export interface ReportFilters {
   reportBased: 'employee' | 'location' | 'company' | 'source' | 'vendor' | 'farmer' | 'product';

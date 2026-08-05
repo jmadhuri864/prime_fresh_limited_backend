@@ -1,8 +1,10 @@
-import { Department, Status } from '../utils/status.enum';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Create Labour Payment Voucher DTO  (POST /lpvoucher)
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { Department, Status } from "../../../utils/status.enum";
 
 export interface CreateLPVoucherDto {
   /** GRN entity ID */

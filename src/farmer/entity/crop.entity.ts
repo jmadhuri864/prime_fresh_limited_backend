@@ -6,8 +6,9 @@ import {
   JoinColumn,
 } from "typeorm";
 import { Farmer } from "./farmer.entity";
-import Model from "../global/model.entity";
-import { Product } from "../entities/product.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import Model from "../../global/model.entity";
+
 
 @Entity("crop")
 export class Crop extends Model {

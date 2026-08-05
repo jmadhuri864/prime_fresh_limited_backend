@@ -1,11 +1,13 @@
 import { injectable, inject } from 'inversify';
 import { Repository, Between, Like, In } from 'typeorm';
-import { GRN } from '../grn/grn.entity';
+
 import { GrnProduct } from '../../grn/entity/grnProduct.entity';
 import { AppDataSource } from '../../utils/data-source';
 import { TYPES } from '../../types';
-import { QueryOptimizerService } from './queryOptimizer.service';
+
 import { format } from 'date-fns';
+import { GRN } from '../../grn/entity/grn.entity';
+import { QueryOptimizerService } from '../../global/queryOptimizer.service';
 
 export interface ProcurementReportFilters {
   startDate?: Date;
@@ -307,8 +309,8 @@ export class CrystalReportService {
       grnDate: grn.createdAt ? format(new Date(grn.createdAt), 'dd-MM-yyyy') : '',
       grnType: grn.grnType || '',
       purchaseType: grn.purchaseType || '',
-      vendorName: grn.selectedVendor?.name || '',
-      farmerName: grn.selectedFarmer?.name || '',
+      vendorName: grn.selectedVendor?.companyName || '',
+      farmerName: grn.selectedFarmer?.farmerfName|| '',
       companyName: grn.companyName?.name || '',
       branchName: grn.location?.name || '',
       purchaseLocation: grn.purchaseLocation?.name || grn.otherPurchaseLoc || '',
@@ -323,13 +325,13 @@ export class CrystalReportService {
       source: grn.source || '',
       products: grn.grnProducts?.map(product => ({
         productName: product.productName?.name || '',
-        variantName: product.variant?.name || '',
+        variantName: product.variant?.variantName|| '',
         quantity: product.quantity || 0,
         revisedQuantity: product.revisedQuantity || 0,
         unitPrice: product.unitPrice || 0,
         revisedRate: product.revisedRate || 0,
         amount: product.amount || 0,
-        uom: product.uom?.name || '',
+        uom: product.uom?.unit || '',
         grossWeight: product.grossWeight || 0,
         netWeight: product.netWeight || 0,
         packingMaterialWeight: product.packingMaterialWeight || 0,

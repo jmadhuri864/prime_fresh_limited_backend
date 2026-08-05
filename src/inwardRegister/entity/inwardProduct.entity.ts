@@ -1,9 +1,10 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
-import Model from '../global/model.entity';
-import { Product } from './product.entity';
-import { UOM } from './uom.entity';
+import Model from '../../global/model.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
+import { ProductVarient } from '../../product/productVarient/entity/productVarient.entity';
+import { UOM } from '../../uom/entity/uom.entity';
 import { InwardRegister } from './inwardRegister.entity';
-import { ProductVarient } from './productVarient.entity';
+
 
 @Entity('inwardProduct') // Table for GRN-Product relationship
 export class InwardProduct extends Model {

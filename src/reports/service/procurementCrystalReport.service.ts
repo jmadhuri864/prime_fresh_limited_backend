@@ -1,11 +1,13 @@
 import { injectable, inject } from 'inversify';
 import { Repository } from 'typeorm';
-import { GRN } from '../grn/grn.entity';
+
 import { GrnProduct } from '../../grn/entity/grnProduct.entity';
 import { AppDataSource } from '../../utils/data-source';
 import { TYPES } from '../../types';
 import { format } from 'date-fns';
-import { DocumentbRepository } from '../repositories/documentb.repository';
+import { GRN } from '../../grn/entity/grn.entity';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
+
 
 export interface ProcurementReportFilters {
     startDate?: Date;

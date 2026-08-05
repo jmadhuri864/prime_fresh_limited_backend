@@ -9,12 +9,14 @@ import {
   ManyToOne,
 } from "typeorm";
 import { Crop } from "./crop.entity";
-import Model from "./model.entity";
-import { Address } from "../address/address.entity";
+
 import { generateIncrementalCode } from "../../utils/codeGeneration";
 import { format } from "date-fns-tz";
 import { Status } from "../../utils/status.enum";
-import { User } from "./user.entity";
+import Model from "../../global/model.entity";
+import { Address } from "../../address/entity/address.entity";
+import { User } from "../../employee/entity/user.entity";
+
 
 export enum LandHoldingStatus {
   OWNED = 'Owned',

@@ -6,16 +6,17 @@ import { buildQuery, PaginationOptions } from "../../utils/pagination";
 import { formatDateTime } from "../../utils/dateUtils";
 
 import { DocumentStatus, DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
+import { DocumentTypeEnum as DocDefEnum } from "../../documentDef/entity/documentdef.entity";
 
 import { SelectQueryBuilder, DataSource, In, DeepPartial } from "typeorm";
 
 import { CacheService } from "../../global/cache.service";
-import { AqrListItemDto, BulkDeleteAqrResultDto, CreateAqrDto, DeleteAqrResultDto, FarmerPartyDto, GetAqrByIdForViewResponseDto, GetAqrForUpdateResponseDto, UpdateAqrDto, VendorPartyDto } from "../dtos/aqr.dto";
+import { AqrListItemDto, BulkDeleteAqrResultDto, CreateAqrDto, DeleteAqrResultDto, FarmerPartyDto, GetAqrByIdForViewResponseDto, GetAqrForUpdateResponseDto, UpdateAqrDto, VendorPartyDto } from "../dto/aqr.dto";
 import { Source } from "../../utils/status.enum";
 import { AqrRepository } from "../repository/aqr.repository";
 import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
 import { DocSingalApproverService } from "../../approvalFlow/service/DocSingalApproverService.service";
-import { DocumentbService } from "../../approvalFlow/service/documentb.service";
+import { DocumentbService, DocumentWithRelatedData } from "../../approvalFlow/service/documentb.service";
 import { DocumentbRepository } from "../../approvalFlow/repository/documentb.repository";
 import { ApprovalFlowService } from "../../approvalFlow/service/approvalFlow.service";
 import { Aqr } from "../entity/aqr.entity";

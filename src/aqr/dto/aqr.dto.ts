@@ -1,7 +1,9 @@
-import { AqrFor } from "./aqr.entity";
-import { Source } from "../utils/status.enum";
+
 
 // ─── Relation ref (matches TypeORM DeepPartial shape) ────────────────────────
+
+import { Source } from "../../utils/status.enum";
+import { AqrFor } from "../entity/aqr.entity";
 
 export interface RelationRef {
   id: string;

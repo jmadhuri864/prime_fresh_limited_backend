@@ -22,7 +22,10 @@ import {
   UpdateDumpRegisterDto,
 } from "../dto/dumpRegister.dto";
 import { UserActivityLogService } from "../../employeeActivity/service/userActivityLog.service";
-";
+import { DumpRegisterService } from "../service/dumpRegister.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import { ActivityAction, ActivityModule } from "../../employeeActivity/entity/userActivityLog.entity";
+
 
 @controller("/dumpRegister", deserializeUser, requireUser)
 export class DumpRegisterController {

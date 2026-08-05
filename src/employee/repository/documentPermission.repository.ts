@@ -1,7 +1,8 @@
 import { Repository } from "typeorm";
+import { DocumentPermission } from "../entity/permission.entity";
 
 
-import { DocumentPermission } from "./permission.entity";
+
 
 
 export class   DocumentPermissionRepository extends Repository<  DocumentPermission> {

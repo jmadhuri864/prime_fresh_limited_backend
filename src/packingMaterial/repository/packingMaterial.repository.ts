@@ -1,5 +1,6 @@
 import { Repository } from "typeorm";
-import { PackingMaterial } from "../entities/packingMaterial.entity";
+import { PackingMaterial } from "../entity/packingMaterial.entity";
+
 
 
 

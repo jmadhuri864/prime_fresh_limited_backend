@@ -1,4 +1,4 @@
-import { Department, Status } from '../utils/status.enum';
+import { Department, Status } from '../../../utils/status.enum';
 
 export interface MultiCashVoucherParticularDto {
   id?: string;

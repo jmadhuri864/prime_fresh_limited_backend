@@ -1,29 +1,27 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { SecondSaleRepository } from "./repository/secondSale.repository";
-
-import { SecondSale } from "../entities/secondSale.entity";
-import AppError from "../utils/appError";
-import { AuditLogService } from "./auditLog.service";
 import { DataSource, DeepPartial, ILike, In } from "typeorm";
-import { SecondSaleProduct } from "./secondSaleProduct.entity";
+import { TYPES } from "../../types";
+import { SecondSaleRepository } from "../repository/secondSale.repository";
+import { SecondSaleProductRepository } from "../repository/secondSaleProduct.repository";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { DocumentbRepository } from "../../approvalFlow/repository/documentb.repository";
+import { ProductVarientRepository } from "../../product/productVarient/repository/varients.repository";
+import { DocumentbService, DocumentWithRelatedData } from "../../approvalFlow/service/documentb.service";
+import { ApprovalFlowService } from "../../approvalFlow/service/approvalFlow.service";
+import { CacheService } from "../../global/cache.service";
+import { DocDoubleApproverService } from "../../approvalFlow/service/docDoubleApprover.service";
+import { CreateSecondSaleDto, SecondSaleDetailDto, SecondSaleListItemDto, SecondSaleListResponseDto, UpdateSecondSaleDto } from "../dto/secondSale.dto";
+import { SecondSale } from "../entity/secondSale.entity";
+import { DocumentStatus, DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
+import { DocumentTypeEnum as DocDefEnum } from "../../documentDef/entity/documentdef.entity";
+import { PaginationOptions } from "../../utils/pagination";
+import { formatDateTime } from "../../utils/dateUtils";
+import AppError from "../../utils/appError";
+import { SecondSaleProduct } from "../entity/secondSaleProduct.entity";
+import { BulkDeleteResultDto, DeleteResultDto } from "../../global/general.dto";
 
-import logger from "../utils/logger";
-import { SecondSaleProductRepository } from "./secondSaleProduct.repository";
-import { buildQuery, PaginationOptions } from "../utils/pagination";
-import { formatDateTime } from "../utils/dateUtils";
 
-import { DocumentTypeEnum } from '../approvalFlow/entity/docuemnt.entity';
-import { DocumentStatus } from '../approvalFlow/entity/docuemnt.entity';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { DocumentbService, DocumentWithRelatedData } from "./documentb.service";
-import { DocDoubleApproverService } from "./docDoubleApprover.service";
-import { ApprovalFlowService } from "./approvalFlow.service";
-import { ProductVarientRepository } from "../productVarient/repository/varients.repository";
-import { DocumentbRepository } from "../repositories/documentb.repository";
-import { CacheService } from "./cache.service";
-import { CreateSecondSaleDto, SecondSaleDetailDto, SecondSaleListItemDto, SecondSaleListResponseDto, UpdateSecondSaleDto } from "./dto/secondSale.dto";
-import { BulkDeleteResultDto, DeleteResultDto } from "../global/general.dto";
+
 
 
 @injectable()

@@ -1,13 +1,16 @@
 import { controller, httpDelete, httpGet, httpPatch, httpPost, next, request, requestParam, response } from "inversify-express-utils";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+
 import { inject } from "inversify";
-import { TYPES } from "../types";
-import { LevelsService } from "./levels.service";
+
 import { NextFunction ,Request,Response} from "express";
-import logger from "../utils/logger";
-import AppError from "../utils/appError";
-import { ControllerLogger } from '../utils/controllerLogger';
-import { NotificationService } from "../services/notification.service";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { LevelsService } from "../service/levels.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import { TYPES } from "../../types";
+import logger from "../../utils/logger";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import AppError from "../../utils/appError";
+
 
 @controller('/levels',deserializeUser,requireUser)
 export class  LevelsController {

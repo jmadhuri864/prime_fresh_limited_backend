@@ -10,13 +10,14 @@ import {
   requestParam,
   queryParam,
 } from 'inversify-express-utils';
-import { UserActivityLogService, ActivityLogFilters } from './userActivityLog.service';
-import { TYPES } from '../types';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
-import { ActivityAction, ActivityModule } from './userActivityLog.entity';
-import AppError from '../utils/appError';
-import logger from '../utils/logger';
-import { ControllerLogger } from '../utils/controllerLogger';
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { ActivityLogFilters, UserActivityLogService } from '../service/userActivityLog.service';
+import { TYPES } from '../../types';
+import { ActivityAction, ActivityModule } from '../entity/userActivityLog.entity';
+import { ControllerLogger } from '../../utils/controllerLogger';
+import logger from '../../utils/logger';
+import AppError from '../../utils/appError';
+
 
 @controller('/user-activity-logs', deserializeUser, requireUser)
 export class UserActivityLogController {

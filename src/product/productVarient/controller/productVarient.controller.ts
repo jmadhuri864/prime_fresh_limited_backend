@@ -8,12 +8,14 @@ import {
   requestParam,
   response,
 } from 'inversify-express-utils';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
+
 import { inject } from 'inversify';
-import { TYPES } from '../types';
-import { ProductVarientService } from './productVarient.service';
 import { NextFunction, Response, Request } from 'express';
-import { ControllerLogger } from '../utils/controllerLogger';
+import { deserializeUser, requireUser } from '../../../middleware/deserializeUser';
+import { ProductVarientService } from '../service/productVarient.service';
+import { TYPES } from '../../../types';
+import { ControllerLogger } from '../../../utils/controllerLogger';
+
 
 @controller('/productVarient', deserializeUser, requireUser)
 export class ProductVarientController {

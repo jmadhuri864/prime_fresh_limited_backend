@@ -1,8 +1,10 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import Model from "./model.entity";
-import { SaleOrder } from "./saleOrder.entity";
 
-import { UOM } from "./uom.entity";
+import { SaleOrder } from "./saleOrder.entity";
+import Model from "../../global/model.entity";
+import { UOM } from "../../uom/entity/uom.entity";
+
+
 
 @Entity({ name: "sale_order_product" })
 export class SaleOrderProduct extends Model {

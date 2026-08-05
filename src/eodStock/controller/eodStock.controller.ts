@@ -11,10 +11,10 @@ import {
   response,
 } from 'inversify-express-utils';
 import { TYPES } from '../../types';
-import { EodStockService } from '../eodStock.service';
+
 import { NextFunction, Request, Response } from 'express';
 import AppError from '../../utils/appError';
-import { NotificationService } from '../services/notification.service';
+
 import { ControllerLogger } from '../../utils/controllerLogger';
 import {
   captureUser,
@@ -33,7 +33,10 @@ import {
   BulkDeleteEodStockResultDto,
 } from '../dto/eodStock.dto';
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
-import { ActivityAction, ActivityModule } from '../employeeActivity/userActivityLog.entity';
+import { EodStockService } from '../service/eodStock.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
+
 
 @controller('/eodStock', deserializeUser, requireUser)
 export class EodStockController {

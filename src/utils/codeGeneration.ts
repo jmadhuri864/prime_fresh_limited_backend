@@ -63,10 +63,11 @@
 // }
 
 //Code by shri 
+import { Customer } from "../customer/addcustomer/entity/customer.entity";
+import { Farmer } from "../farmer/entity/farmer.entity";
+import { Vendor } from "../vendor/createVendor/entity/vendor.entity";
 import { AppDataSource } from "./data-source";
-import { Farmer } from '../entities/farmer.entity';
-import { Vendor } from '../vendor/createVendor/vendor.entity';
-import { Customer } from '../entities/customer.entity';
+
 
 // function formatDateToYYYYMMDD(date: Date): string {
 //   const year = date.getFullYear();

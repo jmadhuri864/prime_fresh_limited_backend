@@ -1,4 +1,4 @@
-import { Department, Status } from '../utils/status.enum';
+import { Department, Status } from '../../../utils/status.enum';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Create Transport Payment Voucher DTO  (POST /tpvoucher)

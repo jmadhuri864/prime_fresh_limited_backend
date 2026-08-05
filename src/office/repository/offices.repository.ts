@@ -1,6 +1,6 @@
 import { Repository } from "typeorm";
-import { Branches } from "../entities/branches.entity";
-import { OfficesData } from "../entities/offices.entity";
+import { OfficesData } from "../entity/offices.entity";
+
 
 
 export class OfficesRepository extends Repository<OfficesData> {

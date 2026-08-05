@@ -11,21 +11,17 @@ import {
   request,
 } from "inversify-express-utils";
 import { inject } from "inversify";
-import { VendorCategoryService } from "../services/vendorCategory.service";
-import { NotificationService } from "../services/notification.service";
-import { VendorCategory } from "./vendorCategory.entity";
-import AppError from "../utils/appError";
-import { TYPES } from "../types";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import { ControllerLogger } from "../utils/controllerLogger";
-import { validate } from "../middleware/validate";
-import { createVendorCategorySchema, deleteVendorCategorySchema, getAllVendorCategoriesSchema, getVendorCategoryByIdSchema, updateVendorCategorySchema } from "../schemas/vendorCategory.schema";
-import { PaginationOptions } from "../utils/pagination";
-import {
-  CreateVendorCategoryDto,
-  UpdateVendorCategoryDto,
-  BulkDeleteVendorCategoryDto,
-} from "./vendorCategory.dto";
+import { deserializeUser, requireUser } from "../../../middleware/deserializeUser";
+import { TYPES } from "../../../types";
+import { VendorCategoryService } from "../service/vendorCategory.service";
+import { NotificationService } from "../../../notification/service/notification.service";
+import { validate } from "../../../middleware/validate";
+import { PaginationOptions } from "../../../utils/pagination";
+import { BulkDeleteVendorCategoryDto, CreateVendorCategoryDto, UpdateVendorCategoryDto, createVendorCategorySchema, getAllVendorCategoriesSchema, getVendorCategoryByIdSchema, updateVendorCategorySchema, deleteVendorCategorySchema } from "../dto/vendorCategory.dto";
+import AppError from "../../../utils/appError";
+import { ControllerLogger } from "../../../utils/controllerLogger";
+
+
 
 
 @controller("/vendor-categories", deserializeUser, requireUser)

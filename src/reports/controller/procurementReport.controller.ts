@@ -1,12 +1,15 @@
 import { controller, httpGet, next, request, requestParam, response, } from "inversify-express-utils";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+
 import { inject } from "inversify";
-import { TYPES } from "../types";
+
 import { NextFunction, Request, Response } from "express";
-import { ProcurementReportService } from "../services/procurementreport.service";
+
 import ExcelJS from "exceljs";
 import * as fs from "fs";
 import * as path from "path";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { ProcurementTargetService as ProcurementReportService } from "../../procurementTarget/service/procurementTarget.service";
 
 @controller("/procurement-report",
   deserializeUser,

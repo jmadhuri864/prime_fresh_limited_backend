@@ -11,28 +11,24 @@ import {
 } from 'inversify-express-utils';
 import { inject } from 'inversify';
 import { TYPES } from '../../../types';
-import { CustomerDeliveryChallanService } from './customerDeliveryChallan.service';
+
 import { Request, Response, NextFunction } from 'express';
 import AppError from '../../../utils/appError';
 import { ControllerLogger } from '../../../utils/controllerLogger';
-import {
-  deserializeUser,
-  requireUser,
-  captureUser,
-} from '../middleware/deserializeUser';
+
 import { PaginationOptions } from '../../../utils/pagination';
 
-import { NotificationService } from '../../services/notification.service';
+
 import { uploadAttachments } from '../../../middleware/upload.middleware';
 import { setAttachmentUrls } from '../../../utils/fileUploadHelper';
-import {
-  CreateCustomerDeliveryChallanDto,
-  CustomerDeliveryChallanUpdateFormDto,
-  CustomerDeliveryChallanViewDto,
-  CustomerDeliveryChallanListResponseDto,
-} from '../../dtos/customerDeliveryChallan.dto';
-import { UserActivityLogService } from '../../services/userActivityLog.service';
-import { ActivityAction, ActivityModule } from '../../entities/userActivityLog.entity';
+import { captureUser, deserializeUser, requireUser } from '../../../middleware/deserializeUser';
+import { CustomerDeliveryChallanService } from '../service/customerDeliveryChallan.service';
+import { NotificationService } from '../../../notification/service/notification.service';
+import { UserActivityLogService } from '../../../employeeActivity/service/userActivityLog.service';
+import { CreateCustomerDeliveryChallanDto, CustomerDeliveryChallanListResponseDto, CustomerDeliveryChallanUpdateFormDto, CustomerDeliveryChallanViewDto } from '../dto/customerDeliveryChallan.dto';
+import { ActivityAction, ActivityModule } from '../../../employeeActivity/entity/userActivityLog.entity';
+
+
 
 @controller('/customer-delivery-challan', deserializeUser, requireUser)
 export class CustomerDeliveryChallanController {

@@ -1,10 +1,12 @@
 import { controller, httpGet, next ,response,request} from "inversify-express-utils";
 import { NextFunction, Request,  Response } from "express";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+
 import { inject } from "inversify";
-import { TYPES } from "../types";
-import { UserReportService } from "./userreport.service";
-import { ControllerLogger } from "../utils/controllerLogger";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { UserReportService } from "../service/userreport.service";
+import { ControllerLogger } from "../../utils/controllerLogger";
+
 
  @controller("/userreport" , deserializeUser, requireUser)
 export class UserReportController {

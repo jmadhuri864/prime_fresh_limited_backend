@@ -21,10 +21,12 @@ import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
 import { Source } from '../../utils/status.enum';
 import { error } from 'console';
 import { PaginationOptions } from '../../utils/pagination';
-import { NotificationService } from '../services/notification.service';
-import { CreateInwardRegisterDto, CreateInwardRegisterInput, UpdateInwardRegisterDto } from '../inwardRegister.dto';
+
+import { CreateInwardRegisterDto, CreateInwardRegisterInput, UpdateInwardRegisterDto } from '../dto/inwardRegister.dto';
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
-import { ActivityAction, ActivityModule } from '../employeeActivity/userActivityLog.entity';
+import { NotificationService } from '../../notification/service/notification.service';
+import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
+
 
 @controller('/inwardRegister', deserializeUser, requireUser)
 export class InwardRegisterController {

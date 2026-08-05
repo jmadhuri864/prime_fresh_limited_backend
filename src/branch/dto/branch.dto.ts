@@ -1,4 +1,4 @@
-import { BranchType } from '../entities/branches.entity';
+import { BranchType } from '../entity/branches.entity';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared sub-types

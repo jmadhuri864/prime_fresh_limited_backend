@@ -8,7 +8,8 @@ import {
 } from "typeorm";
 import Model from "../../global/model.entity";
 import { ProcurementTargetWeek } from "./procurementTargetWeek.entity";
-import { GRN } from "../grn/grn.entity";
+import { GRN } from "../../grn/entity/grn.entity";
+
 
 
 @Entity("procurement_achievements")

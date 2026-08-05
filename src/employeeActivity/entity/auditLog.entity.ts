@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
-import Model from './model.entity';
+import Model from '../../global/model.entity';
+
 
 @Entity('audit_logs')
 export class AuditLog  extends Model {

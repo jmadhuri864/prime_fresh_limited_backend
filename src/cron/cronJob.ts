@@ -1,10 +1,11 @@
 import cron from 'node-cron';
 import { AppDataSource } from '../utils/data-source';
 import { OverdueDeletionService } from '../global/overdueDeletion.service';
-import { InwardRegister } from '../entities/inwardRegister.entity';
-import { Farmer } from '../entities/farmer.entity';
-import { Product } from '../entities/product.entity';
+
 import logger from '../utils/logger';
+import { InwardRegister } from '../inwardRegister/entity/inwardRegister.entity';
+import { Farmer } from '../farmer/entity/farmer.entity';
+import { Product } from '../product/createproduct/entity/product.entity';
 
 const entitiesToCheck = [InwardRegister, Farmer, Product];
 

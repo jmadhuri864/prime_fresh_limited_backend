@@ -1,5 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
-import Model from '../global/model.entity';
+import Model from '../../global/model.entity';
+
 
 
 @Entity('levels')

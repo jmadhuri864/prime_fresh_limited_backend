@@ -1,14 +1,12 @@
 import { controller, httpGet, next, queryParam, request, requestParam, response } from "inversify-express-utils";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import { inject } from "inversify";
-import { TYPES } from "../types";
-import { InventoryStockService } from "../services/inventoryStock.service";
+import { inject } from "inversify"
 import { NextFunction,Request,Response } from "express";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { InventoryStockService } from "../service/inventoryStock.service";
+import { NotificationService } from "../../notification/service/notification.service";
 
-import { PaginationOptions } from "../utils/pagination";
-import AppError from "../utils/appError";
-import { ControllerLogger } from '../utils/controllerLogger';
-import { NotificationService } from '../services/notification.service';
+
 
 
 

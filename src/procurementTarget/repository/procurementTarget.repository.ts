@@ -1,5 +1,5 @@
 import { Repository } from "typeorm";
 
-import { ProcurementTarget } from "../entities/procurmentTarget.entity";
+import { ProcurementTarget } from "../entity/procurmentTarget.entity";
 
 export class ProcurementTargetRepository extends Repository<ProcurementTarget> {}

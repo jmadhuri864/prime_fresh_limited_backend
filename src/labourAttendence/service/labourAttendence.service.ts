@@ -1,11 +1,13 @@
 import { inject, injectable } from "inversify";
-import { LaborAttendancesRepository } from "../repositories/labourAttendances.repository";
+
 import { TYPES } from "../../types";
-import { LaborAttendance } from "./laborattendance.entity";
-import { AuditLogService } from "./auditLog.service";
+
 import AppError from "../../utils/appError";
-import { LaborDetail } from "../entities/labourForAttendance.entity";
+
 import { buildQuery, PaginationOptions } from "../../utils/pagination";
+import { LaborAttendancesRepository } from "../repository/labourAttendances.repository";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { LaborAttendance } from "../entity/laborattendance.entity";
 
 @injectable()
 export class LaborAttendancesService {

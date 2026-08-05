@@ -1,8 +1,10 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import Model from "../global/model.entity";
+
 import { ProcurementTarget } from "./procurmentTarget.entity";
-import { Product } from "./product.entity";
+
 import { ProcurementTargetWeek } from "./procurementTargetWeek.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import Model from "../../global/model.entity";
 
 @Entity('procurement_target_products')
 export class ProcurementTargetProduct extends Model {

@@ -1,6 +1,6 @@
 // UserRepository.ts
 import { Repository } from "typeorm";
-import { SystemLog } from "../entities/userSystemInfo.entity";
+import { SystemLog } from "../entity/userSystemInfo.entity";
 
 
 

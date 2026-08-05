@@ -1,26 +1,29 @@
 import { inject, injectable } from "inversify";
-import { WorkflowHierarchyRepository } from "../workFlow/WorkflowHierarchy.repository";
-import { TYPES } from "../types";
-import { DepartmentEnum, WorkflowHierarchy, normalizeDepartment } from "../entities/workflowClosure.entity";
-import { ProcurementTargetRepository } from "../procurementTarget/procurementTarget.repository";
-import { GrnRepository } from "../repositories/grn.repository";
-import { SalesTargetRepository } from "../salesTarget/salesTarget.repository";
-import { InvoiceRepository } from "../invoice/invoice.repository";
-import { UserRepository } from "../employee/user.repository";
+
+
 import { DataSource } from "typeorm";
-import { Documentb, DocumentTypeEnum, DocumentStatus } from "../approvalFlow/approveDoc/docuemnt.entity";
-import { Invoice } from "../entities/invoice.entity";
-import { GRN } from "../grn/grn.entity";
-import { FarmerRepository } from "../farmer/farmer.repository";
-import { VendorRepository } from "../vendor/vendor.repository";
-import { Status } from "../utils/status.enum";
-import { CustomerRepository } from "../customer/customer.repository";
-import { User } from "../entities/user.entity";
-import { GrnProductRepository } from "../repositories/grnProduct.repository";
-import { SalesTargetProduct } from "../salesTarget/salesTargetProduct.entity";
-import { SalesTargetWeek } from "../salesTarget/salesTargetWeek.entity";
-import { SalesTargetProductRepository } from "../salesTarget/salesTargetProduct.repository";
-import { SalesTargetWeekRepository } from "../salesTarget/salesTargetWeek.repository";
+import { TYPES } from "../../types";
+import { WorkflowHierarchyRepository } from "../../workFlow/repository/WorkflowHierarchy.repository";
+import { ProcurementTargetRepository } from "../../procurementTarget/repository/procurementTarget.repository";
+import { GrnRepository } from "../../grn/repository/grn.repository";
+import { SalesTargetRepository } from "../../salesTarget/repository/salesTarget.repository";
+import { InvoiceRepository } from "../../invoice/repository/invoice.repository";
+import { UserRepository } from "../../employee/repository/user.repository";
+import { CustomerRepository } from "../../customer/addcustomer/repository/customer.repository";
+import { VendorRepository } from "../../vendor/createVendor/repository/vendor.repository";
+import { FarmerRepository } from "../../farmer/repository/farmer.repository";
+import { GrnProductRepository } from "../../grn/repository/grnProduct.repository";
+import { SalesTargetProductRepository } from "../../salesTarget/repository/salesTargetProduct.repository";
+import { SalesTargetWeekRepository } from "../../salesTarget/repository/salesTargetWeek.repository";
+import { DepartmentEnum, normalizeDepartment, WorkflowHierarchy } from "../../workFlow/entity/workflowClosure.entity";
+import { Status } from "../../utils/status.enum";
+import { User } from "../../employee/entity/user.entity";
+import { Documentb, DocumentStatus, DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
+import { Invoice } from "../../invoice/entity/invoice.entity";
+import { GRN } from "../../grn/entity/grn.entity";
+import { SalesTargetWeek } from "../../salesTarget/entity/salesTargetWeek.entity";
+import { SalesTargetProduct } from "../../salesTarget/entity/salesTargetProduct.entity";
+
 
 @injectable()
 export class DashboardService {

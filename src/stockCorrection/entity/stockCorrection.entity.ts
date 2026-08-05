@@ -1,11 +1,12 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import Model from "../global/model.entity";
-import { InventoryStock } from "../entities/inventoryStock.entity";
-import { User } from "./user.entity";
-import { Branches } from "../entities/branches.entity";
-import { Company } from "../entities/company.entity";
-import { Product } from "../entities/product.entity";
-import { ProductVarient } from "./productVarient.entity";
+import Model from "../../global/model.entity";
+import { InventoryStock } from "../../inventoryStock/entity/inventoryStock.entity";
+import { Company } from "../../company/entity/company.entity";
+import { Branches } from "../../branch/entity/branches.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import { ProductVarient } from "../../product/productVarient/entity/productVarient.entity";
+import { User } from "../../employee/entity/user.entity";
+
 
 export enum CorrectionStatus {
   PENDING = "pending",

@@ -1,7 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-import Model from '../global/model.entity';
+
 import { User } from './user.entity';
 import { format } from 'date-fns';
+import Model from '../../global/model.entity';
 
 
 @Entity("employee_transfers")

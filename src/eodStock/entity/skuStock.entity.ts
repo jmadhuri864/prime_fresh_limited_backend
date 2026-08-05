@@ -4,10 +4,11 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
-import Model from "../global/model.entity";
-import { UOM } from "./uom.entity";
-import { StockReportEod } from "../entities/eodReportforinvendtory.entity";
-import { Product } from "./product.entity";
+import Model from "../../global/model.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import { UOM } from "../../uom/entity/uom.entity";
+import { StockReportEod } from "./eodReportforinvendtory.entity";
+;
 
 @Entity({ name: "sku_eod_report" })
 export class SkuEodReport extends Model {

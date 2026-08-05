@@ -1,6 +1,6 @@
 import { Repository } from "typeorm";
 
 
-import { ReturnedProducts } from "../entities/returnProduct.entity";
+import { ReturnedProducts } from "../entity/returnProduct.entity";
 
 export class ReturnedProductsRepository extends Repository<ReturnedProducts> {}

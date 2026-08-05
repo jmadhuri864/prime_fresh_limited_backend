@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { Acceptability } from "./quantityParameter.entity";
+import { Acceptability } from "../entity/quantityParameter.entity";
+
 
 export const ProductVariantSchema = z.object({
   count: z.string().optional(),

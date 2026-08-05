@@ -1,12 +1,12 @@
 import { controller, httpPost, httpGet, httpDelete, httpPut } from "inversify-express-utils";
 import { Request, Response } from "express";
 import { inject } from "inversify";
-import { TYPES } from "../types";
-import { WorkflowHierarchyService } from "./workFlowHierarchy.service";
-import { NotificationService } from "../services/notification.service";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import { DepartmentEnum, normalizeDepartment } from "../entities/workflowClosure.entity";
-import { ControllerLogger } from "../utils/controllerLogger";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { normalizeDepartment } from "../entity/workflowClosure.entity";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import { WorkflowHierarchyService } from "../service/workFlowHierarchy.service";
+import { NotificationService } from "../../notification/service/notification.service";
 
 @controller("/workflow", deserializeUser, requireUser)
 export class WorkflowHierarchyController {

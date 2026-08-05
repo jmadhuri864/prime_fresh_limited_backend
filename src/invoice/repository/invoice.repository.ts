@@ -1,6 +1,6 @@
 import { Repository } from "typeorm";
 
-import { Invoice } from "../entities/invoice.entity";
+import { Invoice } from "../entity/invoice.entity";
 
 
 

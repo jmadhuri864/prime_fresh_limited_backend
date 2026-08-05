@@ -1,20 +1,20 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import { GrnRepository } from '../repositories/grn.repository';
-import { GRN } from '../grn/grn.entity';
-import { GrnProductRepository } from '../repositories/grnProduct.repository';
-import { DeliveryChallanRepository } from '../deliverychllan/deliveryChallan.repository';
-import { DitemRepository } from '../deliverychllan/dItem.repository';
-import { DeliveryChallanPurchase } from '../entities/deliveryChallan.entity';
-import { SecondSale } from '../entities/secondSale.entity';
-import { SecondSaleRepository } from '../secondSale/secondSale.repository';
-import { SecondSaleProductRepository } from '../secondSale/secondSaleProduct.repository';
-import { DumpRegisterRepository } from '../dumpRegister/dumpRegister.repository';
-import { DumpRegisterController } from '../dumpRegister/dumpRegister.controller';
-import { DumpProductRepository } from '../dumpRegister/dumpProduct.repository';
-import { DumpRegister } from '../entities/dumpRegister.entity';
-import { PostReturnByCustomer } from '../returnByCustomer/postReturnByCustomer.entity';
-import { ReturnedProductsRepository } from '../returnByCustomer/returnProduct.repository';
+import { TYPES } from '../../types';
+import { GrnRepository } from '../../grn/repository/grn.repository';
+import { GrnProductRepository } from '../../grn/repository/grnProduct.repository';
+import { DeliveryChallanRepository } from '../../deliveryChallans/deliverychllan/repository/deliveryChallan.repository';
+import { DitemRepository } from '../../deliveryChallans/deliverychllan/repository/dItem.repository';
+import { SecondSaleProductRepository } from '../../secondSale/repository/secondSaleProduct.repository';
+import { SecondSaleRepository } from '../../secondSale/repository/secondSale.repository';
+import { DumpRegisterRepository } from '../../dumpRegister/repository/dumpRegister.repository';
+import { DumpProductRepository } from '../../dumpRegister/repository/dumpProduct.repository';
+import { ReturnedProductsRepository } from '../../returnByCustomer/repository/returnProduct.repository';
+import { GRN } from '../../grn/entity/grn.entity';
+import { DeliveryChallanPurchase } from '../../deliveryChallans/deliverychllan/entity/deliveryChallan.entity';
+import { DumpRegister } from '../../dumpRegister/entity/dumpRegister.entity';
+import { PostReturnByCustomer } from '../../returnByCustomer/entity/postReturnByCustomer.entity';
+
+
 
 @injectable()
 export class ManagementDashService {
@@ -446,7 +446,7 @@ export class ManagementDashService {
         this.getDateWiseTotalQtyAndAmount(start, end),  
       ]);
   
-      const totalExpenditure = challans.reduce((acc, challan) => acc + Number(challan.totalAmt || 0), 0);
+      const totalExpenditure = challans.reduce((acc, challan) => acc + Number(challan.totalProductAmount || 0), 0);
   
       return {
         filterType,

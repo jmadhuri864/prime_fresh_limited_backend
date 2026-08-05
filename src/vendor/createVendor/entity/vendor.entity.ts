@@ -9,19 +9,18 @@ import {
   ManyToMany,
   JoinTable,
 } from 'typeorm';
-import Model from '../global/model.entity';
-import { VendorSubcategory } from './vendorSubcategory.entity';
-import { Address } from '../address/address.entity';
-import { VendorCategory } from '../vendorCategory/vendorCategory.entity';
-import { Status } from '../utils/status.enum';
-import { VendorSaleInfo } from '../entities/vendorsaleinfo.entity';
-import { BankDetailsvend } from '../entities/bankDetailsVend.entity';
-import { generateIncrementalCode } from '../utils/codeGeneration';
-import { Company } from '../entities/company.entity';
-import { format, parse } from 'date-fns';
-import { Product } from '../entities/product.entity';
-import { User } from '../entities/user.entity';
-import { PackingMaterial } from '../entities/packingMaterial.entity';
+import Model from '../../../global/model.entity';
+import { Address } from '../../../address/entity/address.entity';
+import { User } from '../../../employee/entity/user.entity';
+import { format } from 'date-fns';
+import { Product } from '../../../product/createproduct/entity/product.entity';
+import { Status } from '../../../utils/status.enum';
+import { VendorSubcategory } from '../../vendorSubcategory/entity/vendorSubcategory.entity';
+import { VendorCategory } from '../../vendorCategory/entity/vendorCategory.entity';
+import { PackingMaterial } from '../../../packingMaterial/entity/packingMaterial.entity';
+import { VendorSaleInfo } from './vendorsaleinfo.entity';
+import { BankDetailsvend } from './bankDetailsVend.entity';
+
 export enum VendorClassification {
   FRESH_FRUITS = 'fresh fruits',
   MANGOES = 'mangoes',

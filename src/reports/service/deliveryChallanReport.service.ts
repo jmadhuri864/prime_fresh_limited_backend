@@ -1,17 +1,16 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import { CustomerDeliveryChallanRepository } from '../deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository';
-import { IDeliveryChallanReportFilters } from '../interfaces/deliveryChallan-report.interface';
-import { DocumentbService } from './documentb.service';
-import { CompanyRepository } from '../company/repository/company.repository';
-import { In } from 'typeorm';
-import { BranchessRepository } from '../repositories/branches.repository';
-import { CustomerRepository } from '../customer/addcustomer/repository/customer.repository';
-import { UserRepository } from '../employee/repository/user.repository';
-import { ProductRepository } from '../createproduct/repository/product.repository';
 import * as ExcelJS from 'exceljs';
-import { GrnRepository } from '../repositories/grn.repository';
-import { Documentb } from '../approvalFlow/entity/docuemnt.entity';
+import { In } from 'typeorm';
+import { TYPES } from '../../types';
+import { CustomerDeliveryChallanRepository } from '../../deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository';
+import { DocumentbService } from '../../approvalFlow/service/documentb.service';
+import { UserRepository } from '../../employee/repository/user.repository';
+import { GrnRepository } from '../../grn/repository/grn.repository';
+import { ProductRepository } from '../../product/createproduct/repository/product.repository';
+import { CustomerRepository } from '../../customer/addcustomer/repository/customer.repository';
+import { BranchessRepository } from '../../branch/repository/branches.repository';
+import { CompanyRepository } from '../../company/repository/company.repository';
+import { Documentb } from '../../approvalFlow/entity/docuemnt.entity';
 
 @injectable()
 export class DeliveryChallanReportService {

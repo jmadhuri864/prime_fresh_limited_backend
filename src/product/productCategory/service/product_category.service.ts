@@ -2,14 +2,16 @@ import { inject, injectable } from "inversify";
 import { TYPES } from "../../../types";
 import { In } from "typeorm";
 import { ProductCategoryRepository } from "../repository/product_category.repository";
-import { ProductCategory } from "./product_category.entity";
-import { ProductClassificationRepository } from "../../productClassification/product_classification.repository";
-import { AuditLogService } from "./auditLog.service";
+
 import AppError from "../../../utils/appError";
 import { buildQuery, PaginationOptions } from "../../../utils/pagination";
-import { CacheService } from "./cache.service";
-import { CreateProductCategoryDto, ProductCategoryResponseDto } from "../createproduct/product.dto";
-import { PaginatedResponse } from "../dtos/createCustomer.dto";
+import { ProductClassificationRepository } from "../../productClassification/repository/product_classification.repository";
+import { AuditLogService } from "../../../employeeActivity/service/auditLog.service";
+import { CacheService } from "../../../global/cache.service";
+import { PaginatedResponse } from "../../../customer/addcustomer/dto/createCustomer.dto";
+import { CreateProductCategoryDto, ProductCategoryResponseDto } from "../../createproduct/dto/product.dto";
+import { ProductCategory } from "../entity/product_category.entity";
+
 
 const CACHE_PREFIX = "productCategory";
 const CACHE_TTL = 300;

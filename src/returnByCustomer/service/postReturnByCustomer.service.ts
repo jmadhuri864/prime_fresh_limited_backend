@@ -1,26 +1,21 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { PostReturnByCustomerRepository } from '../repositories/postReturnByCustomer.repository';
+
 import { DeliveryChallanRepository } from '../../deliveryChallans/deliverychllan/repository/deliveryChallan.repository';
-import { AuditLogService } from './auditLog.service';
+
 import * as ExcelJS from 'exceljs';
 import { PaginationOptions } from '../../utils/pagination';
 import { formatDateTime } from '../../utils/dateUtils';
 import { DocumentTypeEnum, Documentb } from '../../approvalFlow/entity/docuemnt.entity';
 import { UserLogger } from '../../utils/logger';
 import { DocumentStatus } from '../../approvalFlow/entity/docuemnt.entity';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { DocumentbService, DocumentWithRelatedData } from './documentb.service';
-import { DocDoubleApproverService } from './docDoubleApprover.service';
+import { DocumentTypeEnum as DocDefEnum } from "../../documentDef/entity/documentdef.entity";
 import { DataSource, ILike, In } from 'typeorm';
 import { CustomerRepository } from '../../customer/addcustomer/repository/customer.repository';
 import { UserRepository } from '../../employee/repository/user.repository';
 import { ProductRepository } from '../../product/createproduct/repository/product.repository';
 import { CompanyRepository } from '../../company/repository/company.repository';
-import { BranchessRepository } from '../repositories/branches.repository';
-import { DocumentbRepository } from '../repositories/documentb.repository';
-import { PostReturnByCustomer } from './postReturnByCustomer.entity';
-import { CacheService } from './cache.service';
+
 import { createHash } from 'crypto';
 import {
   CreateRBCDto,
@@ -33,6 +28,14 @@ import {
   BulkDeleteRBCResultDto,
 } from '../dto/postReturnByCustomer.dto';
 import { BulkDeleteResultDto } from '../../global/general.dto';
+import { PostReturnByCustomerRepository } from '../repository/postReturnByCustomer.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { BranchessRepository } from '../../branch/repository/branches.repository';
+import { DocumentbService, DocumentWithRelatedData } from '../../approvalFlow/service/documentb.service';
+import { DocDoubleApproverService } from '../../approvalFlow/service/docDoubleApprover.service';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
+import { CacheService } from '../../global/cache.service';
+import { PostReturnByCustomer } from '../entity/postReturnByCustomer.entity';
 export interface ReturnByCustomerReportFilter {
   startDate?: string;
   endDate?: string;

@@ -1,11 +1,13 @@
 import { ManyToOne, JoinColumn, Column, Entity } from "typeorm";
-import Model from "../global/model.entity";
+
 import { ReturnToVendor } from "./returnToVendor.entity";
 
-import { Product } from "../entities/product.entity";
-import { ProductVarient } from "./productVarient.entity";
-import { UOM } from "./uom.entity";
+
 import { format } from "date-fns";
+import Model from "../../global/model.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import { ProductVarient } from "../../product/productVarient/entity/productVarient.entity";
+import { UOM } from "../../uom/entity/uom.entity";
 
 @Entity('return_to_vendor_product') 
 export class ProductReturnToVendor extends Model {

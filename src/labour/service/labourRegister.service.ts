@@ -1,12 +1,12 @@
 import { inject, injectable } from "inversify";
 import { Repository } from "typeorm";
-import { TYPES } from "../types";
-import { LaborRegisterRepository } from "./repository/labourRegister.repository";
-import AppError from "../utils/appError";
-import { LaborRegister } from "../entities/labourregister.entity";
-import { AuditLogService } from "./auditLog.service";
-import { buildQuery, PaginationOptions } from "../utils/pagination";
-import { CacheService } from "../global/cache.service";
+import { TYPES } from "../../types";
+import { LaborRegisterRepository } from "../repository/labourRegister.repository";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { CacheService } from "../../global/cache.service";
+import AppError from "../../utils/appError";
+import { LaborRegister } from "../entity/labourregister.entity";
+import { buildQuery, PaginationOptions } from "../../utils/pagination";
 
 
 @injectable()

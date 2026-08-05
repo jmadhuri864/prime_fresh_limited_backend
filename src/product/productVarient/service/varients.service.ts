@@ -1,12 +1,13 @@
 import { inject, injectable } from 'inversify';
-import { ProductVarientRepository } from './repository/varients.repository';
-import { TYPES } from '../types';
 import { DataSource } from 'typeorm';
-import { Product } from '../entities/product.entity';
-import { ProductVarient } from '../entities/productVarient.entity';
-import { AppDataSource } from '../utils/data-source';
-import { buildQuery, PaginationOptions } from '../utils/pagination';
-import logger from '../utils/logger';
+import { TYPES } from '../../../types';
+import { ProductVarientRepository } from '../repository/varients.repository';
+import { buildQuery, PaginationOptions } from '../../../utils/pagination';
+import { Product } from '../../createproduct/entity/product.entity';
+import logger from '../../../utils/logger';
+import { AppDataSource } from '../../../utils/data-source';
+import { ProductVarient } from '../entity/productVarient.entity';
+
 
 @injectable()
 export class ProductVarientsService {

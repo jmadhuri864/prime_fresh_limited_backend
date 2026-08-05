@@ -1,7 +1,7 @@
 //sale target week wise entity
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { SalesTargetProduct } from "./entity/salesTargetProduct.entity";
-import Model from "../global/model.entity";
+import Model from "../../global/model.entity";
+import { SalesTargetProduct } from "./salesTargetProduct.entity";
 
 export enum WeekNo {
   WEEK_1 = 1,

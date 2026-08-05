@@ -1,6 +1,7 @@
 import { Entity, Column } from "typeorm";
-import Model from "./model.entity";
+
 import { format } from "date-fns";
+import Model from "../../global/model.entity";
 
 @Entity("payment_info_for_rfpa")
 export class PaymentInfoForRFPA extends Model {

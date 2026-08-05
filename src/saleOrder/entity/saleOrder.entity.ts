@@ -1,9 +1,11 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne } from "typeorm";
-import Model from "../global/model.entity";
-import { PartyDetails } from "./entity/partyDetails.entity";
+
 import { SaleOrderProduct } from "./saleOrderProduct.entity";
-import { Company } from "./company.entity";
+
 import { format } from "date-fns";
+import { Company } from "../../company/entity/company.entity";
+import { PartyDetails } from "./partyDetails.entity";
+import Model from "../../global/model.entity";
 
 @Entity({ name: "sale_order" })
 export class SaleOrder extends Model {

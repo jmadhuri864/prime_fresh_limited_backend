@@ -6,15 +6,17 @@ import {
   request,
   response,
 } from 'inversify-express-utils';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
+
 import { inject } from 'inversify';
-import { TYPES } from '../types';
-import { ProductVarientsService } from '../services/varients.service';
+
 import { NextFunction, Request, Response } from 'express';
-import logger from '../utils/logger';
-import AppError from '../utils/appError';
-import { ControllerLogger } from '../utils/controllerLogger';
-import { PaginationOptions } from '../utils/pagination';
+import { deserializeUser, requireUser } from '../../../middleware/deserializeUser';
+import { TYPES } from '../../../types';
+import { ProductVarientsService } from '../service/varients.service';
+import AppError from '../../../utils/appError';
+import logger from '../../../utils/logger';
+import { PaginationOptions } from '../../../utils/pagination';
+
 
 @controller('/varients', deserializeUser, requireUser)
 export class VarientsController {

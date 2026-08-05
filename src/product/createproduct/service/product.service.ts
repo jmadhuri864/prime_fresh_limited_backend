@@ -3,31 +3,29 @@ import * as fs from 'fs';
 import * as XLSX from "xlsx";
 import { TYPES } from '../../../types';
 import { DataSource, In, Repository } from 'typeorm';
-import { Product } from '../entities/product.entity';
-
-import { AuditLogService } from '../services/auditLog.service';
-import { QualityParameterRepository } from '../repositories/qualityParameter.repository';
-
-import { ProductCategory } from '../../product/productCategory/product_category.entity';
 import { ProductSubcategory } from '../../productSubcategory/entity/product_subcategory.entity';
 import { ProductClassification } from '../../productClassification/entity/product_classification.entity';
-import { UOM } from '../entities/uom.entity';
 import csvParser from 'csv-parser';
 import { buildQuery, PaginationOptions } from '../../../utils/pagination';
 import { ProductVarientsRepository } from '../../productVarient/repository/productVarients.repository';
 import { ProductVarientRepository } from '../../productVarient/repository/varients.repository';
 import { createHash } from 'crypto';
-import {
-  generateVariantCode,
-  getVariantIdentifier,
-  ProductVarientsService,
-} from './varients.service';
 import { AppDataSource } from '../../../utils/data-source';
-import { ProductVarient } from '../entities/productVarient.entity';
 import { QualityParameter } from '../entity/quantityParameter.entity';
 import { CacheService } from '../../../global/cache.service';
-import { CreateProductDto, ProductDetailResponseDto, ProductListResponseDto } from './product.dto';
-import { PaginatedResponse } from '../dtos/createCustomer.dto';
+import { Product } from '../entity/product.entity';
+import { ProductCategory } from '../../productCategory/entity/product_category.entity';
+import { UOM } from '../../../uom/entity/uom.entity';
+import { AuditLogService } from '../../../employeeActivity/service/auditLog.service';
+import { generateVariantCode, getVariantIdentifier, ProductVarientsService } from '../../productVarient/service/varients.service';
+import { QualityParameterRepository } from '../repository/qualityParameter.repository';
+
+import { PaginatedResponse } from '../../../customer/addcustomer/dto/createCustomer.dto';
+import { CreateProductDto, ProductDetailResponseDto, ProductListResponseDto } from '../dto/product.dto';
+import { ProductVarient } from '../../productVarient/entity/productVarient.entity';
+
+
+
 
 const CACHE_PREFIX = 'product';
 const CACHE_TTL = 180;

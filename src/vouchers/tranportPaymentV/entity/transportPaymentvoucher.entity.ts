@@ -1,10 +1,12 @@
 import { Entity, Column, ManyToOne, JoinColumn, OneToMany, JoinTable, ManyToMany } from 'typeorm';
 import Model from '../../../global/model.entity';
-import { GRN } from '../grn/grn.entity';
+
 import { Department, Status } from '../../../utils/status.enum';
-import { User } from './user.entity';
-import { Company } from '../entities/company.entity';
-import { Product } from '../entities/product.entity';
+import { GRN } from '../../../grn/entity/grn.entity';
+import { Company } from '../../../company/entity/company.entity';
+import { Product } from '../../../product/createproduct/entity/product.entity';
+import { User } from '../../../employee/entity/user.entity';
+
 
 @Entity('transport_payment_voucher')
 export class TPVoucher extends Model {

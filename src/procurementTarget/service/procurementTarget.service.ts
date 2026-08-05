@@ -6,18 +6,20 @@ import { UserRepository } from "../../employee/repository/user.repository";
 import { ProductRepository } from "../../product/createproduct/repository/product.repository";
 import { ProcurementTargetProductRepository } from "../repository/procurmentTargetProduct.repository";
 import { ProcurementTargetWeekRepository } from "../repository/procurmentTargetWeek.repository";
-import { DepartmentEnum } from "../entities/workflowClosure.entity";
-import { ProcurementTargetAchievementRepository } from "../procurementTarget/procurmentAchievement.repository";
+
 import { WorkflowHierarchyRepository } from "../../workFlow/repository/WorkflowHierarchy.repository";
 import * as ExcelJS from 'exceljs';
 import { AppDataSource } from "../../utils/data-source";
-import { ProcurementStatus, ProcurementTarget } from "../entities/procurmentTarget.entity";
+
 import * as path from 'path';
 import * as fs from 'fs';
-import { User } from "../entities/user.entity";
-import { ProcurementTargetWeek } from "../entities/procurementTargetWeek.entity";
-import { ProcurementTargetProduct } from "../procurementTarget/procurementTargetProduct.entity";
-import { Product } from "../entities/product.entity";
+import { ProcurementTargetAchievementRepository } from "../repository/procurmentAchievement.repository";
+import { ProcurementStatus, ProcurementTarget } from "../entity/procurmentTarget.entity";
+import { ProcurementTargetProduct } from "../entity/procurementTargetProduct.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import { ProcurementTargetWeek } from "../entity/procurementTargetWeek.entity";
+import { User } from "../../employee/entity/user.entity";
+
 
 @injectable()
 export class ProcurementTargetService {
@@ -525,10 +527,10 @@ async getMonthlyPlanUpdateStructured(
                 { header: 'Remark', key: 'remark', width: 30 }
             ];
 
-            data.plan.forEach((product: any) => {
+            data.procurementTargetPlan.forEach((product: any) => {
                 const weekData: any = { week1: 0, week2: 0, week3: 0, week4: 0, week5: 0 };
                 
-                product.weeklyProcurement.forEach((week: any) => {
+                product.weeklyTargets.forEach((week: any) => {
                     weekData[`week${week.weekNo}`] = week.qty;
                 });
 
@@ -539,7 +541,7 @@ async getMonthlyPlanUpdateStructured(
                     week3: weekData.week3,
                     week4: weekData.week4,
                     week5: weekData.week5,
-                    total: product.weeklyTotalQtyPerProduct,
+                    total: product.weeklyTargetsTotalQty,
                     remark: product.remark
                 });
             });

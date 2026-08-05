@@ -1,6 +1,6 @@
 import { Repository } from "typeorm";
 
-import { LaborAttendance } from "../labourAttendence/laborattendance.entity";
+import { LaborAttendance } from "../../labourAttendence/entity/laborattendance.entity";
 
 
 

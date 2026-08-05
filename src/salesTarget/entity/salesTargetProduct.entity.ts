@@ -1,11 +1,12 @@
 //sale product target entity
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { Customer } from "../entities/customer.entity";
-import { Product } from "./product.entity";
+
 
 import { extend } from "lodash";
 import Model from "../../global/model.entity";
 import { SalesTarget } from "./salesTarget.entity";
+import { Customer } from "../../customer/addcustomer/entity/customer.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
 
 @Entity("sales_target_products")
 export class SalesTargetProduct extends Model {

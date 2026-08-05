@@ -1,4 +1,5 @@
-import { CorrectionType, DumpReason } from "../stockCorrection/stockCorrection.entity";
+import { CorrectionType, DumpReason } from "../entity/stockCorrection.entity";
+
 
 export interface CreateStockCorrectionDto {
   inventoryStockId: string;

@@ -1,9 +1,9 @@
 import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from "typeorm";
-import Model from "../global/model.entity";
+import Model from "../../../global/model.entity";
+import { ProductClassification } from "../../productClassification/entity/product_classification.entity";
+import { ProductSubcategory } from "../../productSubcategory/entity/product_subcategory.entity";
+import { Product } from "../../createproduct/entity/product.entity";
 
-import { ProductSubcategory } from "../productSubcategory/product_subcategory.entity";
-import { Product } from "./product.entity";
-import { ProductClassification } from "../productClassification/product_classification.entity";
 
 @Entity("product_category")
 export class ProductCategory extends Model {

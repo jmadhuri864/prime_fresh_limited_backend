@@ -1,5 +1,5 @@
 import { Repository } from "typeorm";
-import { WorkflowHierarchy } from "../entities/workflowClosure.entity";
+import { WorkflowHierarchy } from "../entity/workflowClosure.entity";
 
 export class WorkflowHierarchyRepository extends Repository<WorkflowHierarchy> {
   /**

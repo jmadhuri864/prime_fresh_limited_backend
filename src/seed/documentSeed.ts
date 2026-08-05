@@ -3,8 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AppDataSource } from '../utils/data-source';
 
-import { DocumentDefinition } from '../documentDef/documentdef.entity';
+
 import logger from '../utils/logger';
+import { DocumentDefinition } from '../documentDef/entity/documentdef.entity';
 
 export async function seedDocumentDefDatabase() {
     try {

@@ -1,10 +1,12 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { LevelsRepository } from '../repositories/levels.repository';
-import { Levels } from './levels.entity';
-import { AuditLogService } from './auditLog.service';
+
 import AppError from '../../utils/appError';
-import { DocumentDefinitionRepository } from '../repositories/documentDefination.repository';
+import { LevelsRepository } from '../repository/levels.repository';
+import { DocumentDefinitionRepository } from '../../documentDef/repository/documentDefination.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { Levels } from '../entity/levels.entity';
+
 
 @injectable()
 export class LevelsService {

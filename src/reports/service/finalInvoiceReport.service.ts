@@ -1,15 +1,18 @@
 import { inject, injectable } from "inversify";
-import { DocumentbService } from "./documentb.service";
-import { TYPES } from "../types";
+
 import * as ExcelJS from 'exceljs';
-import { InvoiceRepository } from "../invoice/repository/invoice.repository";
-import { ProductRepository } from "../createproduct/repository/product.repository";
-import { UserRepository } from "../employee/repository/user.repository";
-import { CustomerRepository } from "../customer/addcustomer/repository/customer.repository";
-import { BranchessRepository } from "../repositories/branches.repository";
-import { CompanyRepository } from "../company/repository/company.repository";
+
 import { In } from "typeorm";
-import { Documentb } from "../approvalFlow/entity/docuemnt.entity";
+import { TYPES } from "../../types";
+import { DocumentbService } from "../../approvalFlow/service/documentb.service";
+import { InvoiceRepository } from "../../invoice/repository/invoice.repository";
+import { CompanyRepository } from "../../company/repository/company.repository";
+import { BranchessRepository } from "../../branch/repository/branches.repository";
+import { CustomerRepository } from "../../customer/addcustomer/repository/customer.repository";
+import { UserRepository } from "../../employee/repository/user.repository";
+import { ProductRepository } from "../../product/createproduct/repository/product.repository";
+import { Documentb } from "../../approvalFlow/entity/docuemnt.entity";
+
 
 @injectable()
 export class FinalInvoiceReportService {

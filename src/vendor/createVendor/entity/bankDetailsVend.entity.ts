@@ -1,8 +1,9 @@
 import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
-import Model from "./model.entity";
-import { Address } from "../address/address.entity";
-import { AccountType } from "./bankDetailsCust.entity";
-import { Vendor } from "../vendor/vendor.entity";
+import Model from "../../../global/model.entity";
+import { Address } from "../../../address/entity/address.entity";
+import { AccountType } from "../../../customer/addcustomer/entity/bankDetailsCust.entity";
+import { Vendor } from "./vendor.entity";
+
 
 @Entity('bank_details_vendor')
 export class BankDetailsvend extends Model {

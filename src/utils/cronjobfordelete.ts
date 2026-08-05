@@ -1,23 +1,25 @@
 import cron from 'node-cron';
 import { LessThan } from 'typeorm';
-import { DealSlip } from '../entities/dealSlip.entity';
+
 import { AppDataSource } from './data-source';
-import { GRN } from '../grn/grn.entity';
-import { RFPA } from '../rfpa/rfpa.entity';
-import { InwardRegister } from '../entities/inwardRegister.entity';
-import { VehicleDispatch } from '../entities/vehicleDispatch.entity';
-import { Aqr } from '../entities/aqr.entity';
-import { PackingMaterial } from '../entities/packingMaterial.entity';
+
 import { CashVoucher } from '../vouchers/multiCashV/entity/mCashVoucher.entity';
 
 import { TPVoucher } from '../vouchers/tranportPaymentV/entity/transportPaymentvoucher.entity';
-import { DumpRegister } from '../entities/dumpRegister.entity';
-import { StockReportEod } from '../entities/eodReportforinvendtory.entity';
-import { PostReturnByCustomer } from '../returnByCustomer/postReturnByCustomer.entity';
-import { SecondSale } from '../entities/secondSale.entity';
-
-import {Invoice} from '../entities/invoice.entity';
 import logger from './logger';
+import { GRN } from '../grn/entity/grn.entity';
+import { RFPA } from '../rfpa/entity/rfpa.entity';
+import { DealSlip } from '../dealSlip/entity/dealSlip.entity';
+import { InwardRegister } from '../inwardRegister/entity/inwardRegister.entity';
+import { VehicleDispatch } from '../vehicleDispatch/entity/vehicleDispatch.entity';
+import { Aqr } from '../aqr/entity/aqr.entity';
+import { PackingMaterial } from '../packingMaterial/entity/packingMaterial.entity';
+import { DumpRegister } from '../dumpRegister/entity/dumpRegister.entity';
+import { SecondSale } from '../secondSale/entity/secondSale.entity';
+import { PostReturnByCustomer } from '../returnByCustomer/entity/postReturnByCustomer.entity';
+import { StockReportEod } from '../eodStock/entity/eodReportforinvendtory.entity';
+import { Invoice } from '../invoice/entity/invoice.entity';
+
 
 
 export const startAutoDeleteJob = () => {

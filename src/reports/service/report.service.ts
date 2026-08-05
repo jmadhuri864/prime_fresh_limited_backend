@@ -1,8 +1,9 @@
 import { injectable } from 'inversify';
 import { AppDataSource } from '../../utils/data-source';
-import { ReportFilters } from '../reports/report.controller';
+
 import * as ExcelJS from 'exceljs';
 import logger from '../../utils/logger';
+import { ReportFilters } from '../controller/report.controller';
 
 export interface ReportData {
   name: string;

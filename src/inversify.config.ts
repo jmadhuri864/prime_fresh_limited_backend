@@ -1,417 +1,363 @@
 import { Container } from "inversify";
-import { UserController } from "./employee/user.controller";
-import { UserService } from "./services/user.service";
+
 import { UserRepository } from "./employee/repository/user.repository";
 import { TYPES } from "./types";
-import { AuthController } from "./sse/auth.controller";
-
 import { DataSource } from "typeorm";
-import { AppDataSource } from "./utils/data-source";
-
+import { UserController } from "./employee/controller/user.controller";
+import { UserService } from "./employee/service/user.service";
+import { Role, User } from "./employee/entity/user.entity";
+import { AuthController } from "./auth/controller/auth.controller";
+import { AddressRepository } from "./address/repository/address.repository";
+import { Address } from "./address/entity/address.entity";
+import { AddressController } from "./address/controller/address.controller";
+import { AddressService } from "./address/service/address.service";
+import { VendorCategoryRepository } from "./vendor/vendorCategory/repository/vendorCategory.repository";
+import { VendorCategory } from "./vendor/vendorCategory/entity/vendorCategory.entity";
+import { VendorCategoryController } from "./vendor/vendorCategory/controller/vendorCategory.controller";
+import { VendorCategoryService } from "./vendor/vendorCategory/service/vendorCategory.service";
+import { VendorSubcategoryService } from "./vendor/vendorSubcategory/service/vendorSubcategory.service";
+import { VendorSubcategoryRepository } from "./vendor/vendorSubcategory/repository/vendorSubcategory.repository";
+import { VendorSubcategory } from "./vendor/vendorSubcategory/entity/vendorSubcategory.entity";
+import { VendorSubcategoryController } from "./vendor/vendorSubcategory/controller/vendorSubcategory.controller";
 import { VendorService } from "./vendor/createVendor/service/vendor.service";
 import { VendorRepository } from "./vendor/createVendor/repository/vendor.repository";
-import { VendorController } from "./vendor/createVendor/vendor.controller";
-import { VendorSubcategoryService } from "./services/vendorSubcategory.service";
-import { VendorSubcategoryRepository } from "./vendor/vendorSubcategory/repository/vendorSubcategory.repository";
-import { VendorSubcategoryController } from "./vendor/vendorSubcategory/vendorSubcategory.controller";
-
-import { VendorCategoryRepository } from "./vendor/vendorCategory/vendorCategory.repository";
-import { VendorCategoryController } from "./vendor/vendorCategory/vendorCategory.controller";
+import { Vendor } from "./vendor/createVendor/entity/vendor.entity";
+import { VendorController } from "./vendor/createVendor/controller/vendor.controller";
 import { CustomerService } from "./customer/addcustomer/service/customer.service";
-
+import { CustomerTypeService } from "./customer/customerType/service/customerType.service";
+import { CustomerController } from "./customer/addcustomer/controller/customer.controller";
+import { Customer } from "./customer/addcustomer/entity/customer.entity";
 import { CustomerRepository } from "./customer/addcustomer/repository/customer.repository";
-import { CustomerController } from "./sse/customer.controller";
-import { CustomerTypeService } from "./customerType/customerType.service";
-import { CustomerTypeRepository } from "./customerType/repository/customerType.repository";
-import { CustomerTypeController } from "./sse/customerType.controller";
-import { CustomerCategoryRepository } from "./customerCategory/repository/customerCategory.repository";
-import { CustomerCategoryController } from "./sse/customerCategory.controller";
-import { CustomerCategoryService } from "./customerCategory/service/customerCategory.service";
+import { CustomerTypeRepository } from "./customer/customerType/repository/customerType.repository";
+import { CustomerTypeController } from "./customer/customerType/controller/customerType.controller";
+import { CustomerCategoryService } from "./customer/customerCategory/service/customerCategory.service";
+import { CustomerCategoryRepository } from "./customer/customerCategory/repository/customerCategory.repository";
+import { CustomerCategoryController } from "./customer/customerCategory/controller/customerCategory.controller";
 import { FarmerService } from "./farmer/service/farmer.service";
 import { FarmerRepository } from "./farmer/repository/farmer.repository";
+import { Farmer } from "./farmer/entity/farmer.entity";
 import { FarmerController } from "./farmer/controller/farmer.controller";
-import { UOMRepository } from "./uom/repository/uom.repository";
+import { CropRepository } from "./farmer/repository/crop.repository";
+import { Crop } from "./farmer/entity/crop.entity";
+import { UOMConversionMatrixService } from "./uomMatrix/service/UOMconversionMatrix.service";
 import { UOMConversionMatrixRepository } from "./uomMatrix/repository/uomMatrix.repository";
-import { UOMConversionMatrixController } from "./uomMatrix/UOMconversionMatrix.controller";
-import { UOMConversionMatrixService } from "./services/UOMconversionMatrix.service";
-import { UOMService } from "./uom/UOM.service";
-import { UOMController } from "./uom/UOM.controller";
-import { ProductCategoryService } from "./services/product_category.service";
+import { UOMConversionMatrixController } from "./uomMatrix/controller/UOMconversionMatrix.controller";
+import { UOMRepository } from "./uom/repository/uom.repository";
+import { UOM } from "./uom/entity/uom.entity";
+import { UOMService } from "./uom/service/UOM.service";
+import { UOMController } from "./uom/controller/UOM.controller";
+import { ProductCategoryService } from "./product/productCategory/service/product_category.service";
 import { ProductCategoryRepository } from "./product/productCategory/repository/product_category.repository";
+import { ProductCategory } from "./product/productCategory/entity/product_category.entity";
 import { ProductCategoryController } from "./product/productCategory/controller/productCategory.controller";
-import { ProductSubcategoryService } from "./services/product_subcategory";
-import { ProductSubcategoryRepository } from "./productSubcategory/product_subcategory.repository";
-import { ProductSubcategoryController } from "./productSubcategory/controller/productSubcategory.controller";
-import { ProductController } from "./product/createproduct/product.controller";
-
+import { ProductSubcategoryService } from "./product/productSubcategory/service/product_subcategory.service";
+import { ProductSubcategoryRepository } from "./product/productSubcategory/repository/product_subcategory.repository";
+import { ProductSubcategoryController } from "./product/productSubcategory/controller/productSubcategory.controller";
 import { ProductService } from "./product/createproduct/service/product.service";
-
-import { AddressRepository } from "./repositories/address.repository";
-import { AddressService } from "./address/address.service";
-import { VendorCategoryService } from "./services/vendorCategory.service";
-
-
-import { DriverController } from "./driver/controller/drivers.controller";
-import { DriverRepository } from "./repositories/driver.repository";
-import { DriversService } from "./driver/service/driver.service";
-import { ProductClassificationService } from "./services/product_classification.service";
-import { ProductClassificationController } from "./product/productClassification/controller/productClassification.controller";
+import { Product } from "./product/createproduct/entity/product.entity";
 import { ProductRepository } from "./product/createproduct/repository/product.repository";
-
+import { ProductController } from "./product/createproduct/controller/product.controller";
+import { DriversService } from "./driver/service/driver.service";
+import { DriverRepository } from "./driver/repository/driver.repository";
+import { DriverController } from "./driver/controller/drivers.controller";
+import { ProductClassificationService} from "./product/productClassification/service/product_classification.service";
+import { ProductClassificationController } from "./product/productClassification/controller/productClassification.controller";
+import { ProductClassificationRepository } from "./product/productClassification/repository/product_classification.repository";
+import { ProductClassification } from "./product/productClassification/entity/product_classification.entity";
 import { BankDetailsCustRepository } from "./customer/addcustomer/repository/bank-detailsCust.repository";
-
-import { BankDetailsCust } from "./entities/bankDetailsCust.entity";
-
+import { BankDetailsCust } from "./customer/addcustomer/entity/bankDetailsCust.entity";
 import { BillingDetailsCustRepository } from "./customer/addcustomer/repository/billingDetailsCust.repository";
-import { BillingDetailsCust } from "./entities/billingdetailsCust.entity";
-
-import { BranchessRepository } from "./repositories/branches.repository";
-import { Branches } from "./entities/branches.entity";
+import { BillingDetailsCust } from "./customer/addcustomer/entity/billingdetailsCust.entity";
+import { BranchessRepository } from "./branch/repository/branches.repository";
+import { Branches } from "./branch/entity/branches.entity";
 import { BranchessService } from "./branch/service/branches.service";
-import { BranchessController } from "./sse/branches.controller";
-import { Address } from "./address/address.entity";
+import { BranchessController } from "./branch/controller/branches.controller";
 import { OfficesRepository } from "./office/repository/offices.repository";
-import { OfficesData } from "./entities/offices.entity";
-import { OfficesService } from "./office/office.service";
-import { OfficesController } from "./sse/offices.controller";
-import { Vendor } from "./vendor/createVendor/vendor.entity";
-
-import { Crop } from "./farmer/crop.entity";
-import { CropRepository } from "./repositories/crop.repository";
-import { Farmer } from "./entities/farmer.entity";
-import { DeliveryDetails } from "./entities/deliveryDetailsCust.entity";
+import { AppDataSource } from "./utils/data-source";
+import { OfficesData } from "./office/entity/offices.entity";
+import { OfficesService } from "./office/service/office.service";
+import { OfficesController } from "./office/controller/offices.controller";
 import { DeliveryDetailsCustRepository } from "./customer/addcustomer/repository/deliveryDetailsCust.repository";
-
-import { StatutoryDetails } from "./entities/statutoryCust.entity";
+import { DeliveryDetails } from "./customer/addcustomer/entity/deliveryDetailsCust.entity";
 import { StatutoryDetailsCustRepository } from "./customer/addcustomer/repository/statutoryDetails.repository";
-
-import { ProductSpecification} from "./entities/productSpecificationCust.entity";
-import { ProductSpecificationCustRepository } from "./customer/addcustomer/repository/productspecification.repository";
-
-import { BankDetailsvendRepository } from "./vendor/createVendor/repository/vendorBankDetails.repository";
-import { BankDetailsvend } from "./entities/bankDetailsVend.entity";
-import { VendorSaleInfo } from "./entities/vendorsaleinfo.entity";
-import { VendorSaleInfoRepository } from "./vendor/createVendor/repository/vendorSaleInfo.repository";
-import { BankDetailsvendService } from "./services/vendorBankDetails.service";
-import { VendorSaleInfoService } from "./vendor/createVendor/vendorsaleinfo.service";
+import { StatutoryDetails } from "./customer/addcustomer/entity/statutoryCust.entity";
 import { PaymentTermsRepository } from "./customer/addcustomer/repository/paymentTermsCust.repository";
-import { PaymentTerms } from "./entities/paymentDetailsCust.entity";
-import { PaymentTermsService } from "./customer/addcustomer/paymentTerms.service";
-import { keyMobileNoData } from "./entities/keyMobileNoCust.entity";
+import { PaymentTerms } from "./customer/addcustomer/entity/paymentDetailsCust.entity";
+import { PaymentTermsService } from "./customer/addcustomer/service/paymentTerms.service";
+import { ProductSpecificationCustRepository } from "./customer/addcustomer/repository/productspecification.repository";
+import { ProductSpecification } from "./customer/addcustomer/entity/productSpecificationCust.entity";
 import { KeyMobileNoDataRepository } from "./customer/addcustomer/repository/keyMobileNoDataCust.repository";
-import { KeyMobileNoDataService } from "./services/keymobilenocust.service";
-import { RFPA } from "./rfpa/rfpa.entity";
-import { RfpaRepository } from "./repositories/rfpa.repository";
+import { keyMobileNoData } from "./customer/addcustomer/entity/keyMobileNoCust.entity";
+import { KeyMobileNoDataService } from "./customer/addcustomer/service/keymobilenocust.service";
+import { BankDetailsvendRepository } from "./vendor/createVendor/repository/vendorBankDetails.repository";
+import { BankDetailsvend } from "./vendor/createVendor/entity/bankDetailsVend.entity";
+import { BankDetailsvendService } from "./vendor/createVendor/service/vendorBankDetails.service";
+import { VendorSaleInfoRepository } from "./vendor/createVendor/repository/vendorSaleInfo.repository";
+import { VendorSaleInfo } from "./vendor/createVendor/entity/vendorsaleinfo.entity";
+import { VendorSaleInfoService } from "./vendor/createVendor/service/vendorsaleinfo.service";
+import { RfpaRepository } from "./rfpa/repository/rfpa.repository";
+import { RFPA } from "./rfpa/entity/rfpa.entity";
 import { RfpaService } from "./rfpa/service/rfpa.service";
 import { RfpaController } from "./rfpa/controller/rfpa.controller";
-import { DealSlip } from "./entities/dealSlip.entity";
+import { DealSlip } from "./dealSlip/entity/dealSlip.entity";
 import { DealSlipRepository } from "./dealSlip/repository/dealSlip.repository";
 import { DealSlipService } from "./dealSlip/service/dealSlip.service";
 import { DealSlipController } from "./dealSlip/controller/dealSlip.controller";
-
-import { UOM } from "./entities/uom.entity";
-import { Product } from "./entities/product.entity";
-import { GRN } from "./grn/grn.entity";
-import { GrnRepository } from "./repositories/grn.repository";
-import { GrnService } from "./services/grn.service";
+import { GrnRepository } from "./grn/repository/grn.repository";
+import { GRN } from "./grn/entity/grn.entity";
+import { GrnService } from "./grn/service/grn.service";
 import { GrnController } from "./grn/controller/grn.controller";
-import { GrnReportService } from "./reports/grnReport.service";
-import { GrnReportController } from "./reports/grnReport.controller";
-import { DeliveryChallanReportService } from "./services/deliveryChallanReport.service";
-import { DeliveryChallanReportController } from "./reports/deliveryChallanReport.controller";
+import { GrnReportService } from "./reports/service/grnReport.service";
+import { GrnReportController } from "./reports/controller/grnReport.controller";
+import { DeliveryChallanReportService } from "./reports/service/deliveryChallanReport.service";
+import { DeliveryChallanReportController } from "./reports/controller/deliveryChallanReport.controller";
+import { GrnProductRepository } from "./grn/repository/grnProduct.repository";
 import { GrnProduct } from "./grn/entity/grnProduct.entity";
-import { GrnProductRepository } from "./repositories/grnProduct.repository";
-import { GrnProductService } from "./grn/grnProduct.service";
-import {  NotificationRepository } from "./notification/notification.repository";
-import { Notification } from "./notification/notifications.entity";
-import { NotificationService } from "./services/notification.service";
+import { GrnProductService } from "./grn/service/grnProduct.service";
+import { NotificationRepository } from "./notification/repository/notification.repository";
+import { NotificationService } from "./notification/service/notification.service";
+import { NotificationController } from "./notification/controller/notification.controller";
+import { Notification as NotificationEntity } from "./notification/entity/notifications.entity";
+import { TPVoucherRepository } from "./vouchers/tranportPaymentV/repository/transportPaymentV.repository";
 import { TPVoucher } from "./vouchers/tranportPaymentV/entity/transportPaymentvoucher.entity";
-import { TPVoucherRepository } from "./vouchers/tranportPaymentV/transportPaymentV.repository";
-import { TPVoucherService } from "./services/transportPaymentV.service";
+import { TPVoucherService } from "./vouchers/tranportPaymentV/service/transportPaymentV.service";
 import { TPVoucherController } from "./vouchers/tranportPaymentV/controller/transportPaymentV.controller";
-import { PMPVoucherRepository } from "./repositories/pmpvoucher.repository";
+import { PMPVoucherRepository } from "./vouchers/paymentMaterialV/repository/pmpvoucher.repository";
 import { PMPVoucher } from "./vouchers/paymentMaterialV/entity/packingMaterialVoucher.entity";
-import { PMPVoucherService } from "./services/pmpvoucher.service";
+import { PMPVoucherService } from "./vouchers/paymentMaterialV/service/pmpvoucher.service";
 import { PMPVoucherController } from "./vouchers/paymentMaterialV/controller/pmpVoucher.controller";
+import { MultiCashVoucherRepository } from "./vouchers/multiCashV/repository/multicashVoucher.repository";
 import { CashVoucher } from "./vouchers/multiCashV/entity/mCashVoucher.entity";
-import { MultiCashVoucherService } from "./services/multiCashVoucher.service";
-import { MultiCashVoucherController } from "./sse/multiCashVoucher.controller";
+import { MultiCashVoucherService } from "./vouchers/multiCashV/service/multiCashVoucher.service";
+import { MultiCashVoucherController } from "./vouchers/multiCashV/controller/multiCashVoucher.controller";
+import { LabourPaymentVoucherRepository } from "./vouchers/labourPaymentV/repository/labourPaymentVoucher.repository";
 import { LPVoucher } from "./vouchers/labourPaymentV/entity/labourPaymentVoucher.entity";
-import { LabourPaymentVoucherRepository } from "./repositories/labourPaymentVoucher.repository";
-import { LabourPaymentVoucherService } from "./services/labourPaymentVoucher.service";
+import { LabourPaymentVoucherService } from "./vouchers/labourPaymentV/service/labourPaymentVoucher.service";
 import { LabourPaymentVoucherController } from "./vouchers/labourPaymentV/controller/labourPaymentVoucher.controller";
-import { MultiCashVoucherRepository } from "./vouchers/multiCashV/multicashVoucher.repository";
 import { ApprovalLevel } from "./approvalFlow/entity/approvalLevel.entity";
-import { ApprovalLevelRepository } from "./repositories/approvalLevel.repository";
-import { ApprovalLevelService } from "./services/approvalLevel.service";
+import { ApprovalLevelRepository } from "./approvalFlow/repository/approvalLevel.repository";
+import { ApprovalLevelService } from "./approvalFlow/service/approvalLevel.service";
 import { ApprovalLevelController } from "./approvalFlow/controller/approvalLevel.controller";
-import { DeliveryChallanPurchase } from "./entities/deliveryChallan.entity";
 import { DeliveryChallanRepository } from "./deliveryChallans/deliverychllan/repository/deliveryChallan.repository";
-import { DeliveryChallanController } from "./sse/deliveryChallan.controller";
-import { DeliveryChallanService } from "./deliveryChallans/deliverychllan/deliveryChallan.service";
-import { ProductCategory } from "./product/productCategory/product_category.entity";
-import { ProductClassificationRepository } from "./product/productClassification/product_classification.repository";
-import { ProductClassification } from "./product/productClassification/entity/product_classification.entity";
-import { PaymentRequestRepository } from "./paymentReq/repository/paymentRequest.repository";
-import { PaymentRequestService } from "./paymentReq/paymentRequest.service";
-import { PaymentRequest } from "./entities/paymentRequest.entity";
-import { PaymentRequestController } from "./paymentReq/paymentRequest.controller";
-import { VendorSubcategory } from "./entities/vendorSubcategory.entity";
-import { VendorCategory } from "./vendor/vendorCategory/entity/vendorCategory.entity";
+import { DeliveryChallanPurchase } from "./deliveryChallans/deliverychllan/entity/deliveryChallan.entity";
+import { DeliveryChallanService } from "./deliveryChallans/deliverychllan/service/deliveryChallan.service";
 import { DitemRepository } from "./deliveryChallans/deliverychllan/repository/dItem.repository";
-import { Item } from "./deliveryChallans/deliverychllan/dItem.entity";
-import { AuditLog } from "./entities/auditLog.entity";
-import { AuditLogRepository } from "./employeeActivity/repository/AuditLog.repository";
-import { AuditLogService } from "./services/auditLog.service";
-import { AuditLogController } from "./employeeActivity/auditLog.controller";
-import { SystemLog} from "./entities/userSystemInfo.entity";
-import { UserSystemInfoRepository } from "./employeeSystemInfo/repository/userSystemInfo.repository";
-
-// import { Server } from "socket.io";
-import { NotificationController } from "./notification/notification.controller";
-import { RequestsRepository } from "./sse/requests.repository";
-import { Requests } from "./entities/request.entity";
-
-import { LevelsController } from "./levels/levels.controller";
-import { LevelsRepository } from "./repositories/levels.repository";
-import { Levels } from "./levels/levels.entity";
-import { LevelsService } from "./levels/service/levels.service";
-import { User } from "./entities/user.entity";
-import { RequestsService } from "./sse/request.service";
-import { InwardRegister } from "./entities/inwardRegister.entity";
-import { InwardRepository } from "./inwardRegister/repository/inwardRegister.repository";
-import { InwardRegisterService } from "./inwardRegister/service/inwardRegister.service";
-import { InwardRegisterController } from "./sse/inwardRegister.controller";
-import { DepartmentforApproveRepository } from "./repositories/departmentforapprove.repository";
-import { Departments } from "./approvalFlow/entity/deparmentforapproval.entity";
-
-import { LaborRegister } from "./entities/labourregister.entity";
-import { LaborRegisterRepository } from "./labour/repository/labourRegister.repository";
-import { LaborRegisterService } from "./labour/labourRegister.service";
-import { LaborRegisterController } from "./labour/labourRegister.controller";
-import { LaborAttendance } from "./labourAttendence/laborattendance.entity";
-import { LaborAttendancesRepository } from "./repositories/labourAttendances.repository";
-import { LaborAttendancesService } from "./labourAttendence/service/labourAttendence.service";
-import { LaborAttendancesController } from "./labourAttendence/labourAttendances.controller";
-import { LaborRepository } from "./repositories/labor.repository";
-import { Labor } from "./labour/labor.entity";
-import { LaborService } from "./labour/service/labor.service";
-import { LaborController } from "./labour/labor.controller";
-import { DumpRegisterRepository } from "./dumpRegister/repository/dumpRegister.repository";
-import { DumpRegister } from "./entities/dumpRegister.entity";
-import { DumpRegisterService } from "./dumpRegister/dumpRegister.service";
-import { DumpRegisterController } from "./dumpRegister/controller/dumpRegister.controller";
-import { SkuEodRepository } from "./eodStock/skuEod.repository";
-import { SkuEodReport } from "./eodStock/skuStock.entity";
-import { SKUEodStockService } from "./eodStock/service/skuEodStock.service";
-import { EodRepository } from "./eodStock/repository/eodstockreport.repository";
-
-import { EodStockService } from "./eodStock/eodStock.service";
-import { SkuEodStockController } from "./sse/skuEodStock.controller";
-import { EodStockController } from "./sse/eodStock.controller";
-import { VehicleDispatch } from "./entities/vehicleDispatch.entity";
-import { VehicleDispatchRepository } from "./vehicleDispatch/repository/vehicleDispatch.repository";
-import { VehicleDispatchService } from "./vehicleDispatch/vehicleDispatch.service";
-import { VehicleDispatchController } from "./vehicleDispatch/controller/vehicleDispatch.controller";
-import { Aqr } from "./entities/aqr.entity";
-import { AqrRepository } from "./repositories/aqr.repository";
-import { AqrService } from "./aqr/service/aqr.service";
-import { AqrController } from "./sse/aqr.contoller";
-import { QualityParameter } from "./product/createproduct/entity/quantityParameter.entity";
-import { QualityParameterRepository } from "./repositories/qualityParameter.repository";
-import { SecondSale } from "./entities/secondSale.entity";
-import { SecondSaleService } from "./services/secondSale.service";
-import { SecondSaleRepository } from "./secondSale/repository/secondSale.repository";
-import { SecondSaleController } from "./secondSale/controller/secondSale.controller";
-
-import { DumpProductRepository } from "./dumpRegister/repository/dumpProduct.repository";
-import { DumpProduct } from "./dumpRegister/dumpProduct.entity";
-
-
-import { SecondSaleProduct } from "./secondSale/entity/secondSaleProduct.entity";
-import { SecondSaleProductRepository } from "./secondSale/secondSaleProduct.repository";
-
-
-
-import { SaleOrder } from "./saleOrder/saleOrder.entity";
-import { SaleOrderRepository } from "./repositories/saleOrder.repository";
-import { SaleOrderService } from "./services/saleOrder.service";
-import { SaleOrderController } from "./saleOrder/saleOrder.controller";
-import { Invoice } from "./entities/invoice.entity";
-import { InvoiceProduct } from "./invoice/entity/invoiceProduct.entity";
-import { InvoiceRepository } from "./invoice/repository/invoice.repository";
-import { InvoiceProductRepository } from "./repositories/invoiceProduct.repository";
-
-import { PostReturnByCustomer } from "./returnByCustomer/postReturnByCustomer.entity";
-import { PostReturnByCustomerRepository } from "./repositories/postReturnByCustomer.repository";
-import { PostReturnByCustomerService } from "./services/postReturnByCustomer.service";
-import { PostReturnByCustomerController } from "./sse/postReturnByCustomer.controller";
-import { PdfGeneratorService } from "./utils/pdfGenerator";
-import { CompanyRepository } from "./company/repository/company.repository";
-import { Company } from "./entities/company.entity";
-import { CompanyController } from "./company/company.controller";
-import { CompanyService } from "./services/company.service";
-import { Customer } from "./entities/customer.entity";
-import { ProcurmentDashController } from "./dashboard/procurmentDashboard.controller";
-import { ProcurmentDashService } from "./dashboard/service/procurmentDashbord.service"
-import { ManagementDashService } from "./dashboard/managementDashboard.service";
-import { ManagementDashController } from "./dashboard/managementDashboard.controller";
-import { ReturnedProducts } from "./entities/returnProduct.entity";
-import { ReturnedProductsRepository } from "./returnByCustomer/repository/returnProduct.repository";
-
-import { StockReportEod } from "./entities/eodReportforinvendtory.entity";
-import { ProductVarientsRepository } from "./product/productVarient/repository/productVarients.repository";
-
-import { ProductVarientService } from "./product/productVarient/productVarient.service";
-import { ProductVarientController } from "./product/productVarient/productVarient.controller";
-import { InventoryStockRepository } from "./inventoryStock/repository/inventoryStock.repository";
-import { InventoryStock } from "./entities/inventoryStock.entity";
-import { InventoryStockController } from "./inventoryStock/inventoryStock.controller";
-import { InventoryStockService } from "./services/inventoryStock.service";
-import { PackingMaterial } from "./entities/packingMaterial.entity";
-import { PackingMaterialRepository } from "./packingMaterial/repository/packingMaterial.repository";
-import { PackingMaterialService } from "./packingMaterial/packingMaterial.service";
-import { PackingMaterialController } from "./sse/packingMaterial.controller";
-import { DocumentDefinition } from "./documentDef/documentdef.entity";
-import { DocumentDefinitionRepository } from "./repositories/documentDefination.repository";
-import { DocumentDefinitionService } from "./documentDef/documentDefinition.service";
-import { DocumentDefinitionController } from "./documentDef/documentDefination.controller";
-import { DocumentPermission } from "./employee/permission.entity";
-import { DocumentPermissionRepository } from "./repositories/documentPermission.repository";
-import { DocumentPermissionService } from "./employee/documentPermission.service";
-import { DocumentPermissionController } from "./employee/documentPermission.controller";
-
-import { CustomerDeliveryChallan } from "./entities/customerDeliveryChallan.entity";
+import { Item } from "./deliveryChallans/deliverychllan/entity/dItem.entity";
 import { CustomerDeliveryChallanRepository } from "./deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository";
+import { CustomerDeliveryChallan } from "./deliveryChallans/customerDeliveryChllan/entity/customerDeliveryChallan.entity";
+import { CustomerDeliveryChallanController } from "./deliveryChallans/customerDeliveryChllan/controller/customerDeliveryChallan.controller";
 import { CustomerDeliveryChallanService } from "./deliveryChallans/customerDeliveryChllan/service/customerDeliveryChallan.service";
-import { CustomerDeliveryChallanController } from "./sse/customerDeliveryChallan.controller";
-import { FinalInvoiceService } from "./invoice/finalInvoice.service";
-import { FinalInvoiceController } from "./invoice/controller/finalInvoice.controller";
-import { StockTranferDeliveryChallanController } from "./deliveryChallans/stockTransferDC/controller/stockTransferDeliveryChallan.controllers";
-import { StockTransferDeliveryChallan } from "./entities/stockTransferdeliveryChallan.entity";
-import { StockTransferDeliveryChallanService } from "./deliveryChallans/stockTransferDC/service/stockTransferDeliveryChallan.service";
 import { StockTransferDeliveryChallanRepository } from "./deliveryChallans/stockTransferDC/repository/stockTransferDeliveryChallan.repository";
-import { OtherDeliveryChallan } from "./entities/otherDeliveryChallan.entity";
+import { StockTransferDeliveryChallan } from "./deliveryChallans/stockTransferDC/entity/stockTransferdeliveryChallan.entity";
+import { StockTransferDeliveryChallanService } from "./deliveryChallans/stockTransferDC/service/stockTransferDeliveryChallan.service";
+import { StockTranferDeliveryChallanController } from "./deliveryChallans/stockTransferDC/controller/stockTransferDeliveryChallan.controllers";
 import { OtherDeliveryChallanRepository } from "./deliveryChallans/otherDeliveryChallan/repository/otherDeliveryChallan.repository";
+import { OtherDeliveryChallan } from "./deliveryChallans/otherDeliveryChallan/entity/otherDeliveryChallan.entity";
 import { OtherDeliveryChallanService } from "./deliveryChallans/otherDeliveryChallan/service/otherDeliveryChallan.service";
 import { OtherDeliveryChallanController } from "./deliveryChallans/otherDeliveryChallan/controller/otherDeliveryChallan.controller";
-import { ReportingManagersRepository } from "./employee/repository/reportingmanager.repository";
-
-import { ApprovalFlowRepository } from "./approvalFlow/repository/approvalFlow.repository";
-import { ApprovalFlow } from "./entities/approvalFlow.entity";
-import { ApprovalFlowService } from "./services/approvalFlow.service";
-import { ApprovalFlowController } from "./approvalFlow/controller/approvalFlow.controller";
-import { FinalizerBlockRepository } from "./repositories/finalizerBlock.repository";
-import { FinalizerBlock } from "./approvalFlow/finalizerBlock.entity";
-import { ApproverBlock } from "./entities/approvalBlock.entity";
-import { ApproverBlockRepository } from "./entities/approverBlock.entity";
-import { DocumentbRepository } from "./repositories/documentb.repository";
+import { PaymentRequestRepository } from "./paymentReq/repository/paymentRequest.repository";
+import { PaymentRequestService } from "./paymentReq/service/paymentRequest.service";
+import { PaymentRequestController } from "./paymentReq/controller/paymentRequest.controller";
+import { PaymentRequest as PaymentRequestEntity } from "./paymentReq/entity/paymentRequest.entity";
+import { AuditLogRepository } from "./employeeActivity/repository/AuditLog.repository";
+import { AuditLog } from "./employeeActivity/entity/auditLog.entity";
+import { AuditLogService } from "./employeeActivity/service/auditLog.service";
+import { AuditLogController } from "./employeeActivity/controller/auditLog.controller";
+import { UserSystemInfoRepository } from "./employeeSystemInfo/repository/userSystemInfo.repository";
+import { SystemLog } from "./employeeSystemInfo/entity/userSystemInfo.entity";
+import { RequestsService } from "./sse/request.service";
+import { RequestsRepository } from "./sse/requests.repository";
+import { Requests } from "./sse/request.entity";
+import { LevelsRepository } from "./levels/repository/levels.repository";
+import { Levels } from "./levels/entity/levels.entity";
+import { LevelsService } from "./levels/service/levels.service";
+import { LevelsController } from "./levels/controller/levels.controller";
+import { InwardRepository } from "./inwardRegister/repository/inwardRegister.repository";
+import { InwardRegister } from "./inwardRegister/entity/inwardRegister.entity";
+import { InwardRegisterService } from "./inwardRegister/service/inwardRegister.service";
+import { InwardRegisterController } from "./inwardRegister/controller/inwardRegister.controller";
+import { DepartmentforApproveRepository } from "./approvalFlow/repository/departmentforapprove.repository";
+import { Departments } from "./approvalFlow/entity/deparmentforapproval.entity";
+import { LaborRegisterRepository } from "./labour/repository/labourRegister.repository";
+import { LaborRegister } from "./labour/entity/labourregister.entity";
+import { LaborRegisterService } from "./labour/service/labourRegister.service";
+import { LaborRegisterController } from "./labour/controller/labourRegister.controller";
+import { LaborAttendancesRepository } from "./labourAttendence/repository/labourAttendances.repository";
+import { LaborAttendance } from "./labourAttendence/entity/laborattendance.entity";
+import { LaborAttendancesService } from "./labourAttendence/service/labourAttendence.service";
+import { LaborAttendancesController } from "./labourAttendence/controller/labourAttendances.controller";
+import { LaborRepository } from "./labour/repository/labor.repository";
+import { Labor } from "./labour/entity/labor.entity";
+import { LaborService } from "./labour/service/labor.service";
+import { LaborController } from "./labour/controller/labor.controller";
+import { DumpRegisterRepository } from "./dumpRegister/repository/dumpRegister.repository";
+import { DumpRegister } from "./dumpRegister/entity/dumpRegister.entity";
+import { DumpRegisterService } from "./dumpRegister/service/dumpRegister.service";
+import { DumpProductRepository } from "./dumpRegister/repository/dumpProduct.repository";
+import { DumpRegisterController } from "./dumpRegister/controller/dumpRegister.controller";
+import { DumpProduct } from "./dumpRegister/entity/dumpProduct.entity";
+import { SkuEodRepository } from "./eodStock/repository/skuEod.repository";
+import { SkuEodReport } from "./eodStock/entity/skuStock.entity";
+import { SKUEodStockService } from "./eodStock/service/skuEodStock.service";
+import { EodRepository } from "./eodStock/repository/eodstockreport.repository";
+import { StockReportEod } from "./eodStock/entity/eodReportforinvendtory.entity";
+import { EodStockService } from "./eodStock/service/eodStock.service";
+import { EodStockController } from "./eodStock/controller/eodStock.controller";
+import { VehicleDispatchRepository } from "./vehicleDispatch/repository/vehicleDispatch.repository";
+import { VehicleDispatch } from "./vehicleDispatch/entity/vehicleDispatch.entity";
+import { VehicleDispatchService } from "./vehicleDispatch/service/vehicleDispatch.service";
+import { VehicleDispatchController } from "./vehicleDispatch/controller/vehicleDispatch.controller";
+import { AqrRepository } from "./aqr/repository/aqr.repository";
+import { Aqr } from "./aqr/entity/aqr.entity";
+import { AqrService } from "./aqr/service/aqr.service";
+import { AqrController } from "./aqr/controller/aqr.controller";
+import { QualityParameterRepository } from "./product/createproduct/repository/qualityParameter.repository";
+import { QualityParameter } from "./product/createproduct/entity/quantityParameter.entity";
+import { SecondSaleRepository } from "./secondSale/repository/secondSale.repository";
+import { SecondSale } from "./secondSale/entity/secondSale.entity";
+import { SecondSaleService } from "./secondSale/service/secondSale.service";
+import { SecondSaleController } from "./secondSale/controller/secondSale.controller";
+import { SecondSaleProductRepository } from "./secondSale/repository/secondSaleProduct.repository";
+import { SecondSaleProduct } from "./secondSale/entity/secondSaleProduct.entity";
+import { SaleOrderRepository } from "./saleOrder/repository/saleOrder.repository";
+import { SaleOrder } from "./saleOrder/entity/saleOrder.entity";
+import { SaleOrderService } from "./saleOrder/service/saleOrder.service";
+import { SaleOrderController } from "./saleOrder/controller/saleOrder.controller";
+import { InvoiceRepository } from "./invoice/repository/invoice.repository";
+import { Invoice } from "./invoice/entity/invoice.entity";
+import { InvoiceProductRepository } from "./invoice/repository/invoiceProduct.repository";
+import { InvoiceProduct } from "./invoice/entity/invoiceProduct.entity";
+import { PostReturnByCustomerRepository } from "./returnByCustomer/repository/postReturnByCustomer.repository";
+import { PostReturnByCustomer } from "./returnByCustomer/entity/postReturnByCustomer.entity";
+import { PostReturnByCustomerService } from "./returnByCustomer/service/postReturnByCustomer.service";
+import { PostReturnByCustomerController } from "./returnByCustomer/controller/postReturnByCustomer.controller";
+import { ReturnedProductsRepository } from "./returnByCustomer/repository/returnProduct.repository";
+import { ReturnedProducts } from "./returnByCustomer/entity/returnProduct.entity";
+import { PdfGeneratorService } from "./utils/pdfGenerator";
+import { CompanyRepository } from "./company/repository/company.repository";
+import { Company } from "./company/entity/company.entity";
+import { CompanyService } from "./company/service/company.service";
+import { CompanyController } from "./company/controller/company.controller";
+import { ProcurmentDashService } from "./dashboard/service/procurmentDashbord.service";
+import { ProcurmentDashController } from "./dashboard/controller/procurmentDashboard.controller";
+import { ManagementDashService } from "./dashboard/service/managementDashboard.service";
+import { ManagementDashController } from "./dashboard/controller/managementDashboard.controller";
+import { InventoryStockRepository } from "./inventoryStock/repository/inventoryStock.repository";
+import { InventoryStock } from "./inventoryStock/entity/inventoryStock.entity";
+import { InventoryStockController } from "./inventoryStock/controller/inventoryStock.controller";
+import { InventoryStockService } from "./inventoryStock/service/inventoryStock.service";
+import { ProductVarientsRepository } from "./product/productVarient/repository/productVarients.repository";
+import { ProductVarient } from "./product/productVarient/entity/productVarient.entity";
+import { ProductVarientService } from "./product/productVarient/service/productVarient.service";
+import { ProductVarientController } from "./product/productVarient/controller/productVarient.controller";
+import { PackingMaterialRepository } from "./packingMaterial/repository/packingMaterial.repository";
+import { PackingMaterial } from "./packingMaterial/entity/packingMaterial.entity";
+import { PackingMaterialService } from "./packingMaterial/service/packingMaterial.service";
+import { PackingMaterialController } from "./packingMaterial/controller/packingMaterial.controller";
+import { DocumentDefinitionRepository } from "./documentDef/repository/documentDefination.repository";
+import { DocumentDefinition } from "./documentDef/entity/documentdef.entity";
+import { DocumentDefinitionService } from "./documentDef/service/documentDefinition.service";
+import { DocumentDefinitionController } from "./documentDef/controller/documentDefination.controller";
+import { DocumentPermissionService } from "./employee/service/documentPermission.service";
+import { DocumentPermission } from "./employee/entity/permission.entity";
+import { DocumentPermissionController } from "./employee/controller/documentPermission.controller";
+import { DocumentPermissionRepository } from "./employee/repository/documentPermission.repository";
+import { DocumentbRepository } from "./approvalFlow/repository/documentb.repository";
 import { Documentb } from "./approvalFlow/entity/docuemnt.entity";
+import { DocumentbService } from "./approvalFlow/service/documentb.service";
 import { DocumentbController } from "./approvalFlow/controller/documentb.controller";
-import { DocumentbService } from "./services/documentb.service";
-import { ApprovalStageInfo } from "./approvalFlow/entity/approvalname.entity";
+import { ApprovalFlowRepository } from "./approvalFlow/repository/approvalFlow.repository";
+import { ApprovalFlow } from "./approvalFlow/entity/approvalFlow.entity";
+import { ApprovalFlowService } from "./approvalFlow/service/approvalFlow.service";
+import { ApprovalFlowController } from "./approvalFlow/controller/approvalFlow.controller";
+import { FinalizerBlockRepository } from "./approvalFlow/repository/finalizerBlock.repository";
+import { ApproverBlock } from "./approvalFlow/entity/approvalBlock.entity";
+import { FinalizerBlock } from "./approvalFlow/entity/finalizerBlock.entity";
+import { ApproverBlockRepository } from "./approvalFlow/repository/approverBlock.repository";
 import { ApprovalStageInfoRepository } from "./approvalFlow/repository/approvalStageInfoRepository";
+import { ApprovalStageInfo } from "./approvalFlow/entity/approvalname.entity";
 import { DocumentApprovalFlowRepository } from "./approvalFlow/repository/DocumentApprovalFlowRepository.repository";
-import { DocumentApprove } from "./entities/documentApproval.entity";
-import { DocumentApprovalFlow } from "./entities/documentApproveBy.entity";
-import { DocDoubleApproverService } from "./services/docDoubleApprover.service";
-import { DocSingalApproverService } from "./services/DocSingalApproverService.service";
-
-import { AdminDashboardController } from "./dashboard/adminDashboard.controller";
-import { AdminDashboardService } from "./dashboard/dashboardService/admin/adminDashboardService.service";
-import { InwardProduct } from "./inwardRegister/inwardProduct.entity";
+import { DocumentApprovalFlow } from "./approvalFlow/entity/documentApproveBy.entity";
 import { InwardProductRepository } from "./inwardRegister/repository/inwardProduct.repository";
-import { AddressController } from "./address/address.controller";
+import { InwardProduct } from "./inwardRegister/entity/inwardProduct.entity";
+import { DocDoubleApproverService } from "./approvalFlow/service/docDoubleApprover.service";
+import { DocSingalApproverService } from "./approvalFlow/service/DocSingalApproverService.service";
+import { AdminDashboardService } from "./dashboard/service/adminDashboardService.service";
+import { AdminDashboardController } from "./dashboard/controller/adminDashboard.controller";
 import { ProductVarientRepository } from "./product/productVarient/repository/varients.repository";
-import { ProductVarient } from "./entities/productVarient.entity";
-import { ProductVarientsService } from "./services/varients.service";
-import { VarientsController } from "./product/productVarient/varient.controller";
+import { ProductVarientsService } from "./product/productVarient/service/varients.service";
+import { VarientsController } from "./product/productVarient/controller/varient.controller";
 import { ExcelController } from "./getExcel/getexcel.controller";
-import { ActiveSession } from "./employee/activeSession.entity";
-import { ActiveSessionRepository } from "./employee/repository/activeSession.repository";
-import { UserReportController } from "./employeeReport/userReport.controller";
-import { UserReportService } from "./employeeReport/userreport.service";
-import { SuperAdminService } from "./sse/superadmin.service";
+import { ActiveSessionRepository } from "./auth/repository/activeSession.repository";
+import { ActiveSession } from "./auth/entity/activeSession.entity";
+import { UserReportService } from "./employeeReport/service/userreport.service";
+import { UserReportController } from "./employeeReport/controller/userReport.controller";
 import { SuperAdminController } from "./sse/superAdmin.controller";
-
-// Report imports
-import { ReportController } from "./reports/report.controller";
-import { ReportService } from "./services/report.service";
-import { SalesReportService } from "./reports/salesReport.service";
-
-import { RoleRepository } from "./sse/role.repository";
-import { Role } from "./entities/role.entity";
-import { StockCorrectionRepository } from "./stockCorrection/repository/stockCorrection.repository";
-import { StockCorrectionService } from "./stockCorrection/service/stockCorrection.service";
-import { StockCorrectionController } from "./stockCorrection/stockCorrection.controller";
-import { StockCorrection } from "./stockCorrection/stockCorrection.entity";
-// SSE Service and Controller
+import { SuperAdminService } from "./sse/superadmin.service";
+import { CacheService } from "./global/cache.service";
+import { QueryOptimizerService } from "./global/queryOptimizer.service";
+import { CrystalReportService } from "./reports/service/crystalReport.service";
+import { ProcurementCrystalReportService } from "./reports/service/procurementCrystalReport.service";
+import { ProcurementCrystalReportController } from "./reports/controller/procurementCrystalReport.controller";
+import { SalesCrystalReportService } from "./reports/service/salesCrystalReport.service";
+import { SalesCrystalReportController } from "./reports/controller/salesCrystalReport.controller";
 import { SSEService } from "./sse/sse.service";
 import { SSEController } from "./sse/sse.controller";
 import { SSEHelperService } from "./utils/SSE_HELPER_SERVICE";
-// Performance optimization services
-import { CacheService } from "./global/cache.service";
-import { QueryOptimizerService } from "./global/queryOptimizer.service";
-import { CrystalReportService } from "./services/crystalReport.service";
-// Procurement Crystal Report
-import { ProcurementCrystalReportService } from "./reports/service/procurementCrystalReport.service";
-import { ProcurementCrystalReportController } from "./reports/procurementCrystalReport.controller";
-
-// Sales Crystal Report
-import { SalesCrystalReportService } from "./reports/salesCrystalReport.service";
-import { SalesCrystalReportController } from "./reports/salesCrystalReport.controller";
-// User Activity Logging
-import { UserActivityLog } from "./employeeActivity/userActivityLog.entity";
-import { UserActivityLogRepository } from "./repositories/userActivityLog.repository";
+import { TestController } from "./sse/test.controller";
+import { UserActivityLogRepository } from "./employeeActivity/repository/userActivityLog.repository";
+import { UserActivityLog } from "./employeeActivity/entity/userActivityLog.entity";
 import { UserActivityLogService } from "./employeeActivity/service/userActivityLog.service";
-import { UserActivityLogController } from "./employeeActivity/userActivityLog.controller";
-//import { LogCleanupService } from "./services/lo";
-import { WorkflowHierarchy } from "./entities/workflowClosure.entity";
+import { UserActivityLogController } from "./employeeActivity/controller/userActivityLog.controller";
 import { WorkflowHierarchyRepository } from "./workFlow/repository/WorkflowHierarchy.repository";
-import { WorkflowHierarchyService } from "./workFlow/workFlowHierarchy.service";
-import { WorkflowHierarchyController } from "./workFlow/WorkflowHierarchy.controller";
+import { WorkflowHierarchy } from "./workFlow/entity/workflowClosure.entity";
+import { WorkflowHierarchyService } from "./workFlow/service/workFlowHierarchy.service";
+import { WorkflowHierarchyController } from "./workFlow/controller/WorkflowHierarchy.controller";
 import { ProcurementTargetRepository } from "./procurementTarget/repository/procurementTarget.repository";
-import { ProcurementTarget } from "./entities/procurmentTarget.entity";
-import { ProcurementTargetService } from "./services/procurementTarget.service";
-import { ProcurementTargetController } from "./procurementTarget/procurementTarget.controller";
-import { SalesTarget } from "./entities/salesTarget.entity";
+import { ProcurementTarget } from "./procurementTarget/entity/procurmentTarget.entity";
+import { ProcurementTargetService } from "./procurementTarget/service/procurementTarget.service";
+import { ProcurementTargetController } from "./procurementTarget/controller/procurementTarget.controller";
+import { ProcurementTargetProductRepository } from "./procurementTarget/repository/procurmentTargetProduct.repository";
+import { ProcurementTargetProduct } from "./procurementTarget/entity/procurementTargetProduct.entity";
+import { ProcurementTargetWeekRepository } from "./procurementTarget/repository/procurmentTargetWeek.repository";
+import { ProcurementTargetWeek } from "./procurementTarget/entity/procurementTargetWeek.entity";
+import { ProcurementTargetAchievementRepository } from "./procurementTarget/repository/procurmentAchievement.repository";
+import { ProcurementAchievement } from "./procurementTarget/entity/procurementAchievement.entity";
 import { SalesTargetRepository } from "./salesTarget/repository/salesTarget.repository";
-import { SalesTargetService } from "./services/salesTarget.service";
-import { SalesTargetController } from "./salesTarget/salesTarget.controller";
+import { SalesTarget } from "./salesTarget/entity/salesTarget.entity";
+import { SalesTargetService } from "./salesTarget/service/salesTarget.service";
+import { SalesTargetController } from "./salesTarget/controller/salesTarget.controller";
+import { SalesTargetProductRepository } from "./salesTarget/repository/salesTargetProduct.repository";
 import { SalesTargetProduct } from "./salesTarget/entity/salesTargetProduct.entity";
 import { SalesTargetWeekRepository } from "./salesTarget/repository/salesTargetWeek.repository";
-import { SalesTargetProductRepository } from "./salesTarget/salesTargetProduct.repository";
-import { SalesTargetWeek } from "./salesTarget/salesTargetWeek.entity";
+import { SalesTargetWeek } from "./salesTarget/entity/salesTargetWeek.entity";
 import { SalesAchievementRepository } from "./salesTarget/repository/salesAchievement.repository";
-import { SalesAchievement } from "./entities/salesachivement.entity";
-//import { DashboardService } from "./services/dash;
-
-import { ProcurementTargetProduct } from "./procurementTarget/procurementTargetProduct.entity";
-import { ProcurementTargetProductRepository } from "./procurementTarget/repository/procurmentTargetProduct.repository";
-import { ProcurementTargetWeek } from "./entities/procurementTargetWeek.entity";
-import { ProcurementTargetWeekRepository } from "./procurementTarget/repository/procurmentTargetWeek.repository";
-import { ProcurementTargetAchievementRepository } from "./procurementTarget/procurmentAchievement.repository";
-import { ProcurementAchievement } from "./procurementTarget/entity/procurementAchievement.entity";
-import { PaymentInfoForRFPA } from "./entities/rfpaPayementInfo.entity";
-import { RfpaPaymentInfoRepository } from "./rfpa/repository/rfpaPaymentInfo.repository";
-import { RegistrationReportsController } from "./reports/registrationReport.controller";
-import { RegistrationReportService } from "./reports/registrationReport.service";
-import { NewRegistrationController } from "./reports/newRegistration.controller";
-import { NewRegistrationService } from "./reports/newRegistration.service";
+import { SalesAchievement } from "./salesTarget/entity/salesachivement.entity";
+import { DashboardService } from "./dashboard/service/dashboard.service";
+import { DashboardController } from "./dashboard/controller/dashboard.controller";
+import { NewRegistrationService } from "./reports/service/newRegistration.service";
+import { NewRegistrationController } from "./reports/controller/newRegistration.controller";
+import { ReportService } from "./reports/service/report.service";
+import { SalesReportService } from "./reports/service/salesReport.service";
+import { ReportController } from "./reports/controller/report.controller";
 import { ReturnToVendorService } from "./returnToVendor/service/retrunToVendor.service";
+import { PaymentInfoForRFPA } from "./rfpa/entity/rfpaPayementInfo.entity";
 import { ReturnToVendorRepository } from "./returnToVendor/repository/returnToVendor.repository";
-import { ReturnToVendor } from "./entities/returnToVendor.entity";
+import { RfpaPaymentInfoRepository } from "./rfpa/repository/rfpaPaymentInfo.repository";
+import { ReturnToVendor } from "./returnToVendor/entity/returnToVendor.entity";
 import { ReturnToVendorController } from "./returnToVendor/controller/returnToVendor.controller";
-import { FinalInvoiceReportController } from "./reports/finalInvoiceReport.controller";
-import { FinalInvoiceReportService } from "./reports/finalInvoiceReport.service";
-// Test Controller
-import { TestController } from "./sse/test.controller";
-import { DashboardService } from "./dashboard/dashboard.service";
-import { DashboardController } from "./dashboard/dashboard.controller";
-
-import { GrnProductHistoryService } from "./services/grnProductHistory.service";
+import { FinalInvoiceService } from "./invoice/service/finalInvoice.service";
+import { FinalInvoiceController } from "./invoice/controller/finalInvoice.controller";
+import { FinalInvoiceReportService } from "./reports/service/finalInvoiceReport.service";
+import { FinalInvoiceReportController } from "./reports/controller/finalInvoiceReport.controller";
+import { StockCorrectionRepository } from "./stockCorrection/repository/stockCorrection.repository";
+import { StockCorrectionService } from "./stockCorrection/service/stockCorrection.service";
+import { StockCorrection } from "./stockCorrection/entity/stockCorrection.entity";
+import { StockCorrectionController } from "./stockCorrection/controller/stockCorrection.controller";
+import { GrnProductHistoryRepository } from "./grn/repository/grnProductHistory.repository";
+import { GrnProductHistoryService } from "./grn/service/grnProductHistory.service";
 import { GrnProductHistory } from "./grn/entity/grnProductHistory.entity";
-import { GrnProductHistoryRepository } from "./repositories/grnProductHistory.repository";
+
 const container = new Container();
 //socket server
 // Initialize Socket.IO server
@@ -814,7 +760,7 @@ container.bind<GrnProductService>(TYPES.GrnProductService).to(GrnProductService)
 //-----------------------------nofication-----------------------------------------
 container.bind<NotificationRepository>(TYPES.NotificationRepository).toDynamicValue((context) => {
   const dataSource = context.container.get<DataSource>(TYPES.DataSource);
-  return dataSource.getRepository(Notification).extend(NotificationRepository);
+  return dataSource.getRepository(NotificationEntity).extend(NotificationRepository);
 }).inRequestScope(); // or .singletonScope() depending on your scope requirements
 container.bind<NotificationService>(TYPES.NotificationService).to(NotificationService);
 container.bind<NotificationController>(TYPES.NotificationController).to(NotificationController);
@@ -868,7 +814,7 @@ container.bind<DeliveryChallanRepository>(TYPES.DeliveryChallanRepository).toDyn
   return dataSource.getRepository( DeliveryChallanPurchase).extend(DeliveryChallanRepository);
 }).inRequestScope(); // or .singletonScope() depending on your scope requirements
 container.bind<DeliveryChallanService>(TYPES.DeliveryChallanService).to(DeliveryChallanService);
-container.bind< DeliveryChallanController>(TYPES. DeliveryChallanController).to( DeliveryChallanController);
+//container.bind<DeliveryChallanPurchase>(TYPES. DeliveryChallanController).to( DeliveryChallanController);
 container.bind<DitemRepository>(TYPES.DitemRepository).toDynamicValue((context) => {
   const dataSource = context.container.get<DataSource>(TYPES.DataSource);
   return dataSource.getRepository( Item).extend(DitemRepository);
@@ -898,7 +844,7 @@ container.bind<OtherDeliveryChallanController>(TYPES.OtherDeliveryChallanControl
 //--------------------------------------payment request----------------------------------------
 container.bind<PaymentRequestRepository>(TYPES.PaymentRequestRepository).toDynamicValue((context) => {
   const dataSource = context.container.get<DataSource>(TYPES.DataSource);
-  return dataSource.getRepository(PaymentRequest).extend(PaymentRequestRepository);
+  return dataSource.getRepository(PaymentRequestEntity).extend(PaymentRequestRepository);
 }).inRequestScope(); 
 container.bind<PaymentRequestService>(TYPES.PaymentRequestService).to(PaymentRequestService).inSingletonScope();
 container.bind<PaymentRequestController>(TYPES.PaymentRequestController ).to(PaymentRequestController ).inSingletonScope();
@@ -996,7 +942,7 @@ container.bind<SkuEodRepository>(TYPES.SkuEodRepository).toDynamicValue((context
   return dataSource.getRepository(SkuEodReport).extend( SkuEodRepository);
 }).inRequestScope(); // or .singletonScope() depending on your scope requirements
 container.bind<SKUEodStockService>(TYPES.SKUEodStockService).to(SKUEodStockService).inSingletonScope();
-container.bind<SkuEodStockController>(TYPES.SkuEodStockController).to(SkuEodStockController).inSingletonScope();
+//container.bind<SkuEodStockController>(TYPES.SkuEodStockController).to(SkuEodStockController).inSingletonScope();
 
 
 //Eod Stock
@@ -1380,11 +1326,7 @@ container.bind<FinalInvoiceController>(TYPES.FinalInvoiceController).to(FinalInv
 container.bind<FinalInvoiceReportService>(TYPES.FinalInvoiceReportService).to(FinalInvoiceReportService).inSingletonScope();
 container.bind<FinalInvoiceReportController>(TYPES.FinalInvoiceReportController).to(FinalInvoiceReportController).inSingletonScope()
 
-// role
-container.bind<RoleRepository>(TYPES.RoleRepository).toDynamicValue((context) => {
-  const dataSource = context.container.get<DataSource>(TYPES.DataSource);
-  return dataSource.getRepository(Role).extend(RoleRepository);
-}).inRequestScope();
+// role repository removed — Role is an enum in user.entity, not a TypeORM entity
 
 
 // stockCorrection

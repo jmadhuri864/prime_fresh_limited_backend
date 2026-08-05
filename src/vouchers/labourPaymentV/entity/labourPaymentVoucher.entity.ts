@@ -5,12 +5,15 @@ import {
     ManyToOne,
     JoinColumn,
   } from 'typeorm';
-import { User } from './user.entity';
+
 import Model from '../../../global/model.entity';
-import { GRN } from '../grn/grn.entity';
+
 import { Department, Status } from '../../../utils/status.enum';
-import { Company } from '../entities/company.entity';
+
 import { format } from 'date-fns-tz';
+import { GRN } from '../../../grn/entity/grn.entity';
+import { User } from '../../../employee/entity/user.entity';
+import { Company } from '../../../company/entity/company.entity';
   
   @Entity("labour_payment_voucher")
   export class LPVoucher  extends Model {

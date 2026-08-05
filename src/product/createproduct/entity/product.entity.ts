@@ -6,14 +6,15 @@ import {
   OneToMany,
   Index,
 } from 'typeorm';
-import Model from './model.entity';
-import { ProductCategory } from './product_category.entity';
-import { ProductSubcategory } from './product_subcategory.entity';
-import { UOM } from './uom.entity';
-import { ProductClassification } from './product_classification.entity';
-import { QualityParameter } from './quantityParameter.entity';
 
-import { ProductVarient } from './productVarient.entity';
+import { QualityParameter } from './quantityParameter.entity';
+import Model from '../../../global/model.entity';
+import { ProductClassification } from '../../productClassification/entity/product_classification.entity';
+import { ProductCategory } from '../../productCategory/entity/product_category.entity';
+import { UOM } from '../../../uom/entity/uom.entity';
+import { ProductVarient } from '../../productVarient/entity/productVarient.entity';
+import { ProductSubcategory } from '../../productSubcategory/entity/product_subcategory.entity';
+
 
 
 

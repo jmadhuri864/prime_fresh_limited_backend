@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne } from "typeorm";
-import Model from "../global/model.entity";
-import { UOM } from "./uom.entity";
+import { UOM } from "../../uom/entity/uom.entity";
+import Model from "../../global/model.entity";
+
 
 @Entity("UOM_conversion_matrix")
 export class UOMConversionMatrix extends Model {

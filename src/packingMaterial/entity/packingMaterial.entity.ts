@@ -4,8 +4,9 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import Model from './model.entity';
-import { UOM } from './uom.entity';
+import Model from '../../global/model.entity';
+import { UOM } from '../../uom/entity/uom.entity';
+
 
 
 export enum UseFor {

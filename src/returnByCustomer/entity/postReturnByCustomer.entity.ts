@@ -1,14 +1,12 @@
 import { Entity, Column, OneToMany, JoinColumn, ManyToOne } from "typeorm";
-
-import Model from "../global/model.entity";
 import { ReturnedProducts } from "./returnProduct.entity";
-import { Company } from "./company.entity";
-import { DeliveryChallanPurchase } from "../entities/deliveryChallan.entity";
-import { Invoice } from "../entities/invoice.entity";
 import { format, toZonedTime } from "date-fns-tz";
-import { Branches } from "../entities/branches.entity";
-import { Customer } from "../entities/customer.entity";
-import { User } from "./user.entity";
+import Model from "../../global/model.entity";
+import { DeliveryChallanPurchase } from "../../deliveryChallans/deliverychllan/entity/deliveryChallan.entity";
+import { Company } from "../../company/entity/company.entity";
+import { Branches } from "../../branch/entity/branches.entity";
+import { Customer } from "../../customer/addcustomer/entity/customer.entity";
+import { User } from "../../employee/entity/user.entity";
 
 @Entity("return_by_customer")
 export class PostReturnByCustomer extends Model {

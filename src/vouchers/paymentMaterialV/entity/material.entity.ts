@@ -4,9 +4,11 @@ import {
     ManyToOne,
     JoinColumn,
   } from 'typeorm';
-import Model from '../global/model.entity';
+
 import { PMPVoucher } from './packingMaterialVoucher.entity';
-import { UOM } from './uom.entity';
+import Model from '../../../global/model.entity';
+import { UOM } from '../../../uom/entity/uom.entity';
+
  
   
   @Entity("material_use_for_packing_voucher")

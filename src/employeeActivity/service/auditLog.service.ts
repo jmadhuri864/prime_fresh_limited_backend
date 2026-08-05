@@ -1,8 +1,8 @@
 import { inject, injectable } from 'inversify';
+import { TYPES } from '../../types';
+import { AuditLogRepository } from '../repository/AuditLog.repository';
+import { AuditLog } from '../entity/auditLog.entity';
 
-import { AuditLog } from '../entities/auditLog.entity';
-import { AuditLogRepository } from './repository/AuditLog.repository';
-import { TYPES } from '../types';
 
 
 @injectable()

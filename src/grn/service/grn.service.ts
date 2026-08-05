@@ -1,27 +1,33 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { GrnRepository } from '../repositories/grn.repository';
-import { GRN } from '../grn/grn.entity';
-import { GrnProductRepository } from '../repositories/grnProduct.repository';
+
 import { ILike, In, LessThan, MoreThanOrEqual, DataSource } from 'typeorm';
-import { AuditLogService } from './auditLog.service';
+
 import AppError from '../../utils/appError';
 import { ammountStatus } from '../../utils/status.enum';
 import { buildQueryFromArray, PaginationOptions } from '../../utils/pagination';
 import { formatDateTime } from '../../utils/dateUtils';
-import { DocumentbService, DocumentWithRelatedData } from './documentb.service';
+
 import { DocumentStatus, DocumentTypeEnum } from '../../approvalFlow/entity/docuemnt.entity';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { DocumentbRepository } from '../repositories/documentb.repository';
+import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
+
 import { ProductVarientRepository } from '../../product/productVarient/repository/varients.repository';
 import { ApprovalFlowRepository } from '../../approvalFlow/repository/approvalFlow.repository';
-import { CacheService } from './cache.service';
+
 import { createHash } from 'crypto';
-import { BranchessRepository } from '../repositories/branches.repository';
-import { CreateGrnDto, GrnDetailDto, GrnListItemDto, UpdateGrnDto } from '../dtos/grn.dto';
-import { GrnProductHistoryService } from '../grnProductHistory.service';
+
 import { GrnProduct } from '../entity/grnProduct.entity';
 import { BulkDeleteResultDto, DeleteResultDto } from '../../global/general.dto';
+import { GrnRepository } from '../repository/grn.repository';
+import { GrnProductRepository } from '../repository/grnProduct.repository';
+import { BranchessRepository } from '../../branch/repository/branches.repository';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { CacheService } from '../../global/cache.service';
+import { DocumentbService, DocumentWithRelatedData } from '../../approvalFlow/service/documentb.service';
+import { GrnProductHistoryService } from './grnProductHistory.service';
+import { CreateGrnDto, GrnDetailDto, GrnListItemDto, UpdateGrnDto } from '../dto/grn.dto';
+import { GRN } from '../entity/grn.entity';
 
 interface SourceMetrics {
   totalPurchases: number;

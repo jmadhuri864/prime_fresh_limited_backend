@@ -11,24 +11,18 @@ import {
   next,
   httpPatch,
 } from "inversify-express-utils";
-
-import { TYPES } from "../types";
 import { Request, Response, NextFunction } from "express";
-import AppError from "../utils/appError";
-import { UOMService } from "./UOM.service";
-import { NotificationService } from "../services/notification.service";
-import { captureUser, deserializeUser, requireUser } from "../middleware/deserializeUser";
-import logger from "../utils/logger";
-import { PaginationOptions } from "../utils/pagination";
-import { ControllerLogger } from "../utils/controllerLogger";
-import {
-  CreateUOMDto,
-  UpdateUOMDto,
-  UOMListResponseDto,
-  UOMPartialDto,
-  UOMDetailDto,
-  BulkDeleteUOMDto,
-} from "./uom.dto";
+import { captureUser, deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { UOMService } from "../service/UOM.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import { PaginationOptions } from "../../utils/pagination";
+import { BulkDeleteUOMDto, CreateUOMDto, UOMDetailDto, UOMListResponseDto, UOMPartialDto, UpdateUOMDto } from "../dto/uom.dto";
+import AppError from "../../utils/appError";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import logger from "../../utils/logger";
+
+
 
 
 

@@ -1,14 +1,17 @@
 import { Status } from "../../../utils/status.enum"; 
 
-import { AddressDto } from "./address.dto";
+
 import { BankDetailsDto } from "./bankDetails.dto";
 import { StatutoryDetailsDto } from "./statutoryDetails.dto";
 import { BillingDetailsDto } from "./billingDetails.dto";
-import { DeliveryDetailsDto } from "../deliveryDetails.dto";
+
 import { PaymentTermsDto } from "./paydetails.dto";
 import { OfficeUseOnlyDto } from "./officeUseOnly.dto";
-import { KeyMobileNoDto } from "../keyMobileNo.dto";
+
 import { ProductSpecificationDto } from "./productSpecification.dto";
+import { DeliveryDetailsDto } from "./deliveryDetails.dto";
+import { KeyMobileNoDto } from "./keyMobileNo.dto";
+import { AddressDto } from "../../../address/dto/address.dto";
 
 export interface CreateCustomerDto {
   organisationName: string;

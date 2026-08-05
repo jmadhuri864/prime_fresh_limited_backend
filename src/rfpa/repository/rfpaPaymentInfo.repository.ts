@@ -1,7 +1,7 @@
 import {  Repository } from "typeorm";
+import { PaymentInfoForRFPA } from "../entity/rfpaPayementInfo.entity";
 
-import { RFPA } from "./rfpa.entity";
-import { PaymentInfoForRFPA } from "../entities/rfpaPayementInfo.entity";
+
 
 export class RfpaPaymentInfoRepository extends Repository<PaymentInfoForRFPA> {
 

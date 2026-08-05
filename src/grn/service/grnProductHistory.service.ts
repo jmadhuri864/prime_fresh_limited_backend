@@ -1,8 +1,9 @@
 import { inject, injectable } from 'inversify';
 import { EntityManager } from 'typeorm';
-import { TYPES } from '../types';
-import { GrnProductHistoryRepository } from '../repositories/grnProductHistory.repository';
-import { GrnProductHistory } from './entity/grnProductHistory.entity';
+import { TYPES } from '../../types';
+import { GrnProductHistoryRepository } from '../repository/grnProductHistory.repository';
+import { GrnProductHistory } from '../entity/grnProductHistory.entity';
+
 
 export interface CreateHistoryParams {
   grnId: string;

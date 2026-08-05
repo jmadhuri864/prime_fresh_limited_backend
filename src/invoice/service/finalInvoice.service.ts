@@ -1,25 +1,28 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import logger from '../utils/logger';
-import { buildQuery, PaginationOptions } from '../utils/pagination';
-import { formatDateTime } from '../utils/dateUtils';
-import AppError from '../utils/appError';
+
 import { DataSource } from 'typeorm';
-import { Invoice } from '../entities/invoice.entity';
-import { InvoiceProduct } from './invoiceProduct.entity';
+
 import { Repository, Brackets } from 'typeorm';
-import { CustomerDeliveryChallanRepository } from '../deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository';
-import { DocumentbService } from '../services/documentb.service';
-import { DocumentStatus, DocumentTypeEnum, Documentb } from '../approvalFlow/entity/docuemnt.entity';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { DocDoubleApproverService } from '../services/docDoubleApprover.service';
+
 import { toWords } from 'number-to-words';
-import { DocumentbRepository } from '../repositories/documentb.repository';
-import { CacheService } from '../global/cache.service';
+
 import { createHash } from 'crypto';
-import { CreateInvoiceDto, InvoiceDetailDto, InvoiceListItemDto } from './invoice.dto';
-import { ammountStatus } from '../utils/status.enum';
-import { BulkDeleteResultDto } from '../global/general.dto';
+import { CreateInvoiceDto, InvoiceDetailDto, InvoiceListItemDto } from '../dto/invoice.dto';
+import { TYPES } from '../../types';
+import { Invoice } from '../entity/invoice.entity';
+import { InvoiceProduct } from '../entity/invoiceProduct.entity';
+import { CustomerDeliveryChallanRepository } from '../../deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository';
+import { DocumentbService } from '../../approvalFlow/service/documentb.service';
+import { DocDoubleApproverService } from '../../approvalFlow/service/docDoubleApprover.service';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
+import { CacheService } from '../../global/cache.service';
+import AppError from '../../utils/appError';
+import { Documentb, DocumentStatus, DocumentTypeEnum } from '../../approvalFlow/entity/docuemnt.entity';
+import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
+import { formatDateTime } from '../../utils/dateUtils';
+import logger from '../../utils/logger';
+import { PaginationOptions } from '../../utils/pagination';
+import { BulkDeleteResultDto } from '../../global/general.dto';
 
 @injectable()
 export class FinalInvoiceService {

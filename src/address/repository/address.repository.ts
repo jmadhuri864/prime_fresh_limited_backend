@@ -1,6 +1,6 @@
 // address.repository.ts
 import { Repository } from "typeorm";
-import { Address } from "../address/address.entity";
+import { Address } from "../entity/address.entity";
 
 
 export class AddressRepository extends Repository<Address> {

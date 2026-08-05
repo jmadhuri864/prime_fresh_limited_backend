@@ -1,28 +1,27 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
 import { InwardRepository } from '../repository/inwardRegister.repository';
-import { InwardRegister } from '../entities/inwardRegister.entity';
+import { InwardRegister } from '../entity/inwardRegister.entity';
 import AppError from '../../utils/appError';
 
 import { LessThanOrEqual, DataSource, SelectQueryBuilder, In, IsNull, ILike, DeepPartial } from 'typeorm';
-import { AuditLogService } from '../services/auditLog.service';
+
 import { buildQuery, PaginationOptions } from '../../utils/pagination';
 
 import { formatDateTime } from '../../utils/dateUtils';
 
-import { ProductVarientService } from '../../product/productVarient/productVarient.service';
+
 
 import { ProductRepository } from '../../product/createproduct/repository/product.repository';
 import { InventoryStockRepository } from '../../inventoryStock/repository/inventoryStock.repository';
 
-import { DocSingalApproverService } from '../services/DocSingalApproverService.service';
-import { DocumentbService, DocumentWithRelatedData } from '../services/documentb.service';
+
 import { DocumentStatus, DocumentTypeEnum } from '../../approvalFlow/entity/docuemnt.entity';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { ApprovalFlowService } from '../services/approvalFlow.service';
+import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
+
 import { InwardProductRepository } from '../repository/inwardProduct.repository';
 import { ProductVarientRepository } from '../../product/productVarient/repository/varients.repository';
-import { DocumentbRepository } from '../repositories/documentb.repository';
+
 import { CacheService } from '../../global/cache.service';
 import { createHash } from 'crypto';
 import {
@@ -37,9 +36,13 @@ import {
   InwardRegisterListItemDto,
   InwardRegisterListResultDto,
   UpdateInwardRegisterDto,
-} from './inwardRegister.dto';
-import { InwardProduct } from './inwardProduct.entity';
+} from '../../inwardRegister/dto/inwardRegister.dto';
+
 import { BulkDeleteResultDto, DeleteResultDto } from '../../global/general.dto';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { DocumentbService, DocumentWithRelatedData } from '../../approvalFlow/service/documentb.service';
+import { DocSingalApproverService } from '../../approvalFlow/service/DocSingalApproverService.service';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
 
 
 function normalizeDateFormat(date: string | null | undefined): string | null | undefined {

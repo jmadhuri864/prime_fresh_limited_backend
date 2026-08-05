@@ -1,6 +1,6 @@
 import { Column, Entity, OneToMany } from "typeorm";
-import Model from "../global/model.entity";
-import { LaborAttendance } from "./laborattendance.entity";
+import Model from "../../global/model.entity";
+
 
 
 @Entity('labor_temporary_register')

@@ -5,17 +5,22 @@ import {
   response,
   next,
 } from 'inversify-express-utils';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
+
 import { inject } from 'inversify';
-import { TYPES } from '../types';
+
 import { Request, Response, NextFunction } from 'express';
-import { GrnReportService } from './grnReport.service';
-import { NotificationService } from '../services/notification.service';
-import { ControllerLogger } from '../utils/controllerLogger';
-import AppError from '../utils/appError';
+
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3 } from '../middleware/spaces.config';
-import { IGrnReportDownloadRequest, IGrnReportFilters } from '../interfaces/grn-report.interface';
+
+
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { TYPES } from '../../types';
+import { GrnReportService } from '../service/grnReport.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { s3 } from '../../middleware/spaces.config';
+import { ControllerLogger } from '../../utils/controllerLogger';
+import { IGrnReportDownloadRequest, IGrnReportFilters } from '../../interfaces/grn-report.interface';
+import AppError from '../../utils/appError';
 
 @controller('/grn-report', deserializeUser, requireUser)
 export class GrnReportController {

@@ -10,10 +10,11 @@ import {
   next,
 } from "inversify-express-utils";
 import { Request, Response, NextFunction } from "express";
-import { TYPES } from "../types";
-import AppError from "../utils/appError";
-import { StockCorrectionService } from "./stockCorrection.service";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import AppError from "../../utils/appError";
+import { StockCorrectionService } from "../service/stockCorrection.service";
+import { TYPES } from "../../types";
+
 
 @controller("/stock-correction", deserializeUser, requireUser)
 export class StockCorrectionController {

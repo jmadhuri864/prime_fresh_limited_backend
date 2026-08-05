@@ -13,20 +13,23 @@ import {
 import { TYPES } from '../../types';
 import { NextFunction, Request, Response } from 'express';
 import AppError from '../../utils/appError';
-import { SecondSaleService } from '../services/secondSale.service';
+
 import {
   captureUser,
   deserializeUser,
   requireUser,
 } from '../../middleware/deserializeUser';
-import { NotificationService } from '../services/notification.service';
+
 import logger from '../../utils/logger';
 
 import { PaginationOptions } from '../../utils/pagination';
 import { ControllerLogger } from '../../utils/controllerLogger';
 import { CreateSecondSaleDto, UpdateSecondSaleDto } from '../dto/secondSale.dto';
-import { ActivityAction, ActivityModule } from '../employeeActivity/userActivityLog.entity';
+
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
+import { SecondSaleService } from '../service/secondSale.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
 
 @controller('/secondSales', deserializeUser, requireUser)
 export class SecondSaleController {

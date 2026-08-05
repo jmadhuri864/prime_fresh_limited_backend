@@ -5,8 +5,9 @@ import {
     ManyToOne,
     JoinColumn,
   } from "typeorm";
-import Model from "../global/model.entity";
+
 import { VehicleDispatch } from "./vehicleDispatch.entity";
+import Model from "../../global/model.entity";
 
   
   @Entity({ name: "sku" })

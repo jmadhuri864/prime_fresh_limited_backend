@@ -11,9 +11,9 @@ import {
   response,
 } from 'inversify-express-utils';
 import { TYPES } from '../../types';
-import { OfficesService } from './office.service';
+
 import { NextFunction, Request, Response } from 'express';
-import { OFFICE_TYPE } from '../entities/offices.entity';
+
 import AppError from '../../utils/appError';
 import {
   captureUser,
@@ -23,7 +23,7 @@ import {
 import { PaginationOptions } from '../../utils/pagination';
 import logger from '../../utils/logger';
 import { ControllerLogger } from '../../utils/controllerLogger';
-import { NotificationService } from '../services/notification.service';
+
 import {
   CreateOfficeDto,
   UpdateOfficeDto,
@@ -34,6 +34,9 @@ import {
   BulkDeleteOfficeDto,
   BulkDeleteOfficeResultDto,
 } from '../dto/office.dto';
+import { OfficesService } from '../service/office.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { OFFICE_TYPE } from '../entity/offices.entity';
 
 @controller('/location-offices', deserializeUser, requireUser)
 export class OfficesController {

@@ -2,9 +2,10 @@ import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import Model from '../../global/model.entity';
 import { GRN } from './grn.entity';
 import { GrnProduct } from './grnProduct.entity';
-import { Product } from '../entities/product.entity';
-import { User } from './user.entity';
-import { ProductVarient } from './productVarient.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
+import { ProductVarient } from '../../product/productVarient/entity/productVarient.entity';
+import { User } from '../../employee/entity/user.entity';
+
 
 /**
  * Stores an immutable audit trail for every quantity/rate change on a GRN product.

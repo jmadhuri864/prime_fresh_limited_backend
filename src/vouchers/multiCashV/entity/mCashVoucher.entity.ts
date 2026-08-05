@@ -6,13 +6,16 @@ import {
     ManyToOne,
     JoinColumn,
   } from 'typeorm';
-import { MVItems } from '../mvoucher.entity';
+
 import Model from '../../../global/model.entity';
-import { User } from './user.entity';
-import { GRN } from '../grn/grn.entity';
+
 import { Department, Status } from '../../../utils/status.enum';
-import { DeliveryChallanPurchase } from '../entities/deliveryChallan.entity';
-import { Company } from '../entities/company.entity';
+import { Company } from '../../../company/entity/company.entity';
+import { GRN } from '../../../grn/entity/grn.entity';
+import { MVItems } from './mvoucher.entity';
+import { DeliveryChallanPurchase } from '../../../deliveryChallans/deliverychllan/entity/deliveryChallan.entity';
+import { User } from '../../../employee/entity/user.entity';
+
  
   
   @Entity("multiple_cash_voucher")

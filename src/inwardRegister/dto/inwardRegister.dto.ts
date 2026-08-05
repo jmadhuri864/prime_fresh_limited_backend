@@ -1,5 +1,6 @@
-import { InwardType } from '../entities/inwardRegister.entity';
-import { Source } from '../utils/status.enum';
+import { Source } from "../../utils/status.enum";
+import { InwardType } from "../entity/inwardRegister.entity";
+
 
 export interface CreateInwardProductDto {
   productName: string;

@@ -21,18 +21,20 @@ import {
   requireUser,
 } from '../../middleware/deserializeUser';
 
-import { NotificationService } from '../services/notification.service';
+
 import { PaginationOptions } from '../../utils/pagination';
 import { upload } from '../../middleware/upload.middleware';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3 } from '../../middleware/spaces.config';
 import { PdfGeneratorService } from '../../utils/pdfGenerator';
-import { CreateFarmerDto } from '../farmer.dto';
+import { CreateFarmerDto } from '../dto/farmer.dto';
 import { Status } from '../../utils/status.enum';
 import { ControllerLogger } from '../../utils/controllerLogger';
 import { uploadSingle } from '../../middleware/uploadsingle.middleware';
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
-import { ActivityAction, ActivityModule } from '../employeeActivity/userActivityLog.entity';
+import { NotificationService } from '../../notification/service/notification.service';
+import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
+
 
 @controller('/farmers',deserializeUser, requireUser)
 export class FarmerController {

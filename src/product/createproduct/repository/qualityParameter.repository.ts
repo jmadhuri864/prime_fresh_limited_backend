@@ -1,5 +1,6 @@
 import {  Repository } from "typeorm";
-import { QualityParameter } from "./quantityParameter.entity";
+import { QualityParameter } from "../entity/quantityParameter.entity";
+
 
 
 

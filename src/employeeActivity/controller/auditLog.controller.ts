@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { inject } from 'inversify';
 import { controller, httpGet } from 'inversify-express-utils';
-import { AuditLogService } from '../services/auditLog.service';
-import { TYPES } from '../types';
-import { AuditLogRepository } from './AuditLog.repository';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { TYPES } from '../../types';
+import { AuditLogService } from '../service/auditLog.service';
+import { AuditLogRepository } from '../repository/AuditLog.repository';
+
 
 @controller('/audit-logs', deserializeUser, requireUser)
 export class AuditLogController {

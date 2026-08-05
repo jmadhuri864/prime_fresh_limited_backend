@@ -12,18 +12,17 @@ import {
   httpPatch,
 } from "inversify-express-utils";
 import { inject } from "inversify";
-import AppError from "../utils/appError";
-import { VendorSubcategoryService } from "../services/vendorSubcategory.service";
-import { NotificationService } from "../services/notification.service";
-import { TYPES } from "../types";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import { ControllerLogger } from "../utils/controllerLogger";
-import { PaginationOptions } from "../utils/pagination";
-import {
-  CreateVendorSubcategoryDto,
-  UpdateVendorSubcategoryDto,
-  BulkDeleteVendorSubcategoryDto,
-} from "./vendorSubcategory.dto";
+import { deserializeUser, requireUser } from "../../../middleware/deserializeUser";
+import { TYPES } from "../../../types";
+import { VendorSubcategoryService } from "../service/vendorSubcategory.service";
+import { NotificationService } from "../../../notification/service/notification.service";
+import { BulkDeleteVendorSubcategoryDto, CreateVendorSubcategoryDto, UpdateVendorSubcategoryDto } from "../dto/vendorSubcategory.dto";
+import AppError from "../../../utils/appError";
+import { ControllerLogger } from "../../../utils/controllerLogger";
+import { PaginationOptions } from "../../../utils/pagination";
+
+
+
 
 @controller("/vendor-subcategories", deserializeUser, requireUser)
 export class VendorSubcategoryController {

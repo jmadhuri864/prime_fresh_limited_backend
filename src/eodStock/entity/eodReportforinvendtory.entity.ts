@@ -1,10 +1,11 @@
 import { Entity, Column, OneToMany, JoinColumn, ManyToOne } from 'typeorm';
-import Model from '../global/model.entity';
-import { SkuEodReport } from '../eodStock/skuStock.entity';
-import { Company } from './company.entity';
-import { Branches } from './branches.entity';
+
 import { format } from 'date-fns';
 import { truncate } from 'node:fs';
+import Model from '../../global/model.entity';
+import { Company } from '../../company/entity/company.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { SkuEodReport } from './skuStock.entity';
 
 @Entity({ name: 'stock_report' })
 export class StockReportEod extends Model {

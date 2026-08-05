@@ -1,11 +1,12 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import Model from "../global/model.entity";
 
-import { User } from "./user.entity";
-import { Branches } from "../entities/branches.entity";
 import { LaborDetail } from "./labourForAttendance.entity";
-import { Company } from "./company.entity";
+
 import { format } from "date-fns-tz";
+import Model from "../../global/model.entity";
+import { Company } from "../../company/entity/company.entity";
+import { Branches } from "../../branch/entity/branches.entity";
+import { User } from "../../employee/entity/user.entity";
 
 @Entity('labor_attendance_for_temporary_and_permanent')
 export class LaborAttendance extends Model {

@@ -1,10 +1,12 @@
-import { AccountType } from '../entities/bankDetailsCust.entity';
-import { VendorClassification } from '../vendor/vendor.entity';
-import { Status } from '../utils/status.enum';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared sub-types
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { AccountType } from "../../../customer/addcustomer/entity/bankDetailsCust.entity";
+import { Status } from "../../../utils/status.enum";
+import { VendorClassification } from "../entity/vendor.entity";
 
 /** Generic address shape used across vendor nested objects. */
 export interface VendorAddressDto {

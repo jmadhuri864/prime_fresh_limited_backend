@@ -10,16 +10,17 @@ import {
     next 
   } from "inversify-express-utils";
   import { inject } from "inversify";
-  import { TYPES } from "../types";
-  import { LaborRegisterService } from "./labourRegister.service";
-  import { NextFunction, Request, Response } from "express";
-  import AppError from "../utils/appError";
-  import logger from "../utils/logger";
-  import { ControllerLogger } from '../utils/controllerLogger';
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
 
-import { PaginationOptions } from "../utils/pagination";
-import { NotificationService } from "../services/notification.service";
+  import { NextFunction, Request, Response } from "express";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { LaborRegisterService } from "../service/labourRegister.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import logger from "../../utils/logger";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import { PaginationOptions } from "../../utils/pagination";
+import AppError from "../../utils/appError";
+ 
   
   @controller("/tempLabour",deserializeUser,requireUser)
   export class LaborRegisterController {

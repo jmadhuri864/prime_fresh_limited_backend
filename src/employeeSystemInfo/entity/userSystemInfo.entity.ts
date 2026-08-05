@@ -1,5 +1,6 @@
 import { Entity,  Column } from 'typeorm';
-import Model from './model.entity';
+import Model from '../../global/model.entity';
+
 
 @Entity()
 export class SystemLog extends Model {

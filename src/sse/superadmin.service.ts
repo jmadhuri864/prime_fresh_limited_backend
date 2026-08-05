@@ -1,21 +1,26 @@
 import { inject, injectable } from "inversify";
-import { DocumentbRepository } from "../repositories/documentb.repository";
+
 import { TYPES } from "../types";
 import { DealSlipRepository } from "../dealSlip/repository/dealSlip.repository";
-import { GrnRepository } from "../repositories/grn.repository";
-import { RfpaRepository } from "../repositories/rfpa.repository";
+
 import { InwardRepository } from "../inwardRegister/repository/inwardRegister.repository";
 import { VehicleDispatchRepository } from "../vehicleDispatch/repository/vehicleDispatch.repository";
-import { AqrRepository } from "../repositories/aqr.repository";
-import { MultiCashVoucherRepository } from "../vouchers/multiCashV/multicashVoucher.repository";
+;
 import { PackingMaterialRepository } from "../packingMaterial/repository/packingMaterial.repository";
-import { TPVoucherRepository } from "../vouchers/tranportPaymentV/transportPaymentV.repository";
-import { LabourPaymentVoucherRepository } from "../repositories/labourPaymentVoucher.repository";
+
 import { DumpRegisterRepository } from "../dumpRegister/repository/dumpRegister.repository";
 import { EodRepository } from "../eodStock/repository/eodstockreport.repository";
 import { InvoiceRepository } from "../invoice/repository/invoice.repository";
 import { SecondSaleRepository } from "../secondSale/repository/secondSale.repository";
-import { PostReturnByCustomerRepository } from "../repositories/postReturnByCustomer.repository";
+import { DocumentbRepository } from "../approvalFlow/repository/documentb.repository";
+import { GrnRepository } from "../grn/repository/grn.repository";
+import { RfpaRepository } from "../rfpa/repository/rfpa.repository";
+import { AqrRepository } from "../aqr/repository/aqr.repository";
+import { MultiCashVoucherRepository } from "../vouchers/multiCashV/repository/multicashVoucher.repository";
+import { TPVoucherRepository } from "../vouchers/tranportPaymentV/repository/transportPaymentV.repository";
+import { LabourPaymentVoucherRepository } from "../vouchers/labourPaymentV/repository/labourPaymentVoucher.repository";
+import { PostReturnByCustomerRepository } from "../returnByCustomer/repository/postReturnByCustomer.repository";
+
 
 @injectable()
 export class SuperAdminService {
@@ -61,6 +66,8 @@ export class SuperAdminService {
 
     doc.isDeleted = true;
     doc.deletedAt = new Date();
+
+    if (!doc.document_type_id) throw new Error("Document has no associated entity ID");
 
     // Update related document entity
   switch (doc.type) {
@@ -126,7 +133,8 @@ async restoreDocument(id: string): Promise<any> {
     if (!doc) throw new Error("Document not found");
 
     doc.isDeleted = false;
-  // doc.deletedAt = null;
+
+    if (!doc.document_type_id) throw new Error("Document has no associated entity ID");
 
     // Update related document entity
   switch (doc.type) {
@@ -191,6 +199,7 @@ async permanentDeleteDocument(id: string): Promise<any> {
         
         const doc = await this.documentRepo.findOne({ where: { id: id } });
     if (!doc) throw new Error("Document not found");
+    if (!doc.document_type_id) throw new Error("Document has no associated entity ID");
 
     // Delete related entity record
     if (doc.type === "grn") await this.grnRepo.delete(doc.document_type_id);

@@ -1,10 +1,10 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import Model from '../../global/model.entity';
 import { Invoice } from './invoice.entity';
-import { UOM } from './uom.entity';
-import { Product } from './product.entity';
-import { PackingMaterial } from './packingMaterial.entity';
-import { ProductVarient } from './productVarient.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
+import { ProductVarient } from '../../product/productVarient/entity/productVarient.entity';
+import { UOM } from '../../uom/entity/uom.entity';
+
 
 
 @Entity('invoice_products')

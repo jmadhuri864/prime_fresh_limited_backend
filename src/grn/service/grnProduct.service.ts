@@ -1,6 +1,7 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { GrnProductRepository } from "../repositories/grnProduct.repository";
+import { TYPES } from "../../types";
+import { GrnProductRepository } from "../repository/grnProduct.repository";
+
 
 @injectable()
 export class GrnProductService {

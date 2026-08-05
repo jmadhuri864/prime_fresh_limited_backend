@@ -7,8 +7,9 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn
 } from "typeorm";
-import { SalesTargetWeek } from "../salesTarget/salesTargetWeek.entity";
-import Model from "./model.entity";
+import Model from "../../global/model.entity";
+import { SalesTargetWeek } from "./salesTargetWeek.entity";
+
 
 
 @Entity("sales_achievements")

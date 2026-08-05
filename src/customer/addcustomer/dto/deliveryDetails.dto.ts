@@ -1,4 +1,5 @@
-import { AddressDto } from "../address/dto/address.dto";
+import { AddressDto } from "../../../address/dto/address.dto";
+
 
 export interface DeliveryDetailsDto {
   id?: string;

@@ -6,18 +6,19 @@ import {
   response,
   next,
 } from 'inversify-express-utils';
-import { TYPES } from '../types';
+
 import { NextFunction, Request, Response } from 'express';
-import {
-  NewRegistrationService,
-  NewRegistrationFilters,
-} from './newRegistration.service';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
-import { ControllerLogger } from '../utils/controllerLogger';
-import { NotificationService } from '../services/notification.service';
-import AppError from '../utils/appError';
+
+
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3 } from '../middleware/spaces.config';
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { NewRegistrationFilters, NewRegistrationService } from '../service/newRegistration.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { ControllerLogger } from '../../utils/controllerLogger';
+import { TYPES } from '../../types';
+import { s3 } from '../../middleware/spaces.config';
+import AppError from '../../utils/appError';
+
 
 /**
  * NEW REGISTRATION REPORT CONTROLLER

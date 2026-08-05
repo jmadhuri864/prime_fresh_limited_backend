@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
-import Model from "../global/model.entity";
+import Model from "../../global/model.entity";
+
 
 @Entity()
 export class BankDetails  extends Model {

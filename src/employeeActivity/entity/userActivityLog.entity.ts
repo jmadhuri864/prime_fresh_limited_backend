@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
-import Model from '../global/model.entity';
-import { User } from './user.entity';
+import { User } from '../../employee/entity/user.entity';
+import Model from '../../global/model.entity';
+
 
 export enum ActivityAction {
   CREATE = 'CREATE',

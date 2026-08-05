@@ -1,18 +1,18 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { VendorRepository } from "../vendor/vendor.repository";
-import { FarmerRepository } from "../farmer/farmer.repository";
-import { CustomerRepository } from "../customer/addcustomer/repository/customer.repository";
 import { Between, DataSource, LessThanOrEqual, MoreThanOrEqual } from "typeorm";
-import { Customer } from "../entities/customer.entity";
-import { ApprovalStatus, Status } from "../utils/status.enum";
-import { GrnRepository } from "../repositories/grn.repository";
-import { GrnProductRepository } from "../repositories/grnProduct.repository";
-import { GrnProduct } from "../grn/grnProduct.entity";
-import { DocumentbRepository } from "../repositories/documentb.repository";
-import { DocumentTypeEnum } from "../approvalFlow/entity/docuemnt.entity";
-import { DitemRepository } from "../deliveryChallans/deliverychllan/repository/dItem.repository";
-import logger from "../utils/logger";
+import { CustomerRepository } from "../../customer/addcustomer/repository/customer.repository";
+import { TYPES } from "../../types";
+import { VendorRepository } from "../../vendor/createVendor/repository/vendor.repository";
+import { DocumentbRepository } from "../../approvalFlow/repository/documentb.repository";
+import { FarmerRepository } from "../../farmer/repository/farmer.repository";
+import { GrnRepository } from "../../grn/repository/grn.repository";
+import { DitemRepository } from "../../deliveryChallans/deliverychllan/repository/dItem.repository";
+import { GrnProductRepository } from "../../grn/repository/grnProduct.repository";
+import { Customer } from "../../customer/addcustomer/entity/customer.entity";
+import { Status } from "../../utils/status.enum";
+import { DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
+import logger from "../../utils/logger";
+
 
 
 @injectable()

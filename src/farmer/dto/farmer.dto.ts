@@ -1,5 +1,7 @@
-import { LandHoldingStatus, LandStatus } from '../entities/farmer.entity';
-import { Status } from '../utils/status.enum';
+import { Status } from "../../utils/status.enum";
+import { LandHoldingStatus, LandStatus } from "../entity/farmer.entity";
+
+;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared sub-types (mirror the frontend's Address model)
@@ -183,7 +185,7 @@ export interface DeleteFarmerResultDto {
 /** Returned by softDeleteFarmers service method */
 export interface BulkDeleteFarmerResultDto {
   affected?: number | null;
-}
+
 
   createdDate?: string | null;
   createdTime?: string | null;
@@ -234,4 +236,39 @@ export interface BulkDeleteFarmerResultDto {
 
   // ── Crops ─────────────────────────────────────────────────────────────────
   crops: CropDto[];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Farmer detail response DTO  (used by getfarmerbyidforview & getfarmerbyidforupdate)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FarmerResponseDto {
+  id: string;
+  farmerfName: string | null;
+  farmermName: string | null;
+  farmerlName: string | null;
+  gender?: string | null;
+  status?: string | null;
+  dob?: string | null;
+  idProofNo?: string | null;
+  idProofCopy?: string | null;
+  howDoYouSell?: string | null;
+  landHoldingStatus?: LandHoldingStatusType | null;
+  landStatus?: LandStatusType | null;
+  totalLandArea?: number | null;
+  cultivationArea?: number | null;
+  sevenTwelveNo?: string | null;
+  sevenTwelveCopy?: string | null;
+  primaryMobileNo?: string | null;
+  secondaryMobileNo?: string | null;
+  email?: string | null;
+  farmerCode?: string | null;
+  farmerPhoto?: string | null;
+  farmPhoto?: string | null;
+  createdBy?: string | null;
+  createdDate?: string | null;
+  createdTime?: string | null;
+  residensialAddress?: AddressDto | Record<string, any>;
+  farmAddress?: AddressDto | Record<string, any>;
+  crops?: CropDto[];
 }

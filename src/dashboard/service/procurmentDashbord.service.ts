@@ -1,20 +1,25 @@
 import { inject, injectable } from "inversify";
 import { TYPES } from "../../types";
-import { GrnRepository } from "../repositories/grn.repository";
-import { GrnProductRepository } from "../repositories/grnProduct.repository";
-import { BranchessRepository } from "../repositories/branches.repository";
+
 import { ProductRepository } from "../../product/createproduct/repository/product.repository";
 import { UOMRepository } from "../../uom/repository/uom.repository";
 import { VendorService } from "../../vendor/createVendor/service/vendor.service";
-import { NotificationService } from "./notification.service";
+
 import { FarmerService } from "../../farmer/service/farmer.service";
-import { UserService } from "./user.service";
-import { AuditLogService } from "./auditLog.service";
+
 import { UserRepository } from "../../employee/repository/user.repository";
-import { LevelsRepository } from "../repositories/levels.repository";
+
 import { RequestsRepository } from "../../sse/requests.repository";
-import { GRN, GrnType } from "../../grn/grn.entity";
+
 import { Between } from "typeorm";
+import { GrnRepository } from "../../grn/repository/grn.repository";
+import { GrnProductRepository } from "../../grn/repository/grnProduct.repository";
+import { BranchessRepository } from "../../branch/repository/branches.repository";
+import { NotificationService } from "../../notification/service/notification.service";
+import { UserService } from "../../employee/service/user.service";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { LevelsRepository } from "../../levels/repository/levels.repository";
+import { GRN } from "../../grn/entity/grn.entity";
 
 interface SupplierCostReduction {
     category: string;
@@ -388,7 +393,7 @@ public async getFilteredGRNs(filters: any): Promise<any[]> {
       cratesIn: grn.cratesIn,
       deliveryReceivingPerson: grn.deliveryReceivingPerson,
       baseLocation: grn.baseLocation,
-      approvalStatus: grn.approvalStatus,
+      approvalStatus: (grn as any).approvalStatus,
       approvalNote: grn.approvalNote,
       specialReq: grn.specialReq,
       securityPerson: grn.securityPerson,
@@ -396,8 +401,8 @@ public async getFilteredGRNs(filters: any): Promise<any[]> {
       createdAt: grn.createdAt,
      
       requestedBy: {
-        firstName: grn.requestedBy?.firstName || "",
-        lastName: grn.requestedBy?.lastName || "",
+        firstName: (grn as any).requestedBy?.firstName || "",
+        lastName: (grn as any).requestedBy?.lastName || "",
       },
       purchaseBy: {
         firstName: grn.purchaseBy?.firstName || "",
@@ -410,7 +415,7 @@ public async getFilteredGRNs(filters: any): Promise<any[]> {
         unitPrice: product.unitPrice,
         productName: product.productName?.id,
         uom: product.uom?.id,
-        count: product.count,
+        
         amount: product.amount,
         rtv: product.rtv,
         purchaseDate: product.purchaseDate,

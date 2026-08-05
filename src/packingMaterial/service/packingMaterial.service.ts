@@ -1,20 +1,14 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import { PackingMaterial } from '../entities/packingMaterial.entity';
-import { PackingMaterialRepository } from './repository/packingMaterial.repository';
-import { buildQuery, PaginationOptions } from '../utils/pagination';
-import AppError from '../utils/appError';
-import { AuditLogService } from '../services/auditLog.service';
-import { CacheService } from '../global/cache.service';
-import {
-  CreatePackingMaterialDto,
-  UpdatePackingMaterialDto,
-  PackingMaterialListResponseDto,
-  PackingMaterialDetailDto,
-  PackingMaterialPartialDto,
-  PackingMaterialDropdownDto,
-  BulkDeletePackingMaterialResultDto,
-} from './dto/packingMaterial.dto';
+import { TYPES } from '../../types';
+import { PackingMaterialRepository } from '../repository/packingMaterial.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { CacheService } from '../../global/cache.service';
+import { buildQuery, PaginationOptions } from '../../utils/pagination';
+import { BulkDeletePackingMaterialResultDto, CreatePackingMaterialDto, PackingMaterialDetailDto, PackingMaterialListResponseDto, PackingMaterialPartialDto, UpdatePackingMaterialDto } from '../dto/packingMaterial.dto';
+import { PackingMaterial } from '../entity/packingMaterial.entity';
+import AppError from '../../utils/appError';
+
+
 
 const CACHE_PREFIX = 'packingMaterial';
 const CACHE_TTL = 300; // 5 minutes

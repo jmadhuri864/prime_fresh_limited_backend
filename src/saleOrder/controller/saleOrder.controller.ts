@@ -10,14 +10,16 @@ import {
   response,
   next,
 } from "inversify-express-utils";
-import { TYPES } from "../types";
+
 import { Request, Response, NextFunction } from "express";
-import { SaleOrderService } from "../services/saleOrder.service";
-import AppError from "../utils/appError";
-import logger from "../utils/logger";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import { ControllerLogger } from "../utils/controllerLogger";
-import { NotificationService } from "../services/notification.service";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { SaleOrderService } from "../service/saleOrder.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import logger from "../../utils/logger";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import AppError from "../../utils/appError";
+
 
 @controller('/saleOrders',deserializeUser,requireUser)
 export class SaleOrderController {

@@ -1,5 +1,6 @@
 import { Repository } from "typeorm";
-import { GRN } from "../grn/grn.entity";
+import { GRN } from "../entity/grn.entity";
+
 
 
 export class GrnRepository extends Repository<GRN> {}

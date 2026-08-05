@@ -1,31 +1,34 @@
 import { inject, injectable } from 'inversify';
 import * as XLSX from 'xlsx';
-import { Farmer } from '../entities/farmer.entity';
+import { Farmer } from '../entity/farmer.entity';
 import { FarmerRepository } from '../repository/farmer.repository';
 import { TYPES } from '../../types';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { s3 } from '../../middleware/spaces.config';
 
-import { Crop } from '../crop.entity';
-import { Product } from '../entities/product.entity';
-import fs from 'fs';
-import { CropRepository } from '../repositories/crop.repository';
+import { Crop } from '../entity/crop.entity';
 
-import { Address } from '../address/address.entity';
-import { AuditLogService } from './auditLog.service';
+import fs from 'fs';
+;
+
 import AppError from '../../utils/appError';
 import { applyNumericFilter, buildQuery, PaginationOptions } from '../../utils/pagination';
-import { AddressRepository } from '../repositories/address.repository';
+
 import { AppDataSource } from '../../utils/data-source';
 import { parseExcelDate } from '../../utils/excelParser';
 import { UserRepository } from '../../employee/repository/user.repository';
-import { Role } from '../entities/user.entity';
-import { User } from '../entities/user.entity';
+
 import { Status } from '../../utils/status.enum';
 import { formatDateTime } from '../../utils/dateUtils';
-import { CreateFarmerDto, FarmerListResponseDto, FarmerListItemDto, FarmerResponseDto, AddressDto, CropDto, LandHoldingStatusType, LandStatusType, UpdateFarmerDto } from './farmer.dto';
+import { CreateFarmerDto, FarmerListResponseDto, FarmerListItemDto, AddressDto, CropDto, LandHoldingStatusType, LandStatusType, UpdateFarmerDto, FarmerResponseDto } from '../dto/farmer.dto';
 import { In } from 'typeorm';
 import { CacheService } from '../../global/cache.service';
+import { AddressRepository } from '../../address/repository/address.repository';
+import { CropRepository } from '../repository/crop.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { Role, User } from '../../employee/entity/user.entity';
+import { Address } from '../../address/entity/address.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
 
 const CACHE_PREFIX = 'farmer';
 const CACHE_TTL = 180;

@@ -1,7 +1,8 @@
 import cron from "node-cron";
 import { LessThan } from "typeorm";
-import { User } from "../entities/user.entity";
+
 import { AppDataSource } from "./data-source";
+import { User } from "../employee/entity/user.entity";
 
 // Schedule the cron job to run daily
 cron.schedule("0 0 * * *", async () => {

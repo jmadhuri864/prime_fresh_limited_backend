@@ -1,16 +1,16 @@
 import { Request, Response, NextFunction } from "express";
 import { inject } from "inversify";
 import { TYPES } from "../../../types";
-import { ProductClassificationService } from "../services/product_classification.service";
 import { ProductClassification } from "../entity/product_classification.entity";
 import AppError from "../../../utils/appError";
 import { controller, httpGet, httpPost, httpPatch, httpDelete, request, response, requestParam, requestBody, next } from "inversify-express-utils";
 import { captureUser, deserializeUser, requireUser } from "../../../middleware/deserializeUser";
-
 import { PaginationOptions } from "../../../utils/pagination";
 import { ControllerLogger } from "../../../utils/controllerLogger";
-import { NotificationService } from "../services/notification.service";
-import { CreateProductClassificationDto } from "../createproduct/product.dto";
+import { ProductClassificationService } from "../service/product_classification.service";
+import { NotificationService } from "../../../notification/service/notification.service";
+import { CreateProductClassificationDto } from "../../createproduct/dto/product.dto";
+
 
 @controller("/productClassification", deserializeUser, requireUser)
 export class ProductClassificationController {

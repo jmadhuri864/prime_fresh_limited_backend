@@ -2,10 +2,9 @@ import { inject, injectable } from "inversify";
 import { UOMConversionMatrixRepository } from "../repository/uomMatrix.repository";
 import { TYPES } from "../../types";
 import { DataSource, In } from "typeorm";
-import { AuditLogService } from "./auditLog.service";
-import { UOMConversionMatrix } from "./uom_matrix.entity";
+
 import { buildQuery, PaginationOptions } from "../../utils/pagination";
-import { CacheService } from "./cache.service";
+
 import {
   CreateUOMConversionMatrixDto,
   UpdateUOMConversionMatrixDto,
@@ -14,6 +13,9 @@ import {
   UOMConversionMatrixUpdateFormDto,
   BulkDeleteUOMConversionMatrixResultDto,
 } from "../dto/uomConversionMatrix.dto";
+import { UOMConversionMatrix } from "../entity/uom_matrix.entity";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { CacheService } from "../../global/cache.service";
 
 const CACHE_PREFIX = "uomMatrix";
 const CACHE_TTL = 300; // 5 minutes

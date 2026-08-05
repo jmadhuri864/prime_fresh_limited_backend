@@ -7,32 +7,23 @@ import {
   OneToMany,
   OneToOne,
 } from 'typeorm';
-import Model from '../global/model.entity';
-import { Vendor } from '../vendor/vendor.entity';
+
 import { GrnProduct } from './grnProduct.entity';
-import {
-  ApprovalStatus,
-  Department,
-  Source,
-  Status,
-  ammountStatus
-} from '../utils/status.enum';
-import { User } from './user.entity';
-import { Farmer } from './farmer.entity';
 
-import { DealSlip } from '../entities/dealSlip.entity';
-import { RFPA } from '../rfpa/rfpa.entity';
-
-import { Levels } from '../levels/levels.entity';
-import { Requests } from '../entities/request.entity';
-import { Branches } from '../entities/branches.entity';
-import { Company } from './company.entity';
 import { toZonedTime } from 'date-fns-tz';
 import { parse, format } from 'date-fns';
+import Model from '../../global/model.entity';
+import { Company } from '../../company/entity/company.entity';
+import { User } from '../../employee/entity/user.entity';
+import { ammountStatus, Department, Source } from '../../utils/status.enum';
+import { DealSlip } from '../../dealSlip/entity/dealSlip.entity';
+import { RFPA } from '../../rfpa/entity/rfpa.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { Vendor } from '../../vendor/createVendor/entity/vendor.entity';
+import { Farmer } from '../../farmer/entity/farmer.entity';
+import { PaymentInfoForGRN } from './grnPaymentInfo.entity';
+import { Levels } from '../../levels/entity/levels.entity';
 
-import { PaymentInfoForRFPA } from './rfpaPayementInfo.entity';
-import { PaymentInfoForGRN } from '../entities/grnPaymentInfo.entity';
-import { Documentb } from '../approvalFlow/entity/docuemnt.entity';
 
 export enum PurchaseType {
   FixedPriceSales = 'fixed price sales',
@@ -279,11 +270,11 @@ timeIn: string | null;
   @Column({ type: 'text', nullable: true })
   remark: string;
 
-  @OneToMany(() => Requests, (request) => request, {
-    cascade: true,
-    onDelete: 'SET NULL',
-  })
-  requests: Requests[];
+  // @OneToMany(() => Requests, (request) => request, {
+  //   cascade: true,
+  //   onDelete: 'SET NULL',
+  // })
+  // requests: Requests[];
 
   @ManyToOne(() => Levels, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'current_level_id' })

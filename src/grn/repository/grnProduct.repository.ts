@@ -1,5 +1,6 @@
 import { Repository } from "typeorm";
-import { GrnProduct } from "./entity/grnProduct.entity";
+import { GrnProduct } from "../entity/grnProduct.entity";
+
 
 
 

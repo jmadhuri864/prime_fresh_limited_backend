@@ -1,4 +1,4 @@
-import { Role } from '../entities/user.entity';
+import { Role } from '../entity/user.entity';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared sub-types

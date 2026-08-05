@@ -4,8 +4,9 @@ import { TYPES } from '../types';
 
 import { UserRepository } from '../employee/repository/user.repository';
 import logger from '../utils/logger';
-import { NotificationService } from '../services/notification.service';
-import { DocumentbService } from '../services/documentb.service';
+import { NotificationService } from '../notification/service/notification.service';
+import { DocumentbService } from '../approvalFlow/service/documentb.service';
+;
 
 export interface SSENotificationOptions {
   documentId: string;

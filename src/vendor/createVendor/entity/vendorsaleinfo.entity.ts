@@ -1,6 +1,7 @@
 import { Column, Entity, OneToOne } from "typeorm";
-import Model from "./model.entity";
-import { Vendor } from "../vendor/vendor.entity";
+import Model from "../../../global/model.entity";
+import { Vendor } from "./vendor.entity";
+
 
 @Entity("vendor_sale_info")
 export class VendorSaleInfo extends Model {

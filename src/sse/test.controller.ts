@@ -9,10 +9,11 @@ import {
 } from 'inversify-express-utils';
 import { Request, Response, NextFunction } from 'express';
 import { TYPES } from '../types';
-import { NotificationService } from '../services/notification.service';
+
 import { SSEService } from './sse.service';
 import { deserializeUser, requireUser } from '../middleware/deserializeUser';
 import logger from '../utils/logger';
+import { NotificationService } from '../notification/service/notification.service';
 
 @controller('/test', deserializeUser, requireUser)
 export class TestController {

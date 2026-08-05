@@ -4,10 +4,12 @@ import AppError from '../utils/appError';
 
 import { verifyJwt } from '../utils/jwt';
 import { AppDataSource } from '../utils/data-source';
-import { User } from '../entities/user.entity';
-import logger from '../utils/logger';
 
-import { BlacklistedToken } from './entity/blacklistedToken.entity';
+import logger from '../utils/logger';
+import { User } from '../employee/entity/user.entity';
+import { BlacklistedToken } from '../auth/entity/blacklistedToken.entity';
+
+
 
 const userrepo = AppDataSource.getRepository(User);
 const blacklistedTokensRepo = AppDataSource.getRepository(BlacklistedToken);

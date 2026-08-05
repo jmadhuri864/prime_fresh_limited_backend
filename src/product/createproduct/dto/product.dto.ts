@@ -1,6 +1,8 @@
-export interface createProductDto {
+import { Acceptability } from "../entity/quantityParameter.entity";
+
+// export interface createProductDto {
   
-}import { Acceptability } from "./quantityParameter.entity";
+// }
 
 export interface QualityParameterDto {
   id?: string;

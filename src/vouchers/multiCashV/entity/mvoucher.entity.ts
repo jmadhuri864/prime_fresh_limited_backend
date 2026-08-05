@@ -5,9 +5,9 @@ import {
     ManyToOne,
     JoinColumn,
   } from 'typeorm';
-import Model from '../global/model.entity';
-import { CashVoucher } from './entity/mCashVoucher.entity';
-import { UOM } from './uom.entity';
+import Model from '../../../global/model.entity';
+import { CashVoucher } from './mCashVoucher.entity';
+;
   
   
   @Entity("material_for_the_multi_cash_voucher")

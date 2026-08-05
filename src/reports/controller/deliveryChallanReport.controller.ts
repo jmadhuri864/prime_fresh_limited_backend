@@ -6,20 +6,19 @@ import {
   next,
   httpGet,
 } from 'inversify-express-utils';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
+
 import { inject } from 'inversify';
-import { TYPES } from '../types';
+
 import { Request, Response, NextFunction } from 'express';
-import { DeliveryChallanReportService } from '../services/deliveryChallanReport.service';
-import { NotificationService } from '../services/notification.service';
-import { ControllerLogger } from '../utils/controllerLogger';
-import AppError from '../utils/appError';
+
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { s3 } from '../middleware/spaces.config';
-import { 
-  IDeliveryChallanReportDownloadRequest, 
-  IDeliveryChallanReportFilters 
-} from '../interfaces/deliveryChallan-report.interface';
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { TYPES } from '../../types';
+import { DeliveryChallanReportService } from '../service/deliveryChallanReport.service';
+import { NotificationService } from '../../notification/service/notification.service';
+import { s3 } from '../../middleware/spaces.config';
+import { ControllerLogger } from '../../utils/controllerLogger';
+
 
 @controller('/delivery-challan-report', deserializeUser, requireUser)
 export class DeliveryChallanReportController {

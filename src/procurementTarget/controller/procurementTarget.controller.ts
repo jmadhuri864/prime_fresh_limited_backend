@@ -10,13 +10,13 @@ import {
   next,
   requestParam,
 } from 'inversify-express-utils';
-import { TYPES } from '../types';
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { TYPES } from '../../types';
+import { ProcurementTargetService } from '../service/procurementTarget.service';
+import AppError from '../../utils/appError';
+import logger from '../../utils/logger';
 
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
-import logger from '../utils/logger';
-import AppError from '../utils/appError';
-import { DepartmentEnum } from '../entities/workflowClosure.entity';
-import { ProcurementTargetService } from '../services/procurementTarget.service';
+
 
 @controller(
   '/procurement-target',

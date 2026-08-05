@@ -1,10 +1,13 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
-import { NotificationRepository } from '../notification/notification.repository';
+
 import { SSEService } from '../../sse/sse.service';
-import { UserService } from '../services/user.service';
+
 import logger from '../../utils/logger';
 import ExcelJS from 'exceljs';
+import { NotificationRepository } from '../repository/notification.repository';
+import { Notification } from '../entity/notifications.entity';
+import { UserService } from '../../employee/service/user.service';
 
 
 @injectable()
@@ -53,9 +56,10 @@ export class NotificationService {
   }
 
   public async saveNotificationToDb(message: string, userId: string): Promise<void> {
-    const user = await this.userService.findUserById(userId);
-    if (!user) return;
-    const notification = this.notificationRepository.create({ message, user });
+    const notification = this.notificationRepository.create({
+      message,
+      user: { id: userId } as any,
+    });
     await this.notificationRepository.save(notification);
   }
 
@@ -173,17 +177,9 @@ export class NotificationService {
   }
 
   private async saveBatchNotificationsToDb(message: string, userIds: string[]): Promise<void> {
-    const users = await Promise.all(
-      userIds.map(userId => this.userService.findUserById(userId))
+    const notifications = userIds.map(userId =>
+      this.notificationRepository.create({ message, user: { id: userId } as any })
     );
-
-    const validUsers = users.filter(user => user !== null);
-    if (validUsers.length === 0) return;
-
-    const notifications = validUsers.map(user =>
-      this.notificationRepository.create({ message, user })
-    );
-
     await this.notificationRepository.save(notifications);
   }
 

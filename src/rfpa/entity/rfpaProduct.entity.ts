@@ -1,10 +1,12 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import Model from '../../global/model.entity';
-import { Product } from '../entities/product.entity';
-import { UOM } from './uom.entity';
+
 import { RFPA } from './rfpa.entity';
 import { format } from 'date-fns';
-import { ProductVarient } from './productVarient.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
+import { ProductVarient } from '../../product/productVarient/entity/productVarient.entity';
+import { UOM } from '../../uom/entity/uom.entity';
+
 
 @Entity('rfpa_product')
 export class RFPAProduct extends Model {

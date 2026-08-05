@@ -1,16 +1,20 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
-import Model from './model.entity';
-import { DeliveryChallanPurchase } from './deliveryChallan.entity';
-import { GRN } from '../grn/grn.entity';
-import { Farmer } from './farmer.entity';
-import { Vendor } from '../../vendor/createVendor/vendor.entity';
+
 import { Source } from '../../utils/status.enum';
 import { InwardProduct } from './inwardProduct.entity';
-import { Branches } from './branches.entity';
-import { Company } from './company.entity';
-import { User } from './user.entity';
-import { format, toZonedTime } from 'date-fns-tz';import { PostReturnByCustomer } from '../../returnByCustomer/postReturnByCustomer.entity';
-import { Customer } from './customer.entity';
+
+import { format, toZonedTime } from 'date-fns-tz';
+import Model from '../../global/model.entity';
+import { GRN } from '../../grn/entity/grn.entity';
+import { DeliveryChallanPurchase } from '../../deliveryChallans/deliverychllan/entity/deliveryChallan.entity';
+import { Company } from '../../company/entity/company.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { Farmer } from '../../farmer/entity/farmer.entity';
+import { Vendor } from '../../vendor/createVendor/entity/vendor.entity';
+import { Customer } from '../../customer/addcustomer/entity/customer.entity';
+import { User } from '../../employee/entity/user.entity';
+import { PostReturnByCustomer } from '../../returnByCustomer/entity/postReturnByCustomer.entity';
+
 './postReturnByCustomer.entity';
 
 export enum InwardType {

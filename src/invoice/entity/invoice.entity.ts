@@ -6,16 +6,18 @@ import {
   ManyToOne,
   OneToMany,
 } from 'typeorm';
-import Model from './model.entity';
-import { DeliveryChallanPurchase } from './deliveryChallan.entity';
-import { Branches } from './branches.entity';
-import { Company } from './company.entity';
-import { User } from './user.entity';
-import { Customer } from './customer.entity';
-import { Address } from '../address/address.entity';
+
 import { format } from 'date-fns-tz';
-import { ammountStatus, Department, Status } from '../utils/status.enum';
+
 import { InvoiceProduct } from './invoiceProduct.entity';
+import Model from '../../global/model.entity';
+import { Company } from '../../company/entity/company.entity';
+import { DeliveryChallanPurchase } from '../../deliveryChallans/deliverychllan/entity/deliveryChallan.entity';
+import { Customer } from '../../customer/addcustomer/entity/customer.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { Address } from '../../address/entity/address.entity';
+import { ammountStatus } from '../../utils/status.enum';
+import { User } from '../../employee/entity/user.entity';
 
 
 @Entity('invoices')

@@ -12,18 +12,7 @@ import {
   httpPut,
 } from "inversify-express-utils";
 import { inject } from "inversify";
-import AppError from "../utils/appError";
-import { UserService } from "../services/user.service";
-import { NotificationService } from "../services/notification.service";
-import { TYPES } from "../types";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import logger from "../utils/logger";
-import { ControllerLogger } from "../utils/controllerLogger";
-import { PaginationOptions } from "../utils/pagination";
-import { OfficesService } from "../office/office.service";
-import { BranchessService } from "../branch/service/branches.service";
-import { parseExcel } from "../utils/excelParser";
-import { uploadSingle } from "../middleware/uploadsingle.middleware";
+
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -34,7 +23,19 @@ import {
   UpdateUserStatusDto,
   BulkDeleteUsersDto,
   UserExcelRowDto,
-} from "./user.dto";
+} from "../dto/user.dto";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { UserService } from "../service/user.service";
+import { OfficesService } from "../../office/service/office.service";
+import { BranchessService } from "../../branch/service/branches.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import AppError from "../../utils/appError";
+import logger from "../../utils/logger";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import { PaginationOptions } from "../../utils/pagination";
+import { uploadSingle } from "../../middleware/uploadsingle.middleware";
+import { parseExcel } from "../../utils/excelParser";
 
 
  @controller("/employee" , deserializeUser, requireUser)

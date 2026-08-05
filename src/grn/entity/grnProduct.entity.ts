@@ -1,10 +1,12 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import { Product } from "../entities/product.entity";
-import { UOM } from "./uom.entity";
+
 import { GRN } from './grn.entity';
 import Model from "../../global/model.entity";
 import { format } from "date-fns-tz";
-import { ProductVarient } from "./productVarient.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import { ProductVarient } from "../../product/productVarient/entity/productVarient.entity";
+import { UOM } from "../../uom/entity/uom.entity";
+
 
 
 @Entity({ name: 'grn_products' }) // Table for GRN-Product relationship

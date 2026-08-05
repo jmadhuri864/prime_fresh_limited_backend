@@ -10,15 +10,15 @@ import {
   requestParam,
   response,
 } from "inversify-express-utils";
-import { TYPES } from "../types";
-import { LaborService } from "./labor.service";
-import { NextFunction, Response, Request } from "express";
-import logger from "../utils/logger";
-import AppError from "../utils/appError";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { NextFunction,Response,Request } from "express";
+import AppError from "../../utils/appError";
+import logger from "../../utils/logger";
+import { PaginationOptions } from "../../utils/pagination";
+import { LaborService } from "../service/labor.service";
+import { NotificationService } from "../../notification/service/notification.service";
 
-import { PaginationOptions } from "../utils/pagination";
-import { NotificationService } from "../services/notification.service";
 
 @controller("/labors",deserializeUser,requireUser)
 export class LaborController {

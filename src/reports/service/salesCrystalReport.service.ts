@@ -1,12 +1,12 @@
 import { injectable, inject } from 'inversify';
 import { Repository, Between, In } from 'typeorm';
-import { CustomerDeliveryChallan } from '../entities/customerDeliveryChallan.entity';
-import { Item } from '../deliveryChallans/deliverychllan/dItem.entity';
-import { PostReturnByCustomer } from '../returnByCustomer/postReturnByCustomer.entity';
-import { ReturnedProducts } from '../entities/returnProduct.entity';
-import { AppDataSource } from '../utils/data-source';
-import { TYPES } from '../types';
+
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { AppDataSource } from '../../utils/data-source';
+import { CustomerDeliveryChallan } from '../../deliveryChallans/customerDeliveryChllan/entity/customerDeliveryChallan.entity';
+import { Item } from '../../deliveryChallans/deliverychllan/entity/dItem.entity';
+import { PostReturnByCustomer } from '../../returnByCustomer/entity/postReturnByCustomer.entity';
+import { ReturnedProducts } from '../../returnByCustomer/entity/returnProduct.entity';
 
 export interface SalesReportFilters {
     startDate?: Date;
@@ -425,7 +425,7 @@ export class SalesCrystalReportService {
         const deliveryChallans = await queryBuilder.getMany();
 
         // Transform to report format
-        const reportData: SalesDetailedReport[] = deliveryChallans.map((dc) => ({
+        const reportData:SalesDetailedReport[] = deliveryChallans.map((dc) => ({
             challanNo: dc.challanNo || '',
             challanDate: format(new Date(dc.createdAt), 'yyyy-MM-dd'),
             customerName: dc.customerName?.organisationName || '',
@@ -466,8 +466,8 @@ export class SalesCrystalReportService {
                         productName: product.name ?? '',
                         productCode: product.productCode ?? '',
                         variantName: variant.variantName ?? '',
-                        category: category.name ?? '',
-                        subCategory: subCategory.name ?? '',
+                        category: (category as any)?.name ?? '',
+                        subCategory: (subCategory as any)?.name ?? '',
                         netWeight: Number(item.netWeight) || 0,
                         packingMaterialWeight: Number(item.packingMaterialWeight) || 0,
                         unitPrice: Number(item.unitPrice) || 0,

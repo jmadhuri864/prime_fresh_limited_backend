@@ -1,10 +1,5 @@
-import { Company } from '../entities/company.entity';
-import { DeliveryChallanPurchase } from '../entities/deliveryChallan.entity';
-import { Customer } from '../entities/customer.entity';
-import { Branches } from '../entities/branches.entity';
-import { Address } from '../address/address.entity';
-import { User } from '../entities/user.entity';
-import { ammountStatus } from '../utils/status.enum';
+import { ammountStatus } from "../../utils/status.enum";
+
 
 export interface InvoiceProductDto {
   id?: string | null;

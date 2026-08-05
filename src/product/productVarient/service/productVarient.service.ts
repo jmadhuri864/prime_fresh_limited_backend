@@ -1,10 +1,11 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import { ProductVarientsRepository } from './productVarients.repository';
-import { buildQuery, PaginationOptions } from '../utils/pagination';
-import { formatDateTime } from '../utils/dateUtils';
-import { ProductVarients } from '../entities/productVarients.entity';
-import { ProductRepository } from '../createproduct/repository/product.repository';
+import { TYPES } from '../../../types';
+import { ProductVarientsRepository } from '../repository/productVarients.repository';
+import { ProductRepository } from '../../createproduct/repository/product.repository';
+import { buildQuery, PaginationOptions } from '../../../utils/pagination';
+import { formatDateTime } from '../../../utils/dateUtils';
+import { ProductVarient } from '../entity/productVarient.entity';
+
 
 @injectable()
 export class ProductVarientService {
@@ -83,7 +84,7 @@ export class ProductVarientService {
       const combinations = this.generateCombinations(counts, sizes, varieties, origins);
     
      
-      const variants: ProductVarients[] = [];
+      const variants: any[] = [];
       const usedCodes = new Set<string>();
     
      
@@ -101,22 +102,20 @@ export class ProductVarientService {
         usedCodes.add(code);
     
       
-        const variant = this. productVarientRepository.create({
-          productTemplate,
+        const variant = this.productVarientRepository.create({
+          product: productTemplate,
           count: combo.count || null,
           size: combo.size || null,
           variety: combo.variety || null,
           origin: combo.productOrigin || null,
-          shelfLife: productTemplate.shelfLife,
-          storageTemp: productTemplate.storageTemp,
-          productCode: code,
-        });
+          variantCode: code,
+        } as any);
     
         variants.push(variant);
       }
     
       // Save all variants to the database
-      await this. productVarientRepository.save(variants);
+      await this.productVarientRepository.save(variants);
     
       // Optionally, you can return the created variants along with the product data.
       return { product: productTemplate, variants };
@@ -133,7 +132,7 @@ export class ProductVarientService {
       'productVarient',
     );
 
-    const formatResult = data.map((item) => {
+    const formatResult = data.map((item: any) => {
       const rawDate = item.createdAt;
       const { createdDate, createdTime } = formatDateTime(rawDate);
       return {
@@ -165,7 +164,7 @@ export class ProductVarientService {
     const result = await this.productVarientRepository.findOne({
       where: { id },
       relations: ['productTemplate'],
-    });
+    }) as any;
     if (!result) {
       return null;
     }
@@ -193,11 +192,11 @@ export class ProductVarientService {
   }
   async getVarientByProductId(id: string): Promise<any> {
     const result1 = await this.productVarientRepository.find({
-      where: { productTemplate: { id } },
-      relations: ['productTemplate'], 
+      where: { productTemplate: { id } } as any,
+      relations: ['productTemplate'],
     });
 
-    const formattedResult = result1.map((result) => {
+    const formattedResult = result1.map((result: any) => {
       const rawDate = result.createdAt;
       const { createdDate, createdTime } = formatDateTime(rawDate);
 
@@ -238,7 +237,7 @@ export class ProductVarientService {
     const result = await this.productVarientRepository.findOne({
       where: whereClause,
       relations: ['productTemplate'],
-    });
+    }) as any;
   
     if (!result) {
       return null;
@@ -264,29 +263,27 @@ export class ProductVarientService {
 
 
   async generateAndUpdateCodeForAllVariants(): Promise<string[]> {
-    // Fetch all variants with their associated productTemplate (for baseCode)
+    // Fetch all variants with their associated product (for baseCode)
     const variants = await this.productVarientRepository.find({
-      relations: ['productTemplate'],
+      relations: ['product'],
     });
   
     const updatedCodes: string[] = [];
   
     for (const variant of variants) {
-      const baseCode = variant.productTemplate?.productCode || 'UNKNOWN';
+      const baseCode = (variant as any).product?.productCode || 'UNKNOWN';
   
       const generatedCode = this.generateVariantCode(baseCode, {
-        count: variant.count,
-        size: variant.size,
-        variety: variant.variety,
-        productOrigin: variant.origin,
+        count: variant.count ?? undefined,
+        size: variant.size ?? undefined,
+        variety: variant.variety ?? undefined,
+        productOrigin: variant.origin ?? undefined,
       });
   
-     
-      variant.productCode = generatedCode; 
+      (variant as any).productCode = generatedCode;
       updatedCodes.push(generatedCode);
     }
   
-    
     await this.productVarientRepository.save(variants);
   
     return updatedCodes;

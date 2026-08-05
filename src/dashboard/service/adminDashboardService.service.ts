@@ -1,6 +1,8 @@
 import { inject, injectable } from 'inversify';
-import { UserRepository } from '../../employee/repository/user.repository';
+
+import { Repository } from 'typeorm';
 import { TYPES } from '../../types';
+import { UserRepository } from '../../employee/repository/user.repository';
 import { ProductRepository } from '../../product/createproduct/repository/product.repository';
 import { BranchessRepository } from '../../branch/repository/branches.repository';
 import { GrnRepository } from '../../grn/repository/grn.repository';
@@ -9,11 +11,10 @@ import { CustomerRepository } from '../../customer/addcustomer/repository/custom
 import { VendorRepository } from '../../vendor/createVendor/repository/vendor.repository';
 import { ApprovalFlowRepository } from '../../approvalFlow/repository/approvalFlow.repository';
 import { InventoryStockRepository } from '../../inventoryStock/repository/inventoryStock.repository';
-
+import { ActiveSessionRepository } from '../../auth/repository/activeSession.repository';
 import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
 import { CustomerDeliveryChallanRepository } from '../../deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository';
 import { DitemRepository } from '../../deliveryChallans/deliverychllan/repository/dItem.repository';
-import { ActiveSessionRepository } from '../../auth/repository/activeSession.repository';
 
 @injectable()
 export class AdminDashboardService{
@@ -502,4 +503,3 @@ async getTopProductsByWeight(limit = 5): Promise<any[]> {
 
 //   return topProducts;
 // }
-

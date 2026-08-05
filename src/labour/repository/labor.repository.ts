@@ -1,5 +1,5 @@
 import { Repository } from "typeorm";
-import { Labor } from "../labour/labor.entity";
+import { Labor } from "../../labour/entity/labor.entity";
 
 
 

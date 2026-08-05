@@ -1,18 +1,14 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
 import { DataSource, In } from "typeorm";
-import { UOM } from "../entities/uom.entity";
-import { UOMRepository } from "./repository/uom.repository";
-import { AuditLogService } from "../services/auditLog.service";
-import { buildQuery, PaginationOptions } from "../utils/pagination";
-import { CacheService } from "../global/cache.service";
-import {
-  CreateUOMDto,
-  UpdateUOMDto,
-  UOMListResponseDto,
-  UOMPartialDto,
-  UOMDetailDto,
-} from "./dto/uom.dto";
+import { UOMRepository } from "../repository/uom.repository";
+import { TYPES } from "../../types";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import { CacheService } from "../../global/cache.service";
+import { UOM } from "../entity/uom.entity";
+import { buildQuery, PaginationOptions } from "../../utils/pagination";
+import { CreateUOMDto, UOMDetailDto, UOMListResponseDto, UOMPartialDto, UpdateUOMDto } from "../dto/uom.dto";
+
+
 
 const CACHE_PREFIX = "uom";
 const CACHE_TTL = 300; // 5 minutes

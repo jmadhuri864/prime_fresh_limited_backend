@@ -1,20 +1,19 @@
 import "reflect-metadata";
 import { inject, injectable } from "inversify";
-import { SalesTargetRepository } from "./repository/salesTarget.repository";
-import { TYPES } from "../types";
-import { UserRepository } from "../employee/repository/user.repository";
-import { CustomerRepository } from "../customer/addcustomer/repository/customer.repository";
-import { ProductRepository } from "../createproduct/repository/product.repository";
-import { SalesTargetProductRepository } from "../salesTarget/salesTargetProduct.repository";
-import { SalesTargetWeekRepository } from "../salesTarget/salesTargetWeek.repository";
-import { DepartmentEnum } from "../entities/workflowClosure.entity";
-import { SalesAchievementRepository } from "./repository/salesAchievement.repository";
-import { WorkflowHierarchyRepository } from "../workFlow/WorkflowHierarchy.repository";
+
 import * as ExcelJS from 'exceljs';
-import { AppDataSource } from "../utils/data-source";
-import { Status } from "../entities/salesTarget.entity";
+
 import * as path from 'path';
 import * as fs from 'fs';
+import { TYPES } from "../../types";
+import { SalesTargetRepository } from "../repository/salesTarget.repository";
+import { UserRepository } from "../../employee/repository/user.repository";
+import { CustomerRepository } from "../../customer/addcustomer/repository/customer.repository";
+import { ProductRepository } from "../../product/createproduct/repository/product.repository";
+import { SalesTargetProductRepository } from "../repository/salesTargetProduct.repository";
+import { SalesTargetWeekRepository } from "../repository/salesTargetWeek.repository";
+import { SalesAchievementRepository } from "../repository/salesAchievement.repository";
+import { WorkflowHierarchyRepository } from "../../workFlow/repository/WorkflowHierarchy.repository";
 
 @injectable()
 export class SalesTargetService {

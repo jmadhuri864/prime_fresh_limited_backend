@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { VendorService } from "./vendor.service";
-import { NotificationService } from "../services/notification.service";
+
 import {
   controller,
   httpGet,
@@ -14,21 +13,22 @@ import {
   httpPut,
 } from "inversify-express-utils";
 import { inject } from "inversify";
-import { TYPES } from "../types";
-import AppError from "../utils/appError";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import { ControllerLogger } from "../utils/controllerLogger";
-import { PaginationOptions } from "../utils/pagination";
-import { Status } from "../utils/status.enum";
-import { upload } from "../middleware/upload.middleware";
-import { uploadSingle } from "../middleware/uploadsingle.middleware";
-import { s3 } from "../middleware/spaces.config";
+
+
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import {
-  CreateVendorDto,
-  UpdateVendorDto,
-  VendorFilterDto,
-} from "../dtos/vendor.dto";
+import { deserializeUser, requireUser } from "../../../middleware/deserializeUser";
+import { TYPES } from "../../../types";
+import { VendorService } from "../service/vendor.service";
+import { NotificationService } from "../../../notification/service/notification.service";
+import AppError from "../../../utils/appError";
+import { ControllerLogger } from "../../../utils/controllerLogger";
+import { PaginationOptions } from "../../../utils/pagination";
+import { upload } from "../../../middleware/upload.middleware";
+import { CreateVendorDto, UpdateVendorDto } from "../dto/vendor.dto";
+import { uploadSingle } from "../../../middleware/uploadsingle.middleware";
+import { Status } from "../../../utils/status.enum";
+import { s3 } from "../../../middleware/spaces.config";
+
 
 
 @controller("/vendors", deserializeUser, requireUser)

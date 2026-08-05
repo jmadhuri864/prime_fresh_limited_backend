@@ -1,10 +1,11 @@
 import { inject, injectable } from "inversify";
-import { TYPES } from "../types";
-import { PaymentRequestRepository } from "./repository/paymentRequest.repository";
-import { PaymentRequest } from "../entities/paymentRequest.entity";
-import { GrnRepository } from "../repositories/grn.repository";
-import { AuditLogService } from "./auditLog.service";
-import AppError from "../utils/appError";
+import { TYPES } from "../../types";
+import { PaymentRequestRepository } from "../repository/paymentRequest.repository";
+import { PaymentRequest } from "../entity/paymentRequest.entity";
+import { GrnRepository } from "../../grn/repository/grn.repository";
+import { AuditLogService } from "../../employeeActivity/service/auditLog.service";
+import AppError from "../../utils/appError";
+
 
 @injectable()
 export class PaymentRequestService {

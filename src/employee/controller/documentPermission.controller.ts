@@ -6,12 +6,15 @@ import {
   request,
   response,
 } from 'inversify-express-utils';
-import { deserializeUser, requireUser } from '../middleware/deserializeUser';
+
 import { inject } from 'inversify';
-import { TYPES } from '../types';
-import { DocumentPermissionService } from './documentPermission.service';
+
 import { NextFunction, Response, Request } from 'express';
-import AppError from '../utils/appError';
+import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+import { TYPES } from '../../types';
+import { DocumentPermissionService } from '../service/documentPermission.service';
+import AppError from '../../utils/appError';
+
 
 
 @controller('/document-permission', deserializeUser, requireUser)

@@ -1,8 +1,8 @@
 import { Repository } from "typeorm";
+import { InwardProduct } from "../entity/inwardProduct.entity";
 
 
-import { InwardRegister } from "../entities/inwardRegister.entity";
-import { InwardProduct } from "./inwardProduct.entity";
+
 
 
 export class InwardProductRepository extends Repository<InwardProduct> {

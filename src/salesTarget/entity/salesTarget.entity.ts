@@ -1,8 +1,9 @@
 //sale target entity
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import { User } from "./user.entity";
-import Model from "./model.entity";
+
 import { SalesTargetProduct } from "./salesTargetProduct.entity";
+import { User } from "../../employee/entity/user.entity";
+import Model from "../../global/model.entity";
 
 export enum Status {
   DRAFT = "draft",

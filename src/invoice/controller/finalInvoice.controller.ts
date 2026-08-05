@@ -11,7 +11,7 @@ import {
 } from 'inversify-express-utils';
 import { inject } from 'inversify';
 import { TYPES } from '../../types';
-import { FinalInvoiceService } from '../finalInvoice.service';
+import { FinalInvoiceService } from '../service/finalInvoice.service';
 import { Request, Response, NextFunction } from 'express';
 import AppError from '../../utils/appError';
 import { ControllerLogger } from '../../utils/controllerLogger';
@@ -21,11 +21,13 @@ import {
   captureUser,
 } from '../../middleware/deserializeUser';
 import { PaginationOptions } from '../../utils/pagination';
-import { NotificationService } from '../services/notification.service';
+
 import { PdfGeneratorService } from '../../utils/pdfGenerator';
-import { CreateInvoiceDto } from '../invoice.dto';
+import { CreateInvoiceDto } from '../dto/invoice.dto';
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
-import { ActivityAction, ActivityModule } from '../employeeActivity/userActivityLog.entity';
+import { NotificationService } from '../../notification/service/notification.service';
+import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
+
 
 @controller('/final-invoice', deserializeUser, requireUser)
 export class FinalInvoiceController {

@@ -1,9 +1,10 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import Model from "../global/model.entity";
-import { Branches } from "./branches.entity";
-import { Company } from "./company.entity";
-import { Product } from "./product.entity";
-import { ProductVarient } from "./productVarient.entity";
+import Model from "../../global/model.entity";
+import { Branches } from "../../branch/entity/branches.entity";
+import { Company } from "../../company/entity/company.entity";
+import { Product } from "../../product/createproduct/entity/product.entity";
+import { ProductVarient } from "../../product/productVarient/entity/productVarient.entity";
+
 
 @Entity("inventory_stock")
 export class InventoryStock extends Model {

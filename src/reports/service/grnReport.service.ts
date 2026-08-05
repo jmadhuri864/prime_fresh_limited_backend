@@ -1,9 +1,52 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import { GrnRepository } from '../repositories/grn.repository';
+
 import { In } from 'typeorm';
-import { IGrnReportFilters } from '../interfaces/grn-report.interface';
+
 import { DataSource } from 'typeorm';
+
+// ─── Filter Interface ────────────────────────────────────────────────────────
+
+export interface IGrnReportFilters {
+  startDate?: string;
+  endDate?: string;
+  company?: string[];
+  purchaseLocation?: string[];
+  purchaseForSalesLocation?: string[];
+  vendor?: string[];
+  farmer?: string[];
+  createdBy?: string[];
+  grnType?: string;
+  locationType?: string;
+  purchaseType?: string;
+  source?: string;
+  billNo?: string;
+  grnNo?: string;
+  requestingDepartment?: string;
+  purchaseInstructionsBy?: string;
+  purchaseBy?: string;
+  vehicleNo?: string;
+  receivedThrough?: string;
+  deliveryReceivingPerson?: string;
+  securityPerson?: string;
+  rmn?: string;
+  product?: string[];
+  paymentMode?: string;
+  paymentTerms?: string;
+  paymentDateFrom?: string;
+  paymentDateTo?: string;
+  dueDateFrom?: string;
+  dueDateTo?: string;
+  totalQuantity?: number;
+  totalQuantityOperator?: '>' | '<' | '=' | '>=' | '<=' | '!=';
+  totalAmount?: number;
+  totalAmountOperator?: '>' | '<' | '=' | '>=' | '<=' | '!=';
+  verifiedBy?: string[];
+  approvedBy?: string[];
+  status?: string;
+}
+import { TYPES } from '../../types';
+import { GrnRepository } from '../../grn/repository/grn.repository';
+import { IGrnReportFilters } from '../../interfaces/grn-report.interface';
 
 @injectable()
 export class GrnReportService {

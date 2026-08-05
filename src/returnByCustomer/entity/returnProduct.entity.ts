@@ -1,9 +1,10 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { PostReturnByCustomer } from './postReturnByCustomer.entity';
-import Model from './model.entity';
-import { Product } from './product.entity';
-import { UOM } from './uom.entity';
-import { ProductVarient } from './productVarient.entity';
+import { Product } from '../../product/createproduct/entity/product.entity';
+import { ProductVarient } from '../../product/productVarient/entity/productVarient.entity';
+import Model from '../../global/model.entity';
+import { UOM } from '../../uom/entity/uom.entity';
+
 
 @Entity('returned_products_by_customer')
 export class ReturnedProducts extends Model {

@@ -1,4 +1,6 @@
-import { Department } from '../utils/status.enum';
+import { Department } from "../../../utils/status.enum";
+
+;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared sub-types

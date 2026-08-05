@@ -7,10 +7,11 @@ import {
   BeforeUpdate,
   BeforeInsert,
 } from 'typeorm';
-import Model from './model.entity';
-import { Product } from './product.entity';
+
 
 import { Exclude } from 'class-transformer';
+import Model from '../../../global/model.entity';
+import { Product } from '../../createproduct/entity/product.entity';
 
 @Entity('productVarient')
 export class ProductVarient extends Model {

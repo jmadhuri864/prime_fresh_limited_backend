@@ -7,14 +7,15 @@ import {
     ManyToOne,
   } from "typeorm";
   
-  import Model from "./model.entity";
+
   import { SKU } from "./skuDispatch.entity";
-import { Address } from "../address/address.entity";
-import { DeliveryChallanPurchase } from "./deliveryChallan.entity";
-import { GRN } from "./grn.entity";
-import { Company } from "./company.entity";
+
 import { format, parse } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
+import Model from "../../global/model.entity";
+import { Company } from "../../company/entity/company.entity";
+import { Address } from "../../address/entity/address.entity";
+import { DeliveryChallanPurchase } from "../../deliveryChallans/deliverychllan/entity/deliveryChallan.entity";
   
   @Entity({ name: "dispatch" })
   export class VehicleDispatch extends Model {

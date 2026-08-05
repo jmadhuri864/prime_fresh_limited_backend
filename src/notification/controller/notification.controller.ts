@@ -1,11 +1,15 @@
 import { controller, httpGet, httpPatch, request, response, requestParam } from "inversify-express-utils";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+
 import { inject } from "inversify";
-import { TYPES } from "../types";
+
 import { Request, Response } from "express";
-import { NotificationService } from "../services/notification.service";
+
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { s3 } from "../middleware/spaces.config";
+import { TYPES } from "../../types";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { NotificationService } from "../service/notification.service";
+import { s3 } from "../../middleware/spaces.config";
+
 
 @controller('/notification', deserializeUser, requireUser)
 export class NotificationController {

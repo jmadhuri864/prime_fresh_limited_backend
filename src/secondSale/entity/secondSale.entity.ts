@@ -1,12 +1,16 @@
 import { Entity, Column, OneToMany, ManyToOne, JoinColumn, OneToOne } from 'typeorm';
-import Model from './model.entity';
+
 import { SecondSaleProduct } from './secondSaleProduct.entity';
-import { DeliveryChallanPurchase } from './deliveryChallan.entity';
-import { Branches } from './branches.entity';
+
 import { join } from 'path/posix';
-import { Company } from './company.entity';
+;
 import { format } from 'date-fns';
-import { Address } from '../address/address.entity';
+import { Company } from '../../company/entity/company.entity';
+import Model from '../../global/model.entity';
+import { Branches } from '../../branch/entity/branches.entity';
+import { DeliveryChallanPurchase } from '../../deliveryChallans/deliverychllan/entity/deliveryChallan.entity';
+import { Address } from '../../address/entity/address.entity';
+
 
 @Entity({ name: 'second_sale_document' })
 export class SecondSale extends Model {

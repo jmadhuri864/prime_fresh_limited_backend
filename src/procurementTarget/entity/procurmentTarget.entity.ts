@@ -1,8 +1,9 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-import Model from "./model.entity";
-import { User } from "./user.entity";
-import { Levels } from "./levels.entity";
+
 import { ProcurementTargetProduct } from "./procurementTargetProduct.entity";
+import Model from "../../global/model.entity";
+import { User } from "../../employee/entity/user.entity";
+import { Levels } from "../../levels/entity/levels.entity";
 
 
 

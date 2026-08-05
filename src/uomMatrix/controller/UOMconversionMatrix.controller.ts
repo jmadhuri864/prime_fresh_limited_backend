@@ -12,17 +12,12 @@ import {
   request,
 } from "inversify-express-utils";
 
-import { TYPES } from "../types";
+
 import { Request, Response, NextFunction } from "express";
 
-import AppError from "../utils/appError";
-import { UOMConversionMatrixService } from "../services/UOMconversionMatrix.service";
-import { NotificationService } from "../services/notification.service";
 
-import logger from "../utils/logger";
-import { PaginationOptions } from "../utils/pagination";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
-import { ControllerLogger } from "../utils/controllerLogger";
+
+
 import {
   CreateUOMConversionMatrixDto,
   UpdateUOMConversionMatrixDto,
@@ -30,7 +25,15 @@ import {
   UOMConversionMatrixDetailDto,
   UOMConversionMatrixUpdateFormDto,
   BulkDeleteUOMConversionMatrixDto,
-} from "./uomConversionMatrix.dto";
+} from "../dto/uomConversionMatrix.dto";
+import { TYPES } from "../../types";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { UOMConversionMatrixService } from "../service/UOMconversionMatrix.service";
+import { NotificationService } from "../../notification/service/notification.service";
+import { PaginationOptions } from "../../utils/pagination";
+import { ControllerLogger } from "../../utils/controllerLogger";
+import AppError from "../../utils/appError";
+import logger from "../../utils/logger";
 
 @controller("/uom-conversion-matrix",deserializeUser,requireUser)
 export class UOMConversionMatrixController {

@@ -1,30 +1,26 @@
 import { inject, injectable } from 'inversify';
-import { VehicleDispatchRepository } from './repository/vehicleDispatch.repository';
-import { VehicleDispatch } from '../entities/vehicleDispatch.entity';
-import { TYPES } from '../types';
-import { AuditLogService } from '../services/auditLog.service';
-import { buildQuery, PaginationOptions } from '../utils/pagination';
-import { DocSingalApproverService } from '../services/DocSingalApproverService.service';
-import { DocumentStatus, DocumentTypeEnum } from '../approvalFlow/entity/docuemnt.entity';
-import { DocumentbService, DocumentWithRelatedData } from '../services/documentb.service';
-import { formatDateTime } from '../utils/dateUtils';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { ApprovalFlowService } from '../services/approvalFlow.service';
+
+
 import { ILike, In, SelectQueryBuilder } from 'typeorm';
-import { DocumentbRepository } from '../repositories/documentb.repository';
-import { CacheService } from '../global/cache.service';
+
 import { createHash } from 'crypto';
-import { BulkDeleteResultDto, DeleteResultDto } from '../global/general.dto';
-import {
-  CreateVehicleDispatchDto,
-  UpdateVehicleDispatchDto,
-  VehicleDispatchListItemDto,
-  VehicleDispatchListResponseDto,
-  VehicleDispatchViewDto,
-  VehicleDispatchUpdateFormDto,
-  BulkDeleteVehicleDispatchResultDto,
-} from './dto/vehicleDispatch.dto';
-import AppError from '../utils/appError';
+import { TYPES } from '../../types';
+import { VehicleDispatchRepository } from '../repository/vehicleDispatch.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { DocSingalApproverService } from '../../approvalFlow/service/DocSingalApproverService.service';
+import { DocumentbService, DocumentWithRelatedData } from '../../approvalFlow/service/documentb.service';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
+import { ApprovalFlowService } from '../../approvalFlow/service/approvalFlow.service';
+import { CacheService } from '../../global/cache.service';
+import { CreateVehicleDispatchDto, UpdateVehicleDispatchDto } from '../dto/vehicleDispatch.dto';
+import { VehicleDispatch } from '../entity/vehicleDispatch.entity';
+import { DocumentTypeEnum } from '../../documentDef/entity/documentdef.entity';
+import { DocumentStatus } from '../../approvalFlow/entity/docuemnt.entity';
+import { formatDateTime } from '../../utils/dateUtils';
+import { buildQuery, PaginationOptions } from '../../utils/pagination';
+import { BulkDeleteResultDto, DeleteResultDto } from '../../global/general.dto';
+import AppError from '../../utils/appError';
+
 
 @injectable()
 export class VehicleDispatchService {
@@ -83,7 +79,7 @@ private async generateSerialNo(): Promise<string> {
     // Check approval flow exists for logged user
     const approvalFlowExit = await this.approvalFlowService.findApprovalFlowForLoggedUser(
       data.requestedBy!,
-      DocDefEnum.VEHICLE_DISPATCH_REGISTER,
+      DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER,
     );
 
     if (!approvalFlowExit) {
@@ -101,7 +97,7 @@ const serialNo = await this.generateSerialNo();
     //Todo:By Vaishali
     const document = await this.documentbService.createDocument({
       type: DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER,
-      docDef: DocDefEnum.OPERATION,
+      docDef: DocumentTypeEnum.OPERATION,
       status: DocumentStatus.HOLD,
       remarks: 'Document auto-created with Vehical_Dispatch',
       lastActionBy: { id: data.requestedBy },

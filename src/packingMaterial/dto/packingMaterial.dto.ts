@@ -1,8 +1,10 @@
-import { UseFor } from '../entities/packingMaterial.entity';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Create Packing Material DTO  (POST /packingMaterial)
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { UseFor } from "../entity/packingMaterial.entity";
 
 export interface CreatePackingMaterialDto {
   packagingMaterialName?: string | null;

@@ -1,7 +1,8 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import Model from "./model.entity";
-import { Address } from "../address/address.entity";
+
 import { Company } from "../../company/entity/company.entity";
+import Model from "../../global/model.entity";
+import { Address } from "../../address/entity/address.entity";
 
 @Entity({ name: "party_details" })
 export class PartyDetails extends Model {

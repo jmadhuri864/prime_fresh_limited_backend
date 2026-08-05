@@ -1,18 +1,5 @@
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../types';
-import { EodRepository } from './repository/eodstockreport.repository';
-import AppError from '../utils/appError';
-import { buildQuery, PaginationOptions } from '../utils/pagination';
-import { formatDateTime } from '../utils/dateUtils';
-import { CompanyName } from '../utils/status.enum';
-import { AuditLogService } from './auditLog.service';
-import { DocumentbService, DocumentWithRelatedData } from './documentb.service';
-import { DocumentStatus, DocumentTypeEnum } from '../approvalFlow/entity/docuemnt.entity';
-import { DocumentTypeEnum as DocDefEnum } from '../documentDef/documentdef.entity';
-import { StockReportEod } from '../entities/eodReportforinvendtory.entity';
-import { DocDoubleApproverService } from './docDoubleApprover.service';
-import { ApprovalFlowService } from './approvalFlow.service';
-import { DocumentbRepository } from '../repositories/documentb.repository';
+
 import { ILike } from 'typeorm';
 import {
   CreateEodStockDto,
@@ -22,8 +9,22 @@ import {
   EodStockUpdateFormDto,
   EodStockListResponseDto,
   BulkDeleteEodStockResultDto,
-} from './dto/eodStock.dto';
-import { BulkDeleteResultDto, DeleteResultDto } from '../global/general.dto';
+} from '../dto/eodStock.dto';
+import { TYPES } from '../../types';
+import { EodRepository } from '../repository/eodstockreport.repository';
+import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
+import { DocumentbService, DocumentWithRelatedData } from '../../approvalFlow/service/documentb.service';
+import { DocDoubleApproverService } from '../../approvalFlow/service/docDoubleApprover.service';
+import { ApprovalFlowService } from '../../approvalFlow/service/approvalFlow.service';
+import { DocumentbRepository } from '../../approvalFlow/repository/documentb.repository';
+import { StockReportEod } from '../entity/eodReportforinvendtory.entity';
+import { DocumentStatus, DocumentTypeEnum } from '../../approvalFlow/entity/docuemnt.entity';
+import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
+import { PaginationOptions } from '../../utils/pagination';
+import { formatDateTime } from '../../utils/dateUtils';
+import { BulkDeleteResultDto, DeleteResultDto } from '../../global/general.dto';
+import AppError from '../../utils/appError';
+
 
 @injectable() // Ensure this decorator is applied
 export class EodStockService {

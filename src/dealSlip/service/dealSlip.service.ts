@@ -9,8 +9,9 @@ import AppError from "../../utils/appError";
 import { buildQueryFromArray, PaginationOptions } from "../../utils/pagination";
 import { formatDateTime } from "../../utils/dateUtils";
 
-import { DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
-import { DocumentStatus } from "../../approvalFlow/entity/docuemnt.entity";
+
+import { DocumentStatus, DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
+import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
 
 import { ApprovalFlowRepository } from "../../approvalFlow/repository/approvalFlow.repository";
 import { CacheService } from "../../global/cache.service";

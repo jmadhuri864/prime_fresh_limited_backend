@@ -14,14 +14,16 @@ import {
 import { TYPES } from "../../../types";
 import AppError from "../../../utils/appError";
 import { NextFunction, Response, Request } from "express";
-import { ProductCategoryService } from "../services/product_category.service";
+
 import { captureUser, deserializeUser, requireUser } from "../../../middleware/deserializeUser";
 
 import logger from "../../../utils/logger";
 import { PaginationOptions } from "../../../utils/pagination";
 import { ControllerLogger } from "../../../utils/controllerLogger";
-import { NotificationService } from "../services/notification.service";
-import { CreateProductCategoryDto } from "../createproduct/product.dto";
+import { ProductCategoryService } from "../service/product_category.service";
+import { NotificationService } from "../../../notification/service/notification.service";
+import { CreateProductCategoryDto } from "../../createproduct/dto/product.dto";
+
 
 @controller("/productCategory", deserializeUser, requireUser)
 export class ProductCategoryController {

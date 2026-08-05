@@ -1,5 +1,6 @@
 import { Repository } from "typeorm";
-import { LPVoucher } from "./entity/labourPaymentVoucher.entity";
+import { LPVoucher } from "../entity/labourPaymentVoucher.entity";
+
 
 
 

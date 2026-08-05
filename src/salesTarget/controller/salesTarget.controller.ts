@@ -1,10 +1,12 @@
 import { controller, httpGet, httpPatch, httpPost, httpPut, next, request, requestParam, response } from "inversify-express-utils";
 import { Request,Response,NextFunction } from "express";
-import { TYPES } from "../types";
-import { SalesTargetService } from "../services/salesTarget.service";
+
 import { inject } from "inversify";
-import logger from "../utils/logger";
-import { deserializeUser, requireUser } from "../middleware/deserializeUser";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
+import { TYPES } from "../../types";
+import { SalesTargetService } from "../service/salesTarget.service";
+import logger from "../../utils/logger";
+
 
 @controller('/sales-target',deserializeUser,requireUser)
 export class SalesTargetController {
