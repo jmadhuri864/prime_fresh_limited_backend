@@ -5,7 +5,10 @@ import { DocumentDefinitionService } from "../service/documentDefinition.service
 import { NextFunction,Request,Response } from "express";
 import { ControllerLogger } from "../../utils/controllerLogger";
 import AppError from "../../utils/appError";
+import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
 
+
+@controller('/document-details',deserializeUser,requireUser)
 export class  DocumentDefinitionController {
 
     constructor(
