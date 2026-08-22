@@ -1,5 +1,6 @@
 
 import { Role } from "./employee/entity/user.entity";
+import { CreateUserDto } from "./employee/dto/user.dto";
 import { container } from "./inversify.config";
 import { UserService } from "./employee/service/user.service";
 import { TYPES } from "./types";
@@ -22,7 +23,9 @@ export async function seedAdmin() {
     if (!existingAdmin) {
       const employeeId = await userService.generateEmployeeId();
 
-      const adminData = {
+      // Typed so the seed payload is checked against the real DTO, and so
+      // `status` keeps its literal type instead of widening to `string`.
+      const adminData: CreateUserDto & Record<string, any> = {
         firstName: "Admin",
         lastName: "Admin",
         username: "Admin",

@@ -939,7 +939,11 @@ async getlocationcompanywisestock(
       .groupBy('product.id')
       .addGroupBy('product.name')
       .addGroupBy('variant.id')
-      .addGroupBy('variant.variantName');
+      .addGroupBy('variant.variantName')
+      // OFFSET/LIMIT without an ORDER BY leaves row order undefined, so pages
+      // could repeat or skip variants. Un-varianted stock sorts last.
+      .orderBy('variant."variantName"', 'ASC', 'NULLS LAST')
+      .addOrderBy('variant.id', 'ASC', 'NULLS LAST');
 
     // Apply additional filters
     if (company) {
@@ -976,9 +980,14 @@ async getlocationcompanywisestock(
 
     const data = await qb.getRawMany();
 
+    // A stock row with no variant is a real bucket (e.g. a dump booked against
+    // the product without picking a variant), so it is reported rather than
+    // hidden — but it is labelled instead of coming back as a bare null.
+    // For the no-variant row, use productId as the id so the frontend always
+    // gets a non-null, stable unique key per row.
     const mappedData = data.map((r: any) => ({
-      id: r.variantid,
-      variant: r.variantname,
+      id: r.variantid ?? r.productid ?? null,
+      variant: r.variantname ?? 'No Variant',
       inwardQty: Number(r.inwardqty || 0),
       inwardAmt: Number(r.inwardamt || 0),
       dumpQty: Number(r.dumpqty || 0),

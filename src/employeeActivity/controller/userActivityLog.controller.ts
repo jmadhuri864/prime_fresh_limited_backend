@@ -65,14 +65,13 @@ export class UserActivityLogController {
       ControllerLogger.logList('User Activity Logs', req, res);
 
       res.status(200).json({
-        status: 'success',
+       
+         status: 'success',
         data: result.data,
-        pagination: {
-          page: Number(page),
-          limit: Number(limit),
-          total: result.total,
-          pages: result.pages,
-        },
+        allRecords:result.total,
+        totalPages: result.pages,
+        page: Number(page),
+        
       });
     } catch (error) {
       logger.error('Error fetching user activity logs:', error);

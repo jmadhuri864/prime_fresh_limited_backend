@@ -23,6 +23,7 @@ import { formatDateTime } from '../../utils/dateUtils';
 import logger from '../../utils/logger';
 import { PaginationOptions } from '../../utils/pagination';
 import { BulkDeleteResultDto } from '../../global/general.dto';
+import { ammountStatus } from '../../utils/status.enum';
 
 @injectable()
 export class FinalInvoiceService {
@@ -824,7 +825,40 @@ export class FinalInvoiceService {
         throw new Error(`Failed to fetch invoice for PDF generation: ${error.message}`);
       }
     }
-    public async deleteMultipleFinalInvoices(ids: string[]): Promise<BulkDeleteResultDto> {
+  /**
+   * Update the ammountStatus (paid / unpaid) of an Invoice by its ID.
+   */
+  public async updateAmountStatus(
+    id: string,
+    status: ammountStatus,
+  ): Promise<{ id: string; ammountStatus: ammountStatus }> {
+    const invoice = await this.invoiceRepository.findOne({ where: { id }, withDeleted: true });
+    if (!invoice) throw new AppError(404, `Invoice with ID ${id} not found`);
+
+    invoice.ammountStatus = status;
+    await this.invoiceRepository.save(invoice);
+
+    // Invalidate all:*, update:id, view:id, pdf:id
+    await this.invalidateCache(id);
+
+    // Also invalidate view/update caches that are keyed by document ID
+    try {
+      const doc = await this.documentbRepository.findOne({
+        where: { document_type_id: id } as any,
+        select: ['id'] as any,
+      });
+      if (doc?.id) {
+        await Promise.all([
+          this.cacheService.del(`${this.CACHE_PREFIX}:view:${doc.id}`),
+          this.cacheService.del(`${this.CACHE_PREFIX}:update:${doc.id}`),
+        ]);
+      }
+    } catch (_) { /* non-critical */ }
+
+    return { id: invoice.id, ammountStatus: invoice.ammountStatus };
+  }
+
+  public async deleteMultipleFinalInvoices(ids: string[]): Promise<BulkDeleteResultDto> {
    const success: { id: string; No: string }[] = [];
   const failed: { id: string; reason: string }[] = [];
   for (const id of ids) {

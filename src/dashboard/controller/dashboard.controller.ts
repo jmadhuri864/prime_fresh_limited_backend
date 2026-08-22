@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { inject } from "inversify";
 import { deserializeUser, requireUser } from "../../middleware/deserializeUser";
 import { DashboardService } from "../service/dashboard.service";
+import { WeeklyBusinessPlanService } from "../service/weeklyBusinessPlan.service";
 import { TYPES } from "../../types";
 
 @controller('/dashboard', deserializeUser, requireUser)
@@ -10,8 +11,111 @@ export class DashboardController {
     
     constructor(
         @inject(TYPES.DashboardService)
-        private dashboardService: DashboardService
+        private dashboardService: DashboardService,
+        @inject(TYPES.WeeklyBusinessPlanService)
+        private weeklyBusinessPlanService: WeeklyBusinessPlanService
     ) { }
+
+    // ─── Weekly business plan achievement ─────────────────────────────────
+    //
+    // Four views, one response shape, so the dashboard renders them with a
+    // single component:
+    //   [{ week: 'week-1', assignedQuantity, achievedQuantity, achievedAmount }]
+    //
+    // `month` and `year` default to the current month when not supplied.
+
+    /** Own procurement plan versus own procurement, week by week. */
+    @httpGet('/business-plan/weekly/procurement/own')
+    async getOwnWeeklyProcurement(
+        @request() req: Request,
+        @response() res: Response
+    ) {
+        return this.respondWithWeekly(req, res, 'own procurement', (userId, month, year) =>
+            this.weeklyBusinessPlanService.getOwnProcurement(userId, month, year)
+        );
+    }
+
+    /** Own sales plan versus own invoicing, week by week. */
+    @httpGet('/business-plan/weekly/sales/own')
+    async getOwnWeeklySales(
+        @request() req: Request,
+        @response() res: Response
+    ) {
+        return this.respondWithWeekly(req, res, 'own sales', (userId, month, year) =>
+            this.weeklyBusinessPlanService.getOwnSales(userId, month, year)
+        );
+    }
+
+    /** The team's procurement plan versus the team's procurement. */
+    @httpGet('/business-plan/weekly/procurement/team')
+    async getTeamWeeklyProcurement(
+        @request() req: Request,
+        @response() res: Response
+    ) {
+        return this.respondWithWeekly(req, res, 'team procurement', (userId, month, year) =>
+            this.weeklyBusinessPlanService.getTeamProcurement(userId, month, year)
+        );
+    }
+
+    /** The team's sales plan versus the team's invoicing. */
+    @httpGet('/business-plan/weekly/sales/team')
+    async getTeamWeeklySales(
+        @request() req: Request,
+        @response() res: Response
+    ) {
+        return this.respondWithWeekly(req, res, 'team sales', (userId, month, year) =>
+            this.weeklyBusinessPlanService.getTeamSales(userId, month, year)
+        );
+    }
+
+    /**
+     * Shared plumbing for the four weekly endpoints: reads and validates the
+     * month/year filter, then wraps whatever the service returns.
+     */
+    private async respondWithWeekly(
+        req: Request,
+        res: Response,
+        label: string,
+        load: (userId: string, month: number, year: number) => Promise<unknown>
+    ) {
+        const userId = res.locals.user?.id;
+        if (!userId) {
+            return res.status(401).json({ success: false, message: "User not authenticated" });
+        }
+
+        const now = new Date();
+        const month = req.query.month ? Number(req.query.month) : now.getMonth() + 1;
+        const year = req.query.year ? Number(req.query.year) : now.getFullYear();
+
+        if (!Number.isInteger(month) || month < 1 || month > 12) {
+            return res.status(400).json({
+                success: false,
+                message: "month must be a whole number between 1 and 12"
+            });
+        }
+
+        if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+            return res.status(400).json({
+                success: false,
+                message: "year must be a whole number between 2000 and 2100"
+            });
+        }
+
+        try {
+            const data = await load(userId, month, year);
+            return res.status(200).json({
+                success: true,
+                data,
+                message: `Weekly ${label} achievement retrieved successfully`
+            });
+        } catch (error: any) {
+            return res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+    }
+
 
     //TODO:Get Procurement Team Performance 
     @httpGet('/midlevel/procurement/team-performance')
@@ -249,11 +353,7 @@ export class DashboardController {
       : undefined;
         try {
             const data = await this.dashboardService.getFarmerRegistrationOverviewOfTeam(teamLeaderId, month, year);
-            return res.status(200).json({
-                success: true,
-                data,
-                message: "Farmer registration overview data retrieved successfully"
-            });
+            return res.status(200).json(data);
         } catch (error: any) {
             return res.status(500).json({
                 success: false,
@@ -278,11 +378,12 @@ export class DashboardController {
       : undefined;
         try {
             const data = await this.dashboardService.getVendorRegistrationOverviewOfTeam(teamLeaderId, month, year);
-            return res.status(200).json({
-                success: true,
-                data,
-                message: "Vendor registration overview data retrieved successfully"
-            });
+            // return res.status(200).json({
+            //     success: true,
+            //     data,
+            //     message: "Vendor registration overview data retrieved successfully"
+            // });
+            return res.status(200).json(data);
         } catch (error: any) {
             return res.status(500).json({
                 success: false,
@@ -307,11 +408,12 @@ export class DashboardController {
       : undefined;
         try {
             const data = await this.dashboardService.getCustomerRegistrationOverviewOfTeam(teamLeaderId, month, year);
-            return res.status(200).json({
-                success: true,
-                data,
-                message: "Customer registration overview data retrieved successfully"
-            });
+            // return res.status(200).json({
+            //     success: true,
+            //     data,
+            //     message: "Customer registration overview data retrieved successfully"
+            // });
+            return res.status(200).json(data);
         } catch (error: any) {
             return res.status(500).json({
                 success: false,

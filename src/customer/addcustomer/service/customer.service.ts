@@ -34,6 +34,29 @@ import { Role } from '../../../employee/entity/user.entity';
 import { CustomerCategory } from '../../customerCategory/entity/customerCategory.entity';
 import { CustomerType } from '../../customerType/entity/customerType.entity';
 import { Address } from '../../../address/entity/address.entity';
+import { AccountType } from '../entity/bankDetailsCust.entity';
+import {
+  CertificationType,
+  CorporateRegistrationType,
+} from '../entity/statutoryCust.entity';
+import {
+  buildDataWorkbook,
+  buildTemplateWorkbook,
+  deleteFromSpaces,
+  UploadedExport,
+  uploadWorkbookToSpaces,
+} from '../../../excel/excelFile.service';
+import {
+  emptySummary,
+  ExcelRow,
+  ImportSummary,
+  readUploadedSheet,
+} from '../../../excel/excelImport.service';
+import {
+  CUSTOMER_SHEET,
+  CUSTOMER_SPECIFICATION_GROUP,
+} from '../excel/customer.columns';
+import { findOrCreateByName } from '../../../excel/lookupByName';
 
 const CACHE_PREFIX = 'customer';
 const CACHE_TTL = 180;       // 3 min for lists
@@ -87,6 +110,19 @@ export class CustomerService {
   public async create(customerData: CreateCustomerDto): Promise<Customer> {
     console.log('in the service', customerData);
 
+    // ── UPSERT: if id is present, the frontend is re-saving an existing draft ──
+    // Route through updateCustomer so sub-entity ids are reused, not re-inserted.
+    if ((customerData as any).id) {
+      const updatedBy = customerData.createdBy;
+      const updated = await this.updateCustomer(
+        (customerData as any).id,
+        customerData,
+        updatedBy,
+      );
+      if (!updated) throw new AppError(404, 'Customer not found for draft update');
+      return updated;
+    }
+
     return await this.dataSource.transaction(async (manager) => {
       // Validate user exists
       const user = await this.userRepository.findOneBy({
@@ -97,15 +133,12 @@ export class CustomerService {
         throw new AppError(404, 'User not found');
       }
 
-      // Set status to draft regardless of role - must go through submit → pending → approve flow
-      //customerData.status = Status.DRAFT;
-
-      // If the logged-in user is an admin or verifier, bypass the approval flow and set status to approved directly
+      // Admin/Verifier: draft → draft, anything else → approved
+      // Other users:   draft → draft, anything else → pending
       if (user.roles && (user.roles.includes(Role.ADMIN) || user.roles.includes(Role.VERIFIER))) {
-        customerData.status = Status.APPROVED;
-      }
-      else{
-        customerData.status = Status.PENDING;
+        customerData.status = customerData.status === Status.DRAFT ? Status.DRAFT : Status.APPROVED;
+      } else {
+        customerData.status = customerData.status === Status.DRAFT ? Status.DRAFT : Status.PENDING;
       }
 
       // Generate customer code using raw SQL to bypass soft-delete filter
@@ -156,24 +189,33 @@ export class CustomerService {
         }
       }
 
+      // Helper: check if object has any meaningful data beyond just an id
+      const hasData = (obj: any): boolean => {
+        if (!obj || typeof obj !== 'object') return false;
+        const keys = Object.keys(obj).filter(k => k !== 'id');
+        return keys.length > 0;
+      };
+
       // Create and save customer address
-      if (customerData.customerAddress) {
+      if (hasData(customerData.customerAddress)) {
+        const { id: _caid, ...customerAddressData } = customerData.customerAddress as any;
         const address = new Address();
-        Object.assign(address, customerData.customerAddress);
+        Object.assign(address, customerAddressData);
         const savedAddress = await manager.save(Address, address);
         customer.customerAddress = savedAddress;
       }
 
       // Create and save bank details
-      if (customerData. bankDetails ) {
-        const bankData = customerData.bankDetails 
+      if (hasData(customerData.bankDetails)) {
+        const { id: _bid, bankAddress: _rawBankAddr, ...bankData } = customerData.bankDetails as any;
         const bankDetails = new BankDetailsCust();
         Object.assign(bankDetails, bankData);
         
         // Handle bank address if provided
-        if (bankData.bankAddress) {
+        if (_rawBankAddr) {
+          const { id: _baid, ...bankAddressData } = _rawBankAddr as any;
           const bankAddress = new Address();
-          Object.assign(bankAddress, bankData.bankAddress);
+          Object.assign(bankAddress, bankAddressData);
           const savedBankAddress = await manager.save(Address, bankAddress);
           bankDetails.bankAddress = savedBankAddress;
         }
@@ -183,22 +225,25 @@ export class CustomerService {
       }
 
       // Create and save statutory details
-      if (customerData.statutoryDetails) {
+      if (hasData(customerData.statutoryDetails)) {
+        const { id: _sid, ...statutoryData } = customerData.statutoryDetails as any;
         const statutory = new StatutoryDetails();
-        Object.assign(statutory, customerData.statutoryDetails);
+        Object.assign(statutory, statutoryData);
         const savedStatutory = await manager.save(StatutoryDetails, statutory);
         customer.statutoryDetails = savedStatutory;
       }
 
       // Create and save billing details
-      if (customerData.billingDetails) {
+      if (hasData(customerData.billingDetails)) {
+        const { id: _blid, billingAddress: _rawBillingAddr, ...billingData } = customerData.billingDetails as any;
         const billing = new BillingDetailsCust();
-        Object.assign(billing, customerData.billingDetails);
+        Object.assign(billing, billingData);
         
         // Handle billing address if provided
-        if (customerData.billingDetails.billingAddress) {
+        if (_rawBillingAddr) {
+          const { id: _blaid, ...billingAddressData } = _rawBillingAddr as any;
           const billingAddress = new Address();
-          Object.assign(billingAddress, customerData.billingDetails.billingAddress);
+          Object.assign(billingAddress, billingAddressData);
           const savedBillingAddress = await manager.save(Address, billingAddress);
           billing.billingAddress = savedBillingAddress;
         }
@@ -208,14 +253,16 @@ export class CustomerService {
       }
 
       // Create and save delivery details
-      if (customerData.deliveryDetails) {
+      if (hasData(customerData.deliveryDetails)) {
+        const { id: _did, deliveryAddress: _rawDeliveryAddr, ...deliveryData } = customerData.deliveryDetails as any;
         const delivery = new DeliveryDetails();
-        Object.assign(delivery, customerData.deliveryDetails);
+        Object.assign(delivery, deliveryData);
         
         // Handle delivery address if provided
-        if (customerData.deliveryDetails.deliveryAddress) {
+        if (_rawDeliveryAddr) {
+          const { id: _daid, ...deliveryAddressData } = _rawDeliveryAddr as any;
           const deliveryAddress = new Address();
-          Object.assign(deliveryAddress, customerData.deliveryDetails.deliveryAddress);
+          Object.assign(deliveryAddress, deliveryAddressData);
           const savedDeliveryAddress = await manager.save(Address, deliveryAddress);
           delivery.deliveryAddress = savedDeliveryAddress;
         }
@@ -225,39 +272,44 @@ export class CustomerService {
       }
 
       // Create and save payment terms
-      if (customerData.paymentTerms) {
+      if (hasData(customerData.paymentTerms)) {
+        const { id: _pid, ...paymentData } = customerData.paymentTerms as any;
         const payment = new PaymentTerms();
-        Object.assign(payment, customerData.paymentTerms);
+        Object.assign(payment, paymentData);
         const savedPayment = await manager.save(PaymentTerms, payment);
         customer.paymentTerms = savedPayment;
       }
 
       // Create and save office use only
-      if (customerData.officeUseOnly) {
+      if (hasData(customerData.officeUseOnly)) {
+        const { id: _oid, ...officeData } = customerData.officeUseOnly as any;
         const office = new OfficeUseOnly();
-        Object.assign(office, customerData.officeUseOnly);
+        Object.assign(office, officeData);
         const savedOffice = await manager.save(OfficeUseOnly, office);
         customer.officeUseOnly = savedOffice;
       }
 
       // Create and save key mobile numbers
-      if (customerData.keyMobileNumbers) {
+      if (hasData(customerData.keyMobileNumbers)) {
+        const { id: _kid, ref1Address, ref2Address, ...keyMobileData } = customerData.keyMobileNumbers as any;
         const keyMobile = new keyMobileNoData();
-        Object.assign(keyMobile, customerData.keyMobileNumbers);
+        Object.assign(keyMobile, keyMobileData);
         
         // Handle ref1 address if provided
-        if (customerData.keyMobileNumbers.ref1Address) {
-          const ref1Address = new Address();
-          Object.assign(ref1Address, customerData.keyMobileNumbers.ref1Address);
-          const savedRef1Address = await manager.save(Address, ref1Address);
+        if (ref1Address) {
+          const { id: _r1id, ...ref1AddressData } = ref1Address as any;
+          const ref1Addr = new Address();
+          Object.assign(ref1Addr, ref1AddressData);
+          const savedRef1Address = await manager.save(Address, ref1Addr);
           keyMobile.ref1Address = savedRef1Address;
         }
         
         // Handle ref2 address if provided
-        if (customerData.keyMobileNumbers.ref2Address) {
-          const ref2Address = new Address();
-          Object.assign(ref2Address, customerData.keyMobileNumbers.ref2Address);
-          const savedRef2Address = await manager.save(Address, ref2Address);
+        if (ref2Address) {
+          const { id: _r2id, ...ref2AddressData } = ref2Address as any;
+          const ref2Addr = new Address();
+          Object.assign(ref2Addr, ref2AddressData);
+          const savedRef2Address = await manager.save(Address, ref2Addr);
           keyMobile.ref2Address = savedRef2Address;
         }
         
@@ -271,8 +323,9 @@ export class CustomerService {
       // Create and save product specifications
       if (customerData.productSpecification && Array.isArray(customerData.productSpecification)) {
         for (const specData of customerData.productSpecification) {
+          const { id: _specid, ...specFields } = specData as any;
           const spec = new ProductSpecification();
-          Object.assign(spec, specData);
+          Object.assign(spec, specFields);
           spec.customer = savedCustomer;
           await manager.save(ProductSpecification, spec);
         }
@@ -289,8 +342,9 @@ export class CustomerService {
 async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise<PaginatedResponse<CustomerListResponseDto>> {
   // Fetch the user to check their role
   const user = await this.userRepository.findOneBy({ id: userId });
-  const isPrivileged = user?.roles &&
-    (user.roles.includes(Role.ADMIN) || user.roles.includes(Role.VERIFIER));
+  const isAdmin = user?.roles?.includes(Role.ADMIN);
+  const isVerifier = user?.roles?.includes(Role.VERIFIER);
+  const isPrivileged = isAdmin || isVerifier;
 
   // Include userId in cache key so different users don't share results
   const key = `${CACHE_PREFIX}:list:${userId}:${JSON.stringify(queryOptions)}`;
@@ -329,9 +383,22 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
     ])
     .orderBy('customer.createdAt', 'DESC');
 
-  // Non-privileged users only see customers they created
+  // Visibility rules:
+  // - Employee/other: only their own records (drafts included)
+  // - Verifier (non-admin): all records except drafts
+  // - Admin: all records; own drafts visible, others' drafts hidden
   if (!isPrivileged) {
+    // Employee → only own records (all statuses)
     queryBuilder.where('createdBy.id = :userId', { userId });
+  } else if (isVerifier && !isAdmin) {
+    // Pure Verifier → everyone's records, no drafts at all
+    queryBuilder.where('customer.status != :draft', { draft: Status.DRAFT });
+  } else if (isAdmin) {
+    // Admin → everyone's records; own drafts visible, others' drafts hidden
+    queryBuilder.where(
+      '(customer.status != :draft OR createdBy.id = :userId)',
+      { draft: Status.DRAFT, userId },
+    );
   }
 
   const customers = await buildQuery(queryBuilder, queryOptions, 'customer');
@@ -345,7 +412,7 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
       customerTypes: cust.customerTypes?.name || null,
       createdDate,
       createdTime,
-      status: cust.status.charAt(0).toUpperCase() + cust.status.slice(1),
+      status: cust.status,
       customerCode: cust.customerCode.toUpperCase(),
       organisationName: cust.organisationName,
       organisationType: cust.organisationType,
@@ -1587,287 +1654,422 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
     return result;
   }
   //TODO:upload customer excel file
-  async upload(filePath: string): Promise<any> {
+  // ─── Excel Export / Import ────────────────────────────────────────────────
+
+  /**
+   * Every customer the user is allowed to see, matching the list-page filters,
+   * as an Excel file stored in Spaces.
+   *
+   * The same visibility rules as the list endpoint apply: a non-privileged user
+   * exports only the customers they created, and a verifier never sees drafts.
+   */
+  async exportToExcel(
+    options: PaginationOptions,
+    userId: string,
+  ): Promise<UploadedExport> {
+    const user = await this.userRepository.findOneBy({ id: userId });
+    const isAdmin = user?.roles?.includes(Role.ADMIN);
+    const isVerifier = user?.roles?.includes(Role.VERIFIER);
+    const isPrivileged = isAdmin || isVerifier;
+
+    const queryBuilder = this.customerRepository
+      .createQueryBuilder('customer')
+      .leftJoinAndSelect('customer.createdBy', 'createdBy')
+      .leftJoinAndSelect('customer.customerCategory', 'customerCategory')
+      .leftJoinAndSelect('customer.customerTypes', 'customerTypes')
+      .leftJoinAndSelect('customer.customerAddress', 'customerAddress')
+      .leftJoinAndSelect('customer.statutoryDetails', 'statutoryDetails')
+      .leftJoinAndSelect('customer.bankDetails', 'bankDetails')
+      .leftJoinAndSelect('customer.billingDetails', 'billingDetails')
+      .leftJoinAndSelect('billingDetails.billingAddress', 'billingAddress')
+      .leftJoinAndSelect('customer.deliveryDetails', 'deliveryDetails')
+      .leftJoinAndSelect('deliveryDetails.deliveryAddress', 'deliveryAddress')
+      .leftJoinAndSelect('customer.paymentTerms', 'paymentTerms')
+      .leftJoinAndSelect('customer.officeUseOnly', 'officeUseOnly')
+      .leftJoinAndSelect('customer.keyMobileNumbers', 'keyMobileNumbers')
+      .leftJoinAndSelect('customer.productSpecification', 'productSpecification')
+      .orderBy('customer.createdAt', 'DESC');
+
+    if (!isPrivileged) {
+      queryBuilder.where('createdBy.id = :userId', { userId });
+    }
+
+    if (isVerifier && !isAdmin) {
+      queryBuilder.andWhere('customer.status != :draft', { draft: Status.DRAFT });
+    }
+
+    const { data } = await buildQuery(
+      queryBuilder,
+      { ...options, page: undefined, limit: undefined },
+      'customer',
+    );
+
+    const workbook = buildDataWorkbook(CUSTOMER_SHEET, data as Customer[]);
+    return uploadWorkbookToSpaces(workbook, 'Customers', data.length);
+  }
+
+  /**
+   * Blank workbook carrying exactly the headers the importer reads, generated
+   * from the same column map as the export.
+   */
+  async buildExcelTemplate(): Promise<UploadedExport> {
+    const workbook = buildTemplateWorkbook(CUSTOMER_SHEET);
+    return uploadWorkbookToSpaces(workbook, 'Customer_Template', 0);
+  }
+
+  /**
+   * Imports customers from a spreadsheet uploaded to Spaces.
+   *
+   * A customer whose organisation name is already on record is skipped and
+   * reported rather than updated, and the uploaded file is removed from Spaces
+   * once read - success or failure.
+   *
+   * Owner and approval status are not read from the sheet: every imported
+   * customer belongs to `createdById` and starts as pending, exactly as if it
+   * had been entered through the form.
+   */
+  async upload(filePath: string, createdById: string): Promise<ImportSummary> {
+    if (!filePath) {
+      throw new AppError(400, 'No file URL provided');
+    }
+
+    const summary = emptySummary();
+
     try {
-      // First, download the file from DigitalOcean Spaces
-      let fileBuffer: Buffer;
-      
-      if (filePath.startsWith('https://')) {
-        // Extract the key from the URL
-        const urlParts = filePath.split('/');
-        const key = urlParts.slice(-2).join('/'); // Gets "documents/filename"
-        console.log('Downloading file from Spaces with key:', key);
-        
-        // Download file from Spaces
-        fileBuffer = await this.getExcelFromSpaces(key);
-      } else {
-        // If it's already a local path or key, try to get it from Spaces
-        fileBuffer = await this.getExcelFromSpaces(filePath);
+      const sheet = await readUploadedSheet(filePath, CUSTOMER_SHEET);
+      summary.unknownColumns = sheet.unknownColumns;
+      summary.missingColumns = sheet.missingColumns;
+      summary.totalRows = sheet.rows.length;
+
+      if (sheet.missingColumns.length) {
+        throw new AppError(
+          400,
+          `The uploaded file is missing required column(s): ${sheet.missingColumns.join(', ')}`,
+        );
       }
-      
-      // Read the Excel file from buffer instead of file path
-      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-      console.log('Sheet Names:', workbook.SheetNames);
 
-      const sheetName = workbook.SheetNames[0];
-      console.log('Sheet Name:', sheetName); // Log the sheet name to verify
-
-      const worksheet = workbook.Sheets[sheetName];
-      // Show raw data array
-      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      console.log('Raw Data:', rawData);
-
-      const data: any = XLSX.utils.sheet_to_json(worksheet);
-      console.log('Data from Excel:', data); // Log the data to see its structure
-
-      // Validate the structure of the data
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error('Invalid or empty Excel data');
+      const creator = await this.userRepository.findOneBy({ id: createdById });
+      if (!creator) {
+        throw new AppError(401, 'The logged-in user could not be found');
       }
+
       const customerRepo = this.dataSource.getRepository(Customer);
       const categoryRepo = this.dataSource.getRepository(CustomerCategory);
       const typeRepo = this.dataSource.getRepository(CustomerType);
 
-      const savedCustomers = [];
+      const byHeader = new Map(CUSTOMER_SHEET.columns.map((c) => [c.header, c]));
+      const column = (header: string) => {
+        const found = byHeader.get(header);
+        if (!found) throw new Error(`Unknown customer column: ${header}`);
+        return found;
+      };
+      const text = (row: ExcelRow, header: string) =>
+        row.cell<string | null>(column(header));
+      const num = (row: ExcelRow, header: string) =>
+        row.cell<number | null>(column(header));
+      const bool = (row: ExcelRow, header: string) =>
+        row.cell<boolean | null>(column(header));
+      const date = (row: ExcelRow, header: string) => {
+        const value = row.cell<string | null>(column(header));
+        return value ? new Date(value) : null;
+      };
 
-      for (const row of data) {
-        console.log('Row keys:', Object.keys(row)); // Add this line
-        let category = null;
-        if (row.customerCategory) {
-          category = await categoryRepo.findOneBy({ name: row.customerCategory });
-          if (!category) {
-            category = categoryRepo.create({ name: row.customerCategory });
-            await categoryRepo.save(category);
+      // Address2 and Location stay optional - plenty of addresses have neither -
+      // but a billing or delivery address without these four is not an address.
+      const requiredAddressParts = ['Address1', 'City', 'State', 'Pincode'];
+      const missingAddressParts = (row: ExcelRow, prefix: string) =>
+        requiredAddressParts
+          .map((part) => `${prefix} ${part}`)
+          .filter((header) => !text(row, header));
+
+      for (const row of sheet.rows) {
+        try {
+          const organisationName = text(row, 'Organisation Name');
+          if (!organisationName) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: 'Organisation Name is empty',
+            });
+            continue;
           }
-        }
 
-        let type = null;
-        if (row.customerType) {
-          type = await typeRepo.findOneBy({ name: row.customerType });
-          if (!type) {
-            type = typeRepo.create({ name: row.customerType });
-            await typeRepo.save(type);
+          const missingAddress = [
+            ...missingAddressParts(row, 'Billing'),
+            ...missingAddressParts(row, 'Delivery'),
+          ];
+
+          if (missingAddress.length) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: `Billing and delivery address are required. Missing: ${missingAddress.join(', ')}`,
+            });
+            continue;
           }
+
+          const existing = await customerRepo
+            .createQueryBuilder('customer')
+            .where('LOWER(customer.organisationName) = LOWER(:name)', {
+              name: organisationName,
+            })
+            .getOne();
+
+          if (existing) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: `Customer "${organisationName}" already exists (${existing.customerCode ?? existing.id})`,
+            });
+            continue;
+          }
+
+          // ── Category / type ─────────────────────────────────────────────
+          // Both are matched with case, spacing and punctuation ignored, so
+          // "Retail Chain" reuses a "retail chain" row instead of adding one.
+          const categoryName = text(row, 'Customer Category');
+          const category: CustomerCategory | null = categoryName
+            ? await findOrCreateByName(categoryRepo, 'name', categoryName)
+            : null;
+
+          const typeName = text(row, 'Customer Type');
+          const type: CustomerType | null = typeName
+            ? await findOrCreateByName(typeRepo, 'name', typeName)
+            : null;
+
+          // ── Sub-records ─────────────────────────────────────────────────
+          const address = Address.create({
+            address1: text(row, 'Address1') ?? undefined,
+            address2: text(row, 'Address2') ?? undefined,
+            location: text(row, 'Location') ?? undefined,
+            city: text(row, 'City') ?? undefined,
+            state: text(row, 'State') ?? undefined,
+            pincode: text(row, 'Pincode') ?? undefined,
+          });
+
+          const statutoryDetails = StatutoryDetails.create({
+            panNo: text(row, 'PAN Number') ?? undefined,
+            aadharNo: text(row, 'Aadhar Number') ?? undefined,
+            gstn: text(row, 'GST Number') ?? undefined,
+            certificationsDetails:
+              row.cell<CertificationType | null>(column('Certification Type')) ??
+              undefined,
+            otherCertifications: text(row, 'Other Certifications') ?? undefined,
+            corpRegiDetails:
+              row.cell<CorporateRegistrationType | null>(
+                column('Corporate Registration Type'),
+              ) ?? undefined,
+            otherCorpRegiDetails:
+              text(row, 'Other Corporate Registration Details') ?? undefined,
+            cinNo: text(row, 'CIN Number') ?? undefined,
+          });
+
+          const bankDetails = BankDetailsCust.create({
+            bankAccHolderFName:
+              text(row, 'Bank Account Holder First Name') ?? undefined,
+            bankAccHolderMName:
+              text(row, 'Bank Account Holder Middle Name') ?? undefined,
+            bankAccHolderLName:
+              text(row, 'Bank Account Holder Last Name') ?? undefined,
+            bankName: text(row, 'Bank Name') ?? undefined,
+            bankBranch: text(row, 'Bank Branch') ?? undefined,
+            bankAccNo: text(row, 'Bank Account Number') ?? undefined,
+            ifscCode: text(row, 'IFSC Code') ?? undefined,
+            accType: row.cell<AccountType | null>(column('Account Type')) ?? undefined,
+            otherAccType: text(row, 'Other Account Type') ?? undefined,
+          });
+
+          const billingDetails = BillingDetailsCust.create({
+            billingName: text(row, 'Billing Name') ?? undefined,
+            commonlyKnownAs: text(row, 'Billing Commonly Known As') ?? undefined,
+            contactPersonFName:
+              text(row, 'Billing Contact Person First Name') ?? undefined,
+            contactPersonMName:
+              text(row, 'Billing Contact Person Middle Name') ?? undefined,
+            contactPersonLName:
+              text(row, 'Billing Contact Person Last Name') ?? undefined,
+            primaryContactNo: text(row, 'Billing Primary Contact No') ?? undefined,
+            secondaryContactNo:
+              text(row, 'Billing Secondary Contact No') ?? undefined,
+            emailPrimary: text(row, 'Billing Primary Email') ?? undefined,
+            emailSecondary: text(row, 'Billing Secondary Email') ?? undefined,
+            billingAddress: Address.create({
+              address1: text(row, 'Billing Address1') ?? undefined,
+              address2: text(row, 'Billing Address2') ?? undefined,
+              location: text(row, 'Billing Location') ?? undefined,
+              city: text(row, 'Billing City') ?? undefined,
+              state: text(row, 'Billing State') ?? undefined,
+              pincode: text(row, 'Billing Pincode') ?? undefined,
+            }),
+          });
+
+          const deliveryDetails = DeliveryDetails.create({
+            receivingPersonFName:
+              text(row, 'Delivery Receiving Person First Name') ?? undefined,
+            receivingPersonMName:
+              text(row, 'Delivery Receiving Person Middle Name') ?? undefined,
+            receivingPersonLName:
+              text(row, 'Delivery Receiving Person Last Name') ?? undefined,
+            primaryContactNo: text(row, 'Delivery Primary Contact No') ?? undefined,
+            secondaryContactNo:
+              text(row, 'Delivery Secondary Contact No') ?? undefined,
+            emailPrimary: text(row, 'Delivery Primary Email') ?? undefined,
+            emailSecondary: text(row, 'Delivery Secondary Email') ?? undefined,
+            deliveryAddress: Address.create({
+              address1: text(row, 'Delivery Address1') ?? undefined,
+              address2: text(row, 'Delivery Address2') ?? undefined,
+              location: text(row, 'Delivery Location') ?? undefined,
+              city: text(row, 'Delivery City') ?? undefined,
+              state: text(row, 'Delivery State') ?? undefined,
+              pincode: text(row, 'Delivery Pincode') ?? undefined,
+            }),
+          });
+
+          const paymentTerms = PaymentTerms.create({
+            paymentMode: text(row, 'Payment Mode') ?? undefined,
+            otherPaymentMode: text(row, 'Other Payment Mode') ?? undefined,
+            paymentMade: text(row, 'Payment Made') ?? undefined,
+            otherPaymentMade: text(row, 'Other Payment Made') ?? undefined,
+            marginDeposit: text(row, 'Margin Deposit') ?? undefined,
+            rtv: bool(row, 'RTV Allowed') ?? undefined,
+            agreementExecuted: bool(row, 'Agreement Executed') ?? undefined,
+            lc: text(row, 'Letter Of Credit') ?? undefined,
+            bg: text(row, 'Bank Guarantee') ?? undefined,
+            securityDepoCheqNo:
+              text(row, 'Security Deposit Cheque No') ?? undefined,
+            securityDepoAmt: num(row, 'Security Deposit Amount') ?? undefined,
+            IELinAmt: num(row, 'Initial Exposure Limit Amount') ?? undefined,
+            IELRecommendedBy:
+              text(row, 'Initial Exposure Limit Recommended By') ?? undefined,
+            IELRecommendedDate:
+              date(row, 'Initial Exposure Limit Recommended Date') ?? undefined,
+            RELinAmt: num(row, 'Revised Exposure Limit Amount') ?? undefined,
+            RELRecommendedBy:
+              text(row, 'Revised Exposure Limit Recommended By') ?? undefined,
+            RELRecommendedDate:
+              date(row, 'Revised Exposure Limit Recommended Date') ?? undefined,
+            reason: text(row, 'Exposure Limit Reason') ?? undefined,
+          });
+
+          const keyMobileData = keyMobileNoData.create({
+            accDeptFName: text(row, 'Accounts Dept First Name') ?? undefined,
+            accDeptMName: text(row, 'Accounts Dept Middle Name') ?? undefined,
+            accDeptLName: text(row, 'Accounts Dept Last Name') ?? undefined,
+            accDeptMobileNo: text(row, 'Accounts Dept Mobile No') ?? undefined,
+            ownerFName: text(row, 'Owner First Name') ?? undefined,
+            ownerMName: text(row, 'Owner Middle Name') ?? undefined,
+            ownerLName: text(row, 'Owner Last Name') ?? undefined,
+            ownerMobileNo: text(row, 'Owner Mobile No') ?? undefined,
+            mandiLicenceNo: text(row, 'Mandi Licence No') ?? undefined,
+            regiNo: text(row, 'Registration No') ?? undefined,
+            electricityBill: text(row, 'Electricity Bill') ?? undefined,
+            consumerNo: text(row, 'Electricity Consumer No') ?? undefined,
+            customerBlacklisted: text(row, 'Blacklisted By Anyone') ?? undefined,
+            ifBlacklistedReason: text(row, 'Blacklisted Reason') ?? undefined,
+            blackListedBy: text(row, 'Blacklisted By') ?? undefined,
+            visitingCard: text(row, 'Visiting Card') ?? undefined,
+            visitingContactNo: text(row, 'Visiting Contact No') ?? undefined,
+            ref1FName: text(row, 'Reference1 First Name') ?? undefined,
+            ref1MName: text(row, 'Reference1 Middle Name') ?? undefined,
+            ref1LName: text(row, 'Reference1 Last Name') ?? undefined,
+            ref1ContactNo: text(row, 'Reference1 Contact No') ?? undefined,
+            ref1Email: text(row, 'Reference1 Email') ?? undefined,
+            ref2FName: text(row, 'Reference2 First Name') ?? undefined,
+            ref2MName: text(row, 'Reference2 Middle Name') ?? undefined,
+            ref2LName: text(row, 'Reference2 Last Name') ?? undefined,
+            ref2ContactNo: text(row, 'Reference2 Contact No') ?? undefined,
+            ref2Email: text(row, 'Reference2 Email') ?? undefined,
+          });
+
+          const officeUseOnly = OfficeUseOnly.create({
+            proposerBDName: text(row, 'Proposer BD Name') ?? undefined,
+            pflCoordinator: text(row, 'PFL Coordinator') ?? undefined,
+            recommendedBy: text(row, 'Recommended By') ?? undefined,
+            dispatchLocationPfl: text(row, 'PFL Dispatch Location') ?? undefined,
+            approvedBy: text(row, 'Approved By') ?? undefined,
+            relationshipManager: text(row, 'Relationship Manager') ?? undefined,
+            avgBillingMonthly: num(row, 'Average Monthly Billing') ?? undefined,
+            volumeMonthly: num(row, 'Monthly Volume (Tonnes)') ?? undefined,
+            customerVerification:
+              bool(row, 'Customer Verification Completed') ?? undefined,
+            verificationAgency: text(row, 'Verification Agency') ?? undefined,
+            validityPeriod: date(row, 'Validity Period') ?? undefined,
+            dueDiligenceDone: bool(row, 'Due Diligence Done') ?? undefined,
+            creditWorthinessDue: text(row, 'Credit Worthiness Due') ?? undefined,
+            keyAccountPersonAssigned:
+              text(row, 'Key Account Person Assigned') ?? undefined,
+            sinceWhen: date(row, 'Customer Since') ?? undefined,
+            ledgerCreatedDate: date(row, 'Ledger Created Date') ?? undefined,
+            ledgerCreatedBy: text(row, 'Ledger Created By') ?? undefined,
+            ledgerVerifiedApprovedBy:
+              text(row, 'Ledger Verified Approved By') ?? undefined,
+            createdBy: text(row, 'Office Use Created By') ?? undefined,
+            additionalNotes: text(row, 'Additional Notes') ?? undefined,
+          });
+
+          const specColumn = (header: string) =>
+            CUSTOMER_SPECIFICATION_GROUP.columns.find((c) => c.header === header)!;
+
+          const productSpecification = row.eachGroupBlock(
+            CUSTOMER_SPECIFICATION_GROUP,
+            (index) => {
+              const at = (header: string) =>
+                row.groupCell<string | null>(
+                  CUSTOMER_SPECIFICATION_GROUP,
+                  index,
+                  specColumn(header),
+                ) ?? undefined;
+
+              return ProductSpecification.create({
+                articleName: at('Article Name'),
+                specifications: at('Specifications'),
+                packingMaterialSpec: at('Packing Material Spec'),
+                parameters: at('Packing Parameters'),
+                rejectionCriteria: at('Rejection Criteria'),
+                comment: at('Comment'),
+              });
+            },
+          );
+
+          // ── Owner ───────────────────────────────────────────────────────
+          const customer = customerRepo.create({
+            organisationName,
+            organisationType: text(row, 'Organisation Type') ?? undefined,
+            otherType: text(row, 'Other Organisation Type') ?? undefined,
+            customerCategory: category ?? undefined,
+            customerTypes: type ?? undefined,
+            primaryContactNo: text(row, 'Primary Contact No') ?? undefined,
+            secondaryContactNo: text(row, 'Secondary Contact No') ?? undefined,
+            emailPrimary: text(row, 'Primary Email') ?? undefined,
+            emailSecondary: text(row, 'Secondary Email') ?? undefined,
+            status: Status.PENDING,
+            createdBy: creator,
+            customerAddress: address,
+            statutoryDetails,
+            bankDetails,
+            billingDetails,
+            deliveryDetails,
+            paymentTerms,
+            keyMobileNumbers: keyMobileData,
+            officeUseOnly,
+            productSpecification,
+          });
+
+          // customerCode is assigned by the entity's @BeforeInsert hook.
+          await customerRepo.save(customer);
+          summary.created++;
+        } catch (rowError: any) {
+          summary.failed.push({
+            row: row.rowNumber,
+            reason: rowError?.message ?? 'Could not save this row',
+          });
         }
-
-        let sequenceNumber = await customerRepo.count();
-        const customerCode = `CUST${new Date().getFullYear()}${String(
-          ++sequenceNumber,
-        ).padStart(4, '0')}`;
-
-        const officeUseOnly = OfficeUseOnly.create({
-          proposerBDName: row.proposerDBName,
-          pflCoordinator: row.pflCoordinator,
-          approvedBy: row.approvedBy,
-          relationshipManager: row.relationshipManager,
-          createdBy: row.createdBy,
-        });
-
-        const keyMobileData = keyMobileNoData.create({
-          accDeptFName: row.accDeptFName,
-          accDeptLName: row.accDeptLName,
-          accDeptMobileNo: row.accDeptMobileNo,
-          ownerFName: row.ownerFName,
-          ownerLName: row.ownerLName,
-          ownerMobileNo: row.ownerMobileNo,
-        });
-
-        const productSpecification = ProductSpecification.create({
-          articleName: row.articleName,
-          packingMaterialSpec: row.packingMaterialSpec,
-          parameters: row.parameters,
-          rejectionCriteria: row.rejectionCriteria,
-          comment: row.comment,
-          specifications: row.specifications,
-        });
-
-        const bankDetails = BankDetailsCust.create({
-          bankAccHolderFName: row.bankAccHolderFName,
-          bankAccHolderMName: row.bankAccHolderMName,
-          bankAccHolderLName: row.bankAccHolderLName,
-          bankName: row.bankName,
-          bankBranch: row.bankBranch,
-          bankAccNo: row.bankAccNo,
-          ifscCode: row.ifscCode,
-          accType: row.accType,
-          otherAccType: row.otherAccType,
-          //ifCancelledCheque: row.ifCancelledCheque,
-          // notCancelledChequereason: row.notCancelledChequeReason, // <-- property name must match entity
-          //cancelledChequeCopy: row.cancelledChequeCopy,
-          //bankStatementCopy: row.bankStatementCopy
-        });
-
-        const address = Address.create({
-          address1: row.address1,
-          address2: row.address2,
-          location: row.location,
-          city: row.city,
-          state: row.state,
-          pincode: row.pincode,
-        });
-
-        const statutoryDetails = StatutoryDetails.create({
-          panNo: row.panNo,
-          aadharNo: row.aadharNo,
-          // panCopy: row.panCopy,
-          //aadharCopy: row.aadharCopy,
-          gstn: row.gstn,
-          //billBookCopy: row.billBookCopy,
-          certificationsDetails: row.certificationsDetails,
-          otherCertifications: row.otherCertifications,
-          corpRegiDetails: row.corpRegiDetails,
-          otherCorpRegiDetails: row.otherCorpRegiDetails,
-          //incorpoCertificateCopy: row.incorpoCertificateCopy,
-          cinNo: row.cinNo,
-          //regiCertificateCopy: row.regiCertificateCopy
-        });
-
-        const billingDetails = BillingDetailsCust.create({
-          billingName: row.billingName,
-          contactPersonFName: row.contactPersonFName,
-          contactPersonMName: row.contactPersonMName,
-          contactPersonLName: row.contactPersonLName,
-          commonlyKnownAs: row.commonlyKnownAs,
-          primaryContactNo: row.primaryContactNo_billing,
-          secondaryContactNo: row.secondaryContactNo_billing,
-          emailPrimary: row.emailPrimary_billing,
-          emailSecondary: row.emailSecondary_billing,
-          //billingFormatCopy: row.billingFormatCopy,
-          //billingAddressProofCopy: row.billingAddressProofCopy
-        });
-
-        const deliveryDetails = DeliveryDetails.create({
-          //deliveryAddressProofCopy: row.deliveryAddressProofCopy,
-          deliveryTime: row.deliveryTime,
-          receivingPersonFName: row.receivingPersonFName,
-          receivingPersonMName: row.receivingPersonMName,
-          receivingPersonLName: row.receivingPersonLName,
-          primaryContactNo: row.primaryContactNo_delivery,
-          secondaryContactNo: row.secondaryContactNo_delivery,
-          emailPrimary: row.emailPrimary_delivery,
-          emailSecondary: row.emailSecondary_delivery,
-        });
-
-        const paymentTerms = PaymentTerms.create({
-          paymentMode: row.paymentMode,
-          otherPaymentMode: row.otherPaymentMode,
-          otherPaymentMade: row.otherPaymentMade,
-          paymentMade: row.paymentMade,
-          marginDeposit: row.marginDeposit,
-          rtv: row.rtv,
-          agreementExecuted: row.agreementExecuted,
-          lc: row.lc,
-          bg: row.bg,
-          securityDepoCheqNo: row.securityDepoCheqNo,
-          securityDepoAmt: row.securityDepoAmt,
-          IELinAmt: row.IELinAmt,
-          IELRecommendedBy: row.IELRecommendedBy,
-          IELRecommendedDate: row.IELRecommendedDate,
-          RELinAmt: row.RELinAmt,
-          RELRecommendedBy: row.RELRecommendedBy,
-          RELRecommendedDate: row.RELRecommendedDate,
-          reason: row.reason,
-          // docEvidenceCopy: row.docEvidenceCopy
-        });
-
-        const customerData = {
-          organisationName: row.organisationName,
-          organisationType: row.organisationType,
-          otherType: row.otherType,
-          customerCategory: category || undefined,
-          customerTypes: type || undefined,
-          customerCode: customerCode,
-          bankDetails: bankDetails,
-          customerAddress: address,
-          statutoryDetails: statutoryDetails,
-          billingDetails: billingDetails,
-          deliveryDetails: deliveryDetails,
-          paymentTerms: paymentTerms,
-          primaryContactNo: row.primaryContactNo,
-          secondaryContactNo: row.secondaryContactNo,
-          emailPrimary: row.emailPrimary,
-          emailSecondary: row.emailSecondary,
-          officeUseOnly: officeUseOnly,
-          keyMobileNumbers: keyMobileData,
-          productSpecification: [productSpecification],
-        };
-
-        const customer = customerRepo.create(customerData);
-
-        await customerRepo.save(customer);
-        savedCustomers.push(customer);
       }
 
-      // 🗑️ Delete the file from DigitalOcean Spaces after successful processing
-      await this.deleteFileFromSpaces(filePath);
-      
-      return savedCustomers;
-    } catch (error) {
-      console.error('Error processing customer upload:', error);
-      
-      // 🗑️ Still attempt to delete the file even if processing failed
-      try {
-        await this.deleteFileFromSpaces(filePath);
-      } catch (deleteError) {
-        console.error('Error deleting file after failed processing:', deleteError);
-      }
-      
-      throw error;
-    }
-  }
-
-  /**
-   * Delete file from DigitalOcean Spaces
-   * @param fileUrl - The full URL or key of the file to delete
-   */
-  private async deleteFileFromSpaces(fileUrl: string): Promise<void> {
-    try {
-      // Extract the key from the full URL
-      // URL format: https://bucket-name.sgp1.digitaloceanspaces.com/documents/filename
-      const urlParts = fileUrl.split('/');
-      const key = urlParts.slice(-2).join('/'); // Gets "documents/filename"
-      
-      const deleteCommand = new DeleteObjectCommand({
-        Bucket: process.env.DO_SPACES_BUCKET!,
-        Key: key,
-      });
-
-      await s3.send(deleteCommand);
-      console.log(`Successfully deleted file: ${key}`);
-    } catch (error) {
-      console.error(`Failed to delete file from spaces: ${fileUrl}`, error);
-      // Don't throw error here to avoid breaking the main flow
-    }
-  }
-  /**
-   * Get Excel file from DigitalOcean Spaces
-   * @param key - Spaces key/path to the Excel file
-   * @returns Buffer containing the file data
-   */
-  private async getExcelFromSpaces(key: string): Promise<Buffer> {
-    try {
-      console.log('📂 Reading Excel file from Spaces:', key);
-
-      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-      const command = new GetObjectCommand({
-        Bucket: process.env.DO_SPACES_BUCKET!,
-        Key: key,
-      });
-
-      const response = await s3.send(command);
-
-      if (!response.Body) {
-        throw new Error('No file content found in Spaces response');
+      if (summary.created > 0) {
+        await this.invalidateCustomerCache();
       }
 
-      const bytes = await response.Body.transformToByteArray();
-      const fileBuffer = Buffer.from(bytes);
-
-      console.log('✅ Excel file read successfully, size:', fileBuffer.length, 'bytes');
-      return fileBuffer;
-    } catch (error) {
-      console.error('❌ Error reading Excel file from Spaces:', error);
-      throw new Error(`Failed to read Excel file: ${key}`);
+      return summary;
+    } finally {
+      await deleteFromSpaces(filePath);
     }
   }
 
@@ -1875,6 +2077,7 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
     customerId: string,
     fileUpdates: Record<string, string | null> = {},
     customerData: Record<string, any> = {},
+    submittedBy: string = '',
   ): Promise<Customer> {
     const customer = await this.customerRepository.findOne({
       where: { id: customerId },
@@ -1883,7 +2086,17 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
     if (!customer) throw new AppError(404, 'Customer not found');
     console.log(`[submitCustomer] before save - id: ${customerId}, current status: ${customer.status}`);
 
-    customer.status = Status.PENDING;
+    // Admin/Verifier → approved directly; everyone else → pending
+    if (submittedBy) {
+      const submitter = await this.userRepository.findOneBy({ id: submittedBy });
+      if (submitter?.roles && (submitter.roles.includes(Role.ADMIN) || submitter.roles.includes(Role.VERIFIER))) {
+        customer.status = Status.APPROVED;
+      } else {
+        customer.status = Status.PENDING;
+      }
+    } else {
+      customer.status = Status.PENDING;
+    }
 
     // ── Scalar fields apply करा ───────────────────────────────────────────
     const scalarFields: (keyof Customer)[] = [

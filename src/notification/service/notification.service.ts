@@ -25,7 +25,30 @@ export class NotificationService {
     try {
       if (!message || !userId) return;
 
-      // Send SSE immediately if user is connected — no DB wait
+      // Deduplicate: skip if an identical notification was saved in the last 30 seconds.
+      // 5s was too short — React StrictMode double-mounts + SSE reconnect on login
+      // can stretch the overlap beyond 5s, causing duplicate DB records and
+      // multiple "Login successfully" toasts on the frontend.
+      const thirtySecondsAgo = new Date(Date.now() - 30000);
+      const recent = await this.notificationRepository
+        .createQueryBuilder('n')
+        .leftJoin('n.user', 'u')
+        .where('n.message = :message', { message })
+        .andWhere('u.id = :userId', { userId })
+        .andWhere('n.createdAt >= :since', { since: thirtySecondsAgo })
+        .getOne();
+
+      if (recent) {
+        logger.info(`createNoti deduplicated for user ${userId}: "${message}"`);
+        return;
+      }
+
+      // Save to DB first — ensures the record exists before SSE pushes
+      // so frontend fetch-on-connect always sees a consistent state.
+      await this.saveNotificationToDb(message, userId);
+
+      // Send SSE only after DB save — avoids race condition where frontend
+      // fetches notifications before the DB write has committed.
       if (this.sseService.isUserConnected(userId)) {
         const now = new Date();
         const pad = (n: number) => n.toString().padStart(2, '0');
@@ -44,11 +67,6 @@ export class NotificationService {
           timestamp: now.toISOString(),
         });
       }
-
-      // Save to DB in background — don't await, don't block the API
-      this.saveNotificationToDb(message, userId).catch((err) =>
-        logger.error(`createNoti DB save failed for user ${userId}:`, err)
-      );
 
     } catch (error) {
       logger.error(`createNoti failed for user ${userId}:`, error);

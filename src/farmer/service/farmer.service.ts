@@ -29,6 +29,21 @@ import { AuditLogService } from '../../employeeActivity/service/auditLog.service
 import { Role, User } from '../../employee/entity/user.entity';
 import { Address } from '../../address/entity/address.entity';
 import { Product } from '../../product/createproduct/entity/product.entity';
+import { Repository } from 'typeorm';
+import {
+  buildDataWorkbook,
+  buildTemplateWorkbook,
+  deleteFromSpaces,
+  UploadedExport,
+  uploadWorkbookToSpaces,
+} from '../../excel/excelFile.service';
+import {
+  emptySummary,
+  ExcelRow,
+  ImportSummary,
+  readUploadedSheet,
+} from '../../excel/excelImport.service';
+import { FARMER_CROP_GROUP, FARMER_SHEET } from '../excel/farmer.columns';
 
 const CACHE_PREFIX = 'farmer';
 const CACHE_TTL = 180;
@@ -74,8 +89,9 @@ export class FarmerService {
   async getAllFarmers(options: PaginationOptions, userId: string): Promise<FarmerListResponseDto> {
   // Fetch the user to check their role
   const user = await this.userRepository.findOneBy({ id: userId });
-  const isPrivileged = user?.roles &&
-    (user.roles.includes(Role.ADMIN) || user.roles.includes(Role.VERIFIER));
+  const isAdmin = user?.roles?.includes(Role.ADMIN);
+  const isVerifier = user?.roles?.includes(Role.VERIFIER);
+  const isPrivileged = isAdmin || isVerifier;
 
   // Include userId in cache key so different users don't share results
   const key = `${CACHE_PREFIX}:list:${userId}:${JSON.stringify(options)}`;
@@ -101,9 +117,22 @@ export class FarmerService {
     ])
     .orderBy('farmer.createdAt', 'DESC');
 
-  // Non-privileged users only see farmers they created
+  // Visibility rules:
+  // - Employee/other: only their own records (drafts included)
+  // - Verifier (non-admin): all records except drafts
+  // - Admin: all records; own drafts visible, others' drafts hidden
   if (!isPrivileged) {
+    // Employee → only own records (all statuses)
     queryBuilder.where('createdBy.id = :userId', { userId });
+  } else if (isVerifier && !isAdmin) {
+    // Pure Verifier → everyone's records, no drafts at all
+    queryBuilder.where('farmer.status != :draft', { draft: Status.DRAFT });
+  } else if (isAdmin) {
+    // Admin → everyone's records; own drafts visible, others' drafts hidden
+    queryBuilder.where(
+      '(farmer.status != :draft OR createdBy.id = :userId)',
+      { draft: Status.DRAFT, userId },
+    );
   }
 
   const farmers = await buildQuery(queryBuilder, options, 'farmer');
@@ -560,6 +589,7 @@ export class FarmerService {
     farmerId: string,
     fileUpdates: Record<string, string | null> = {},
     farmerData: Record<string, any> = {},
+    submittedBy: string = '',
   ): Promise<Farmer> {
     const farmer = await this.farmerRepository.findOne({
       where: { id: farmerId },
@@ -567,7 +597,17 @@ export class FarmerService {
     });
     if (!farmer) throw new AppError(404, 'Farmer not found');
 
-    farmer.status = Status.PENDING;
+    // Admin/Verifier → approved directly; everyone else → pending
+    if (submittedBy) {
+      const submitter = await this.userRepository.findOneBy({ id: submittedBy });
+      if (submitter?.roles && (submitter.roles.includes(Role.ADMIN) || submitter.roles.includes(Role.VERIFIER))) {
+        farmer.status = Status.APPROVED;
+      } else {
+        farmer.status = Status.PENDING;
+      }
+    } else {
+      farmer.status = Status.PENDING;
+    }
 
     // ── Helper: multipart/form-data madhe nested objects JSON string mhanun yetaat ──
     const parseIfString = (val: any): any => {
@@ -675,6 +715,20 @@ export class FarmerService {
 
 
   public async createFarmer(farmerData: CreateFarmerDto): Promise<Farmer> {
+
+    // ── UPSERT: if id is present, the frontend is re-saving an existing draft ──
+    if ((farmerData as any).id) {
+      const updatedBy = farmerData.createdBy ?? '';
+      const updated = await this.updateFarmer(
+        (farmerData as any).id,
+        farmerData as any,
+        updatedBy,
+        updatedBy,
+      );
+      if (!updated) throw new AppError(404, 'Farmer not found for draft update');
+      return updated;
+    }
+
     const user = await this.userRepository.findOneBy({
       id: farmerData.createdBy,
     });
@@ -692,12 +746,36 @@ export class FarmerService {
       if (!isNaN(lastNum)) farmNext = lastNum + 1;
     }
 
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+
+    // Admin/Verifier: draft → draft, anything else → approved
+    // Other users:   draft → draft, anything else → pending
+    let resolvedStatus: Status;
+    if (user.roles && (user.roles.includes(Role.ADMIN) || user.roles.includes(Role.VERIFIER))) {
+      resolvedStatus = farmerData.status === Status.DRAFT ? Status.DRAFT : Status.APPROVED;
+    } else {
+      resolvedStatus = farmerData.status === Status.DRAFT ? Status.DRAFT : Status.PENDING;
+    }
+
+    // Helper: strip related objects that have no meaningful data (only id or empty)
+    const hasData = (obj: any): boolean => {
+      if (!obj || typeof obj !== 'object') return false;
+      const keys = Object.keys(obj).filter(k => k !== 'id');
+      return keys.length > 0;
+    };
+
+    // Strip empty nested objects so TypeORM doesn't cascade-insert empty rows
+    const cleanedData: any = { ...farmerData };
+    if (!hasData(cleanedData.residensialAddress)) delete cleanedData.residensialAddress;
+    if (!hasData(cleanedData.farmAddress)) delete cleanedData.farmAddress;
+    if (!Array.isArray(cleanedData.crops) || cleanedData.crops.length === 0) delete cleanedData.crops;
+
     // status and farmerCode are set internally — not from client input
     const entityData = {
-      ...farmerData,
-      status: (user && user.roles && (user.roles.includes(Role.ADMIN) || user.roles.includes(Role.VERIFIER)))
-        ? Status.APPROVED
-        : Status.PENDING,
+      ...cleanedData,
+      status: resolvedStatus,
       farmerCode: `${farmPrefix}${String(farmNext).padStart(4, '0')}`,
     };
 
@@ -828,253 +906,300 @@ export class FarmerService {
     return true;
   }
  
-async createFarmerwithExcel(fileUrl: string): Promise<any> {
-  try {
+// ─── Excel Export / Import ────────────────────────────────────────────────
 
+  /**
+   * Every farmer the user is allowed to see, matching the list-page filters,
+   * as an Excel file stored in Spaces.
+   *
+   * The same visibility rules as the list endpoint apply: a non-privileged user
+   * exports only the farmers they created, and a verifier never sees drafts.
+   */
+  async exportToExcel(
+    options: PaginationOptions,
+    userId: string,
+  ): Promise<UploadedExport> {
+    const user = await this.userRepository.findOneBy({ id: userId });
+    const isAdmin = user?.roles?.includes(Role.ADMIN);
+    const isVerifier = user?.roles?.includes(Role.VERIFIER);
+    const isPrivileged = isAdmin || isVerifier;
+
+    const queryBuilder = this.farmerRepository
+      .createQueryBuilder('farmer')
+      .leftJoinAndSelect('farmer.createdBy', 'createdBy')
+      .leftJoinAndSelect('farmer.residensialAddress', 'residensialAddress')
+      .leftJoinAndSelect('farmer.farmAddress', 'farmAddress')
+      .leftJoinAndSelect('farmer.crops', 'crops')
+      .leftJoinAndSelect('crops.crop', 'cropProduct')
+      .orderBy('farmer.createdAt', 'DESC');
+
+    if (!isPrivileged) {
+      queryBuilder.where('createdBy.id = :userId', { userId });
+    }
+
+    if (isVerifier && !isAdmin) {
+      queryBuilder.andWhere('farmer.status != :draft', { draft: Status.DRAFT });
+    }
+
+    const { data } = await buildQuery(
+      queryBuilder,
+      { ...options, page: undefined, limit: undefined },
+      'farmer',
+    );
+
+    const workbook = buildDataWorkbook(FARMER_SHEET, data as Farmer[]);
+    return uploadWorkbookToSpaces(workbook, 'Farmers', data.length);
+  }
+
+  /**
+   * Blank workbook carrying exactly the headers the importer reads, generated
+   * from the same column map as the export.
+   */
+  async buildExcelTemplate(): Promise<UploadedExport> {
+    const workbook = buildTemplateWorkbook(FARMER_SHEET);
+    return uploadWorkbookToSpaces(workbook, 'Farmer_Template', 0);
+  }
+
+  /**
+   * Imports farmers from a spreadsheet uploaded to Spaces.
+   *
+   * A farmer whose primary mobile number is already on record is skipped and
+   * reported rather than updated, and the uploaded file is removed from Spaces
+   * once read - success or failure.
+   *
+   * Owner and approval status are not read from the sheet: every imported farmer
+   * belongs to `createdById` and starts as pending, exactly as if it had been
+   * entered through the form.
+   */
+  async createFarmerwithExcel(
+    fileUrl: string,
+    createdById: string,
+  ): Promise<ImportSummary> {
     if (!fileUrl) {
-      throw new Error('No file URL or path provided');
+      throw new AppError(400, 'No file URL provided');
     }
 
-    let fileBuffer: Buffer;
+    const summary = emptySummary();
 
-    // 📥 Get file
-    if (fileUrl.startsWith('https://')) {
-      const urlObj = new URL(fileUrl);
-      const key = urlObj.pathname.replace(/^\//, '');
-      fileBuffer = await this.getExcelFromSpaces(key);
-    } else {
-      const fs = await import('fs');
-      fileBuffer = fs.readFileSync(fileUrl);
-    }
+    try {
+      const sheet = await readUploadedSheet(fileUrl, FARMER_SHEET);
+      summary.unknownColumns = sheet.unknownColumns;
+      summary.missingColumns = sheet.missingColumns;
+      summary.totalRows = sheet.rows.length;
 
-    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-    const sheetNames = workbook.SheetNames;
-
-    const farmerRepository = AppDataSource.getRepository(Farmer);
-    const productRepository = AppDataSource.getRepository(Product);
-    const userRepository = AppDataSource.getRepository(User);
-
-    for (const sheetName of sheetNames) {
-
-      const worksheet = workbook.Sheets[sheetName];
-
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1,
-        defval: null,
-      });
-
-      if (jsonData.length < 2) continue;
-
-      const headers: string[] = (jsonData[0] as any[]).map((h: any) =>
-        h ? String(h).trim() : '',
-      );
-
-
-      const rows = jsonData.slice(1);
-
-      for (const rowUntyped of rows) {
-        if (!Array.isArray(rowUntyped)) continue;
-
-        const rowData: Record<string, any> = {};
-        headers.forEach((header, index) => {
-          rowData[header] = rowUntyped[index];
-        });
-
-
-        // ✅ Required check
-        if (!rowData['First Name'] || !rowData['Primary Mobile No']) {
-          console.warn('⛔ Skipping row (missing data)');
-          continue;
-        }
-
-        // ✅ Generate code using max existing code to avoid duplicates
-        const bulkFarmerYear = new Date().getFullYear();
-        const bulkFarmerPrefix = `FARM${bulkFarmerYear}`;
-        const lastFarmerCode = await farmerRepository.query(
-          `SELECT "farmerCode" FROM farmer WHERE "farmerCode" LIKE $1 ORDER BY "farmerCode" DESC LIMIT 1`,
-          [`${bulkFarmerPrefix}%`]
+      if (sheet.missingColumns.length) {
+        throw new AppError(
+          400,
+          `The uploaded file is missing required column(s): ${sheet.missingColumns.join(', ')}`,
         );
-        let bulkFarmerNext = 1;
-        if (lastFarmerCode.length > 0 && lastFarmerCode[0].farmerCode) {
-          const lastNum = parseInt(lastFarmerCode[0].farmerCode.slice(bulkFarmerPrefix.length), 10);
-          if (!isNaN(lastNum)) bulkFarmerNext = lastNum + 1;
-        }
-        const farmerCode = `${bulkFarmerPrefix}${String(bulkFarmerNext).padStart(4, '0')}`;
+      }
 
-        const farmer = new Farmer();
+      const farmerRepository = AppDataSource.getRepository(Farmer);
+      const productRepository = AppDataSource.getRepository(Product);
 
-        farmer.farmerfName = rowData['First Name'];
-        farmer.farmermName =
-          rowData['Middle Name'] || rowData['Middl Name'];
-        farmer.farmerlName = rowData['Last Name'];
-        farmer.primaryMobileNo = rowData['Primary Mobile No'];
-        farmer.secondaryMobileNo = rowData['Secondary Mobile No'];
-        farmer.email = rowData['Email'];
-        farmer.gender = rowData['Gender'];
+      const creator = await this.userRepository.findOneBy({ id: createdById });
+      if (!creator) {
+        throw new AppError(401, 'The logged-in user could not be found');
+      }
 
-        // 📅 DOB
-        if (rowData['Date Of Birth']) {
-          const dob = parseExcelDate(rowData['Date Of Birth']);
-          if (dob) farmer.dob = new Date(dob);
-        }
+      const byHeader = new Map(FARMER_SHEET.columns.map((c) => [c.header, c]));
+      const column = (header: string) => {
+        const found = byHeader.get(header);
+        if (!found) throw new Error(`Unknown farmer column: ${header}`);
+        return found;
+      };
+      const text = (row: ExcelRow, header: string) =>
+        row.cell<string | null>(column(header));
 
-        farmer.landHoldingStatus = rowData['Land Holding'];
-        farmer.landStatus = rowData['Land Status'];
-        farmer.totalLandArea = rowData['Total Land Area'];
-        farmer.cultivationArea = rowData['Cultivation Area'];
-        farmer.farmerCode = farmerCode;
-
-        // 👤 createdBy
-        if (rowData['Created By']) {
-          const name = rowData['Created By'].trim();
-
-          const user = await userRepository
-            .createQueryBuilder('user')
-            .where(
-              "LOWER(CONCAT(user.firstName,' ',user.lastName)) = LOWER(:name)",
-              { name },
-            )
-            .getOne();
-
-          if (user) {
-            farmer.createdBy = user;
-          } else {
-            console.warn('⚠️ User not found:', name);
-          }
-        }
-
-        // 🏠 Residential Address
-        const res = new Address();
-        res.address1 = rowData['Residential Address1'];
-        res.address2 = rowData['Residential Address2'];
-        res.city = rowData['Residential City'];
-        res.state = rowData['Residential State'];
-        res.pincode = rowData['Residential Pincode'];
-        farmer.residensialAddress = res;
-
-        // 🚜 Farm Address
-        const farm = new Address();
-        farm.address1 = rowData['Farm Address1'];
-        farm.address2 = rowData['Farm Address2'];
-        farm.city = rowData['Farm City'];
-        farm.state = rowData['Farm State'];
-        farm.pincode = rowData['Farm Pincode'];
-        farmer.farmAddress = farm;
-
-        // 🌱 CROPS (FIXED LOOP)
-        farmer.crops = [];
-
-        let i = 1;
-
-        while (rowData[`Crop${i}.Crop`]) {
-          const cropName = rowData[`Crop${i}.Crop`];
-
-          if (!cropName) {
-            i++; // ✅ FIX
-            continue;
-          }
-
-
-          const product = await productRepository
-            .createQueryBuilder('product')
-            .where('LOWER(product.name)=LOWER(:name)', {
-              name: cropName.trim(),
-            })
-            .getOne();
-
-          if (!product) {
-            console.warn('⚠️ Product not found:', cropName);
-            i++; // ✅ FIX
-            continue;
-          }
-
-          const crop = new Crop();
-          crop.crop = product;
-          crop.variety = rowData[`Crop${i}.Variety`];
-          crop.noOfPlants = rowData[`Crop${i}.No_Of_Plants`];
-
-          farmer.crops.push(crop);
-
-          i++; // ✅ MUST
-        }
-
-        // 💾 SAVE
+      for (const row of sheet.rows) {
         try {
-          const saved = await farmerRepository.save(farmer);
-        } catch (err) {
-          console.error('❌ SAVE ERROR:', err);
+          const firstName = text(row, 'First Name');
+          const primaryMobileNo = text(row, 'Primary Mobile No');
+
+          if (!firstName || !primaryMobileNo) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: 'First Name and Primary Mobile No are both required',
+            });
+            continue;
+          }
+
+          const existing = await farmerRepository.findOne({
+            where: { primaryMobileNo },
+          });
+
+          if (existing) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: `Farmer with mobile ${primaryMobileNo} already exists (${existing.farmerCode ?? existing.id})`,
+            });
+            continue;
+          }
+
+          const farmer = new Farmer();
+          farmer.farmerfName = firstName;
+          farmer.farmermName = text(row, 'Middle Name') as string;
+          farmer.farmerlName = text(row, 'Last Name') as string;
+          farmer.primaryMobileNo = primaryMobileNo;
+          farmer.secondaryMobileNo = text(row, 'Secondary Mobile No') as string;
+          farmer.email = text(row, 'Email') as string;
+          farmer.gender = text(row, 'Gender') as string;
+          farmer.landHoldingStatus = text(row, 'Land Holding') as string;
+          farmer.landStatus = text(row, 'Land Status') as string;
+          farmer.totalLandArea = row.cell<number | null>(
+            column('Total Land Area'),
+          ) as number;
+          farmer.cultivationArea = row.cell<number | null>(
+            column('Cultivation Area'),
+          ) as number;
+          farmer.farmerGrading = text(row, 'Farmer Grading') as string;
+          farmer.howDoYouSell = text(row, 'How Do You Sell') as string;
+          farmer.sevenTwelveNo = text(row, '7/12 Number') as string;
+          farmer.idProofNo = text(row, 'ID Proof Number') as string;
+          farmer.status = Status.PENDING;
+          farmer.createdBy = creator;
+
+          const dob = row.cell<string | null>(column('Date Of Birth'));
+          if (dob) farmer.dob = new Date(dob);
+
+          const dateOfVisit = row.cell<string | null>(column('Date Of Visit'));
+          if (dateOfVisit) farmer.dateOfVisit = new Date(dateOfVisit);
+
+          farmer.farmerCode = await this.generateBulkFarmerCode(farmerRepository);
+
+          const residential = new Address();
+          residential.address1 = text(row, 'Residential Address1') as string;
+          residential.address2 = text(row, 'Residential Address2') as string;
+          residential.location = text(row, 'Residential Location') as string;
+          residential.city = text(row, 'Residential City') as string;
+          residential.state = text(row, 'Residential State') as string;
+          residential.pincode = text(row, 'Residential Pincode') as string;
+          farmer.residensialAddress = residential;
+
+          const farm = new Address();
+          farm.address1 = text(row, 'Farm Address1') as string;
+          farm.address2 = text(row, 'Farm Address2') as string;
+          farm.location = text(row, 'Farm Location') as string;
+          farm.city = text(row, 'Farm City') as string;
+          farm.state = text(row, 'Farm State') as string;
+          farm.pincode = text(row, 'Farm Pincode') as string;
+          farmer.farmAddress = farm;
+
+          const cropColumn = (header: string) =>
+            FARMER_CROP_GROUP.columns.find((c) => c.header === header)!;
+
+          const cropBlocks = row.eachGroupBlock(FARMER_CROP_GROUP, (index) => ({
+            index,
+            name: row.groupCell<string | null>(
+              FARMER_CROP_GROUP,
+              index,
+              cropColumn('Crop'),
+            ),
+          }));
+
+          farmer.crops = [];
+
+          for (const block of cropBlocks) {
+            if (!block.name) {
+              summary.failed.push({
+                row: row.rowNumber,
+                reason: `Crop${block.index} has no crop name and was not imported`,
+              });
+              continue;
+            }
+
+            const product = await productRepository
+              .createQueryBuilder('product')
+              .where('LOWER(product.name) = LOWER(:name)', { name: block.name })
+              .getOne();
+
+            if (!product) {
+              summary.failed.push({
+                row: row.rowNumber,
+                reason: `Crop "${block.name}" did not match any product and was not imported`,
+              });
+              continue;
+            }
+
+            const crop = new Crop();
+            crop.crop = product;
+            crop.variety = row.groupCell<string | null>(
+              FARMER_CROP_GROUP,
+              block.index,
+              cropColumn('Variety'),
+            ) as string;
+            crop.noOfPlants = row.groupCell<number | null>(
+              FARMER_CROP_GROUP,
+              block.index,
+              cropColumn('No_Of_Plants'),
+            ) as number;
+            crop.expectedQuantityInTonnes = row.groupCell<number | null>(
+              FARMER_CROP_GROUP,
+              block.index,
+              cropColumn('Expected Quantity (Tonnes)'),
+            ) as number;
+
+            const pruningDate = row.groupCell<string | null>(
+              FARMER_CROP_GROUP,
+              block.index,
+              cropColumn('Pruning Date'),
+            );
+            if (pruningDate) crop.pruningDate = new Date(pruningDate);
+
+            const harvestDate = row.groupCell<string | null>(
+              FARMER_CROP_GROUP,
+              block.index,
+              cropColumn('Expected Harvest Date'),
+            );
+            if (harvestDate) crop.expectedHarvestDate = new Date(harvestDate);
+
+            farmer.crops.push(crop);
+          }
+
+          await farmerRepository.save(farmer);
+          summary.created++;
+        } catch (rowError: any) {
+          summary.failed.push({
+            row: row.rowNumber,
+            reason: rowError?.message ?? 'Could not save this row',
+          });
         }
       }
-    }
 
-    await this.deleteFileFromSpaces(fileUrl);
-    await this.invalidateFarmerCache();
-
-  } catch (error) {
-    console.error('🔥 ERROR:', error);
-
-    try {
-      await this.deleteFileFromSpaces(fileUrl);
-    } catch {}
-
-    throw error;
-  }
-}
-  /**
-   * Get Excel file from DigitalOcean Spaces
-   * @param key - Spaces key/path to the Excel file
-   * @returns Buffer containing the file data
-   */
-  private async getExcelFromSpaces(key: string): Promise<Buffer> {
-    try {
-
-      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-      const command = new GetObjectCommand({
-        Bucket: process.env.DO_SPACES_BUCKET!,
-        Key: key,
-      });
-
-      const response = await s3.send(command);
-
-      if (!response.Body) {
-        throw new Error('No file content found in Spaces response');
+      if (summary.created > 0) {
+        await this.invalidateFarmerCache();
       }
 
-      const bytes = await response.Body.transformToByteArray();
-      const fileBuffer = Buffer.from(bytes);
-
-      return fileBuffer;
-    } catch (error) {
-      console.error('❌ Error reading Excel file from Spaces:', error);
-      throw new Error(`Failed to read Excel file from Spaces (key: ${key}): ${error instanceof Error ? error.message : String(error)}`);
+      return summary;
+    } finally {
+      await deleteFromSpaces(fileUrl);
     }
   }
 
   /**
-   * Delete file from DigitalOcean Spaces
-   * @param fileUrl - The full URL or key of the file to delete
+   * Next farmer code in the FARM<year>NNNN series.
+   *
+   * Derived from the highest existing code rather than a row count, so codes
+   * are not reused after a farmer is deleted.
    */
-  private async deleteFileFromSpaces(fileUrl: string): Promise<void> {
-    try {
-      // Extract the key from the full URL
-      // URL format: https://bucket-name.sgp1.digitaloceanspaces.com/documents/filename
-      const urlParts = fileUrl.split('/');
-      const key = urlParts.slice(-2).join('/'); // Gets "documents/filename"
-      
-      const deleteCommand = new DeleteObjectCommand({
-        Bucket: process.env.DO_SPACES_BUCKET!,
-        Key: key,
-      });
+  private async generateBulkFarmerCode(
+    farmerRepository: Repository<Farmer>,
+  ): Promise<string> {
+    const prefix = `FARM${new Date().getFullYear()}`;
 
-      await s3.send(deleteCommand);
-    } catch (error) {
-      console.error(`Failed to delete file from spaces: ${fileUrl}`, error);
-      // Don't throw error here to avoid breaking the main flow
+    const last = await farmerRepository.query(
+      `SELECT "farmerCode" FROM farmer WHERE "farmerCode" LIKE $1 ORDER BY "farmerCode" DESC LIMIT 1`,
+      [`${prefix}%`],
+    );
+
+    let next = 1;
+    if (last.length > 0 && last[0].farmerCode) {
+      const lastNumber = parseInt(last[0].farmerCode.slice(prefix.length), 10);
+      if (!Number.isNaN(lastNumber)) next = lastNumber + 1;
     }
-  }
-  
 
-   
+    return `${prefix}${String(next).padStart(4, '0')}`;
+  }
 
   async softDeleteFarmers(farmerIds: string[]) {
     // Null out farmerCode before soft-deleting so the unique constraint

@@ -161,9 +161,13 @@ if (input.roles && input.roles.length > 0) {
         .filter((d: string) => Object.values(Department).includes(d as Department)) as Department[];
     }
 
+    // Employee status: always starts as DRAFT — admin activates/deactivates later
+    const resolvedStatus: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DRAFT' = 'DRAFT';
+
     const user = this.userRepository.create({
       ...input,
       employeeId,
+      status: resolvedStatus,
       accessLocation: accessLocationEntities,
       companyName: companyEntities,
       roles: roles,
@@ -174,6 +178,57 @@ if (input.roles && input.roles.length > 0) {
     await this.invalidateCache();
     return saved;
   }
+  async submitEmployee(
+    employeeId: string,
+    employeeData: Record<string, any> = {},
+  ): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { id: employeeId },
+      relations: ['permanentAddress', 'residentialAddress'],
+    });
+    if (!user) throw new AppError(404, 'Employee not found');
+
+    // Set status to INACTIVE (submitted for admin review — equivalent to "pending")
+    user.status = 'INACTIVE';
+
+    // Scalar fields allowed to be updated on submit
+    const scalarFields = [
+      'firstName', 'middleName', 'lastName',
+      'primaryMobNo', 'secondaryMobNo',
+      'primaryEmail', 'secondaryEmail', 'workEmail',
+      'cugNo', 'designation', 'joiningDate',
+      'gender', 'dob', 'username',
+    ];
+
+    for (const field of scalarFields) {
+      if (employeeData[field] !== undefined && employeeData[field] !== null && employeeData[field] !== '') {
+        (user as any)[field] = employeeData[field];
+      }
+    }
+
+    // Handle nested address objects (sent as JSON string in multipart/form-data)
+    const parseIfString = (val: any): any => {
+      if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch { return val; }
+      }
+      return val;
+    };
+
+    const permanentAddressData = parseIfString(employeeData.permanentAddress);
+    if (permanentAddressData && typeof permanentAddressData === 'object') {
+      Object.assign(user.permanentAddress ??= {} as Address, permanentAddressData);
+    }
+
+    const residentialAddressData = parseIfString(employeeData.residentialAddress);
+    if (residentialAddressData && typeof residentialAddressData === 'object') {
+      Object.assign(user.residentialAddress ??= {} as Address, residentialAddressData);
+    }
+
+    const saved = await this.userRepository.save(user as any) as User;
+    await this.invalidateCache(employeeId);
+    return saved;
+  }
+
   async updateStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
@@ -184,8 +239,8 @@ if (input.roles && input.roles.length > 0) {
     await this.invalidateCache(id);
     return saved;
   }
-  async getAllUsers(queryOptions: PaginationOptions): Promise<UserListResponseDto> {
-    const key = `${CACHE_PREFIX}:list:${JSON.stringify(queryOptions)}`;
+  async getAllUsers(queryOptions: PaginationOptions, userId?: string): Promise<UserListResponseDto> {
+    const key = `${CACHE_PREFIX}:list:${userId ?? 'all'}:${JSON.stringify(queryOptions)}`;
     const cached = await this.cacheService.get<any>(key);
     if (cached) return cached;
 

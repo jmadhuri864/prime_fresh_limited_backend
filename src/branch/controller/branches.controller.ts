@@ -69,7 +69,7 @@ export class BranchessController {
           .catch(() => {});
       }
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       this.activityLogService.logActivity({
         userId: res.locals.user.id,
@@ -216,7 +216,7 @@ export class BranchessController {
           .catch(() => {});
       }
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       this.activityLogService.logActivity({
         userId: res.locals.user.id,
@@ -262,7 +262,7 @@ export class BranchessController {
 
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       this.activityLogService.logActivity({
         userId: res.locals.user.id,
@@ -310,7 +310,7 @@ export class BranchessController {
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
       const deletedList = result.deleted.map(b => `${b.type} "${b.name}"`).join(', ');
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       this.activityLogService.logActivity({
         userId: res.locals.user.id,

@@ -117,83 +117,15 @@ export class StockTransferDeliveryChallanService {
       document_type_id: savedChallan.id,
     });
 
-    // 5. Reload challan with full relations
-    const challanFull = await queryRunner.manager.findOne(this.challanRepository.target, {
-      where: { id: savedChallan.id },
-      relations: [
-        'deliveryChallanProducts',
-        'fromLocation',
-        'toLocation',
-        'companyName',
-      ],
-    });
-
-    if (!challanFull) throw new Error(`Challan not found after save: ${savedChallan.id}`);
-
     // -------------------------------------------------------------------
-    // 6. STOCK OUT (ONLY FROM LOCATION)
+    // 5. Inventory is NOT touched here.
+    //    Stock is reduced at the FROM location only when this challan's
+    //    document reaches DocumentStatus.COMPLETE — see
+    //    InventoryMovementService.applyStockTransferDeliveryChallan().
+    //
+    //    The TO-location increase is still out of scope: it comes from a
+    //    separate Inward Register raised against this challan.
     // -------------------------------------------------------------------
-
-    for (const item of challanFull.deliveryChallanProducts) {
-      const { netWeight, amount, variant } = item;
-
-      const deliveredQty = Number(netWeight ?? 0);
-      const deliveredAmt = Number(amount ?? 0);
-
-      const variantId = typeof variant === 'object' ? variant.id : variant;
-
-      // Fetch variant + product (CORRECT ENTITY RELATION)
-      const foundVariant = await queryRunner.manager.findOne(this.variantRepository.target, {
-        where: { id: variantId },
-        relations: ['product'], // VALID RELATION
-      });
-
-      if (!foundVariant) {
-        throw new Error(`Variant not found: ${variantId}`);
-      }
-
-      const productId = foundVariant.product?.id;
-
-      if (!productId) {
-        throw new Error(`Product not found for variant: ${variantId}`);
-      }
-
-      // -------------------------------------------------------------------
-      // OUTWARD STOCK (reduce from FROM location)
-      // -------------------------------------------------------------------
-      let fromStock = await queryRunner.manager.findOne(this.inventoryStockRepository.target, {
-        where: {
-          company: { id: challanFull.companyName.id },
-          location: { id: challanFull.fromLocation.id },
-          product: { id: productId },
-          variant: { id: variantId },
-        },
-      });
-
-      if (fromStock) {
-        // Reduce stock
-        fromStock.inwardQty = Number(fromStock.inwardQty) - deliveredQty;
-        fromStock.inwardAmt = Number(fromStock.inwardAmt) - deliveredAmt;
-
-        await queryRunner.manager.save(fromStock);
-      } else {
-        // No stock exists → create negative (outward movement)
-        fromStock = queryRunner.manager.create(this.inventoryStockRepository.target, {
-          company: { id: challanFull.companyName.id },
-          location: { id: challanFull.fromLocation.id },
-          product: { id: productId },
-          variant: { id: variantId },
-          inwardQty: -deliveredQty,
-          inwardAmt: -deliveredAmt,
-        });
-
-        await queryRunner.manager.save(fromStock);
-      }
-
-      // ----------------------------------------------------------
-      // ❌ TO-LOCATION STOCK INCREASE REMOVED (As per your code)
-      // ----------------------------------------------------------
-    }
 
     // Commit transaction - all operations succeeded
     await queryRunner.commitTransaction();

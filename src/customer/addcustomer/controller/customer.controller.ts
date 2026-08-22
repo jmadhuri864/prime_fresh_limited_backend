@@ -87,59 +87,43 @@ export class CustomerController {
       console.log('Received customer data:', customerData);
       console.log(typeof customerData.emailPrimary);
       customerData.createdBy = res.locals.user.id;
-      customerData.bankDetails = customerData.bankDetails || {};
-      customerData.statutoryDetails = customerData.statutoryDetails || {};
-      customerData.billingDetails = customerData.billingDetails || {};
-      customerData.deliveryDetails = customerData.deliveryDetails || {};
-      customerData.paymentTerms = customerData.paymentTerms || {};
-      customerData.keyMobileNumbers = customerData.keyMobileNumbers || {};
       // Assign DigitalOcean Spaces URLs to customer data
       if (files.customerImage?.[0])
         customerData.customerImage = (files.customerImage[0] as any).location;
       if (files['bankDetails[cancelledChequeCopy]']?.[0])
-        customerData.bankDetails.cancelledChequeCopy =
-          (files['bankDetails[cancelledChequeCopy]'][0] as any).location;
+        customerData.bankDetails = { ...customerData.bankDetails, cancelledChequeCopy: (files['bankDetails[cancelledChequeCopy]'][0] as any).location };
       if (files['bankDetails[bankStatementCopy]']?.[0])
-        customerData.bankDetails.bankStatementCopy =
-          (files['bankDetails[bankStatementCopy]'][0] as any).location;
+        customerData.bankDetails = { ...customerData.bankDetails, bankStatementCopy: (files['bankDetails[bankStatementCopy]'][0] as any).location };
       if (files['statutoryDetails[panCopy]']?.[0])
-        customerData.statutoryDetails.panCopy = (files['statutoryDetails[panCopy]'][0] as any).location;
+        customerData.statutoryDetails = { ...customerData.statutoryDetails, panCopy: (files['statutoryDetails[panCopy]'][0] as any).location };
       if (files['statutoryDetails[aadharCopy]']?.[0])
-        customerData.statutoryDetails.aadharCopy = (files['statutoryDetails[aadharCopy]'][0] as any).location;
+        customerData.statutoryDetails = { ...customerData.statutoryDetails, aadharCopy: (files['statutoryDetails[aadharCopy]'][0] as any).location };
       if (files.billBookCopy?.[0])
-        customerData.statutoryDetails.billBookCopy =
-          (files.billBookCopy[0] as any).location;
+        customerData.statutoryDetails = { ...customerData.statutoryDetails, billBookCopy: (files.billBookCopy[0] as any).location };
       if (files['statutoryDetails[incorpoCertificateCopy]']?.[0])
-        customerData.statutoryDetails.incorpoCertificateCopy =
-          (files['statutoryDetails[incorpoCertificateCopy]'][0] as any).location;
+        customerData.statutoryDetails = { ...customerData.statutoryDetails, incorpoCertificateCopy: (files['statutoryDetails[incorpoCertificateCopy]'][0] as any).location };
       if (files['statutoryDetails[regiCertificateCopy]']?.[0])
-        customerData.statutoryDetails.regiCertificateCopy =
-          (files['statutoryDetails[regiCertificateCopy]'][0] as any).location;
+        customerData.statutoryDetails = { ...customerData.statutoryDetails, regiCertificateCopy: (files['statutoryDetails[regiCertificateCopy]'][0] as any).location };
       if (files.billingFormatCopy?.[0])
-        customerData.billingDetails.billingFormatCopy =
-          (files.billingFormatCopy[0] as any).location;
+        customerData.billingDetails = { ...customerData.billingDetails, billingFormatCopy: (files.billingFormatCopy[0] as any).location };
       if (files.billingAddressProofCopy?.[0])
-        customerData.billingDetails.billingAddressProofCopy =
-          (files.billingAddressProofCopy[0] as any).location;
+        customerData.billingDetails = { ...customerData.billingDetails, billingAddressProofCopy: (files.billingAddressProofCopy[0] as any).location };
       if (files.deliveryAddressProofCopy?.[0])
-        customerData.deliveryDetails.deliveryAddressProofCopy =
-          (files.deliveryAddressProofCopy[0] as any).location;
-      if (files.lc?.[0]) customerData.paymentTerms.lc = (files.lc[0] as any).location;
-      if (files.bg?.[0]) customerData.paymentTerms.bg = (files.bg[0] as any).location;
+        customerData.deliveryDetails = { ...customerData.deliveryDetails, deliveryAddressProofCopy: (files.deliveryAddressProofCopy[0] as any).location };
+      if (files.lc?.[0])
+        customerData.paymentTerms = { ...customerData.paymentTerms, lc: (files.lc[0] as any).location };
+      if (files.bg?.[0])
+        customerData.paymentTerms = { ...customerData.paymentTerms, bg: (files.bg[0] as any).location };
       if (files.docEvidenceCopy?.[0])
-        customerData.paymentTerms.docEvidenceCopy =
-          (files.docEvidenceCopy[0] as any).location;
-      if (files['keyMobileNumbers[mandiLicenceCopy]'][0])
-        customerData.keyMobileNumbers.mandiLicenceCopy =
-          (files['keyMobileNumbers[mandiLicenceCopy]'][0] as any).location;
-      if (files['keyMobileNumbers[regiCopy]'][0] )
-        customerData.keyMobileNumbers.regiCopy = (files['keyMobileNumbers[regiCopy]'][0] as any).location;
+        customerData.paymentTerms = { ...customerData.paymentTerms, docEvidenceCopy: (files.docEvidenceCopy[0] as any).location };
+      if (files['keyMobileNumbers[mandiLicenceCopy]']?.[0])
+        customerData.keyMobileNumbers = { ...customerData.keyMobileNumbers, mandiLicenceCopy: (files['keyMobileNumbers[mandiLicenceCopy]'][0] as any).location };
+      if (files['keyMobileNumbers[regiCopy]']?.[0])
+        customerData.keyMobileNumbers = { ...customerData.keyMobileNumbers, regiCopy: (files['keyMobileNumbers[regiCopy]'][0] as any).location };
       if (files.electricityBillCopy?.[0])
-        customerData.keyMobileNumbers.electricityBillCopy =
-          (files.electricityBillCopy[0] as any).location;
+        customerData.keyMobileNumbers = { ...customerData.keyMobileNumbers, electricityBillCopy: (files.electricityBillCopy[0] as any).location };
       if (files.visitingCardCopy?.[0])
-        customerData.keyMobileNumbers.visitingCardCopy =
-          (files.visitingCardCopy[0] as any).location;
+        customerData.keyMobileNumbers = { ...customerData.keyMobileNumbers, visitingCardCopy: (files.visitingCardCopy[0] as any).location };
 
       const customer = await this.customerService.create(customerData);
 
@@ -161,7 +145,7 @@ export class CustomerController {
 
       // 📝 Activity log
       // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
       this.activityLogService.logActivity({
@@ -282,7 +266,7 @@ export class CustomerController {
     try {
       const files = req.files as { [fieldname: string]: any[] } | undefined;
       const body = req.body;
-
+console.log("submitCustomer body",body);
       const fileUpdates: Record<string, string | null> = {};
 
       const handleField = async (fieldName: string, bodyPath?: string) => {
@@ -356,7 +340,7 @@ export class CustomerController {
       ];
       for (const key of fileFieldKeys) delete customerData[key];
 
-      const customer = await this.customerService.submitCustomer(id, fileUpdates, customerData);
+      const customer = await this.customerService.submitCustomer(id, fileUpdates, customerData, res.locals.user.id);
       ControllerLogger.logSuccess('Customer submitted', id, req, res);
       return res.status(200).json({
         status: 'success',
@@ -799,7 +783,7 @@ customerData.bankDetails ??= {} as BankDetailsDto;
 
       // 📝 Activity log
       // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
       this.activityLogService.logActivity({
@@ -849,7 +833,7 @@ customerData.bankDetails ??= {} as BankDetailsDto;
 
       // � Activity log
       // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
       this.activityLogService.logActivity({
@@ -886,7 +870,17 @@ customerData.bankDetails ??= {} as BankDetailsDto;
                 return res.status(400).send("No file uploaded");
             }
             try {
-                await this.customerService.upload((req.file as any).location);
+                const userId = res.locals.user?.id;
+                if (!userId) {
+                    return next(new AppError(401, 'User not authenticated'));
+                }
+
+                // Every imported customer is owned by whoever ran the import -
+                // the sheet has no say in it.
+                const summary = await this.customerService.upload(
+                    (req.file as any).location,
+                    userId,
+                );
                 
                 // 🔔 Send notification for file upload
                 // try {
@@ -904,7 +898,14 @@ customerData.bankDetails ??= {} as BankDetailsDto;
                 // Log successful upload
                 ControllerLogger.logSuccess('Customer file uploaded', req.file.filename || 'unknown', req, res);
                 
-                return res.status(200).send("Customers uploaded successfully");
+                return res.status(200).json({
+                    status: 'success',
+                    message:
+                        `${summary.created} customer(s) imported` +
+                        (summary.skipped.length ? `, ${summary.skipped.length} skipped` : '') +
+                        (summary.failed.length ? `, ${summary.failed.length} failed` : ''),
+                    data: summary,
+                });
             } catch (error) {
                 ControllerLogger.logError('Customer file upload', error, req, res);
                 console.error(error);
@@ -913,6 +914,61 @@ customerData.bankDetails ??= {} as BankDetailsDto;
         }
 
 
+  @httpGet('/export/excel')
+  public async exportCustomersExcel(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const userId = res.locals.user?.id;
+      if (!userId) {
+        return next(new AppError(401, 'User not authenticated'));
+      }
+
+      const { search, sort } = req.query;
+
+      // Same options the list endpoint builds, minus page/limit - an export
+      // covers the whole filtered set, not one page of it.
+      const queryOptions: PaginationOptions = {
+        searchFields: [
+          'organisationName',
+          'customerCategory.name',
+          'customerTypes.name',
+        ],
+        filters: {},
+        sort: (sort as string) || undefined,
+        search: (search as string) || '',
+      };
+
+      const file = await this.customerService.exportToExcel(queryOptions, userId);
+
+      try {
+        await this.notificationService.createNoti(
+          `Customer Excel export ready (${file.rowCount} customers)`,
+          userId,
+        );
+      } catch (notifError) {
+        // A failed notification must not fail the export.
+      }
+
+      ControllerLogger.logList('Customer Excel Export', req, res);
+
+      return res.status(200).json({
+        status: 'success',
+        message: `${file.rowCount} customer(s) exported successfully`,
+        data: {
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+          totalRecords: file.rowCount,
+        },
+      });
+    } catch (error) {
+      ControllerLogger.logError('Customer Excel export', error, req, res);
+      next(error);
+    }
+  }
+
   @httpGet('/download/template')
   public async downloadExcelTemplate(
     @request() req: Request,
@@ -920,43 +976,38 @@ customerData.bankDetails ??= {} as BankDetailsDto;
     @next() next: NextFunction,
   ) {
     try {
-      const key = 'formats/CustomerData.xlsx';
-      
-      
-      
-      
-      const fileUrl = `https://${process.env.DO_SPACES_BUCKET}.sgp1.digitaloceanspaces.com/${key}`;
-      
-      
+      // Generated from the same column map the importer reads, so the template
+      // can never drift out of sync with what the upload endpoint accepts.
+      const file = await this.customerService.buildExcelTemplate();
+
       try {
         const userId = res.locals.user?.id;
         if (userId) {
           await this.notificationService.createNoti(
-            `Farmer template "${key.split('/').pop()}" accessed`,
-            userId
+            `Customer template "${file.fileName}" generated`,
+            userId,
           );
         }
       } catch (notifError) {
+        // A failed notification must not fail the download.
       }
-      
-      ControllerLogger.logList('Farmer Template URL Generated', req, res);
-      
-      // Return the URL in JSON response
+
+      ControllerLogger.logList('Customer Template Generated', req, res);
+
       res.status(200).json({
         status: 'success',
         message: 'Template URL generated successfully',
         data: {
-          // templateUrl: fileUrl,
-          // fileName: key.split('/').pop(),
-          downloadUrl: fileUrl, // Alternative property name for clarity
-          //fileKey: key // Include the key for reference
-        }
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+        },
       });
     } catch (error) {
-      ControllerLogger.logError('Generate Farmer Template URL', error, req, res);
+      ControllerLogger.logError('Generate Customer Template URL', error, req, res);
       next(error);
     }
   }
+
   @httpDelete("/delete/multiple")
 public async softDeleteMultipleCustomers(
   @request() req: Request,
@@ -981,7 +1032,7 @@ public async softDeleteMultipleCustomers(
 
     // 📝 Activity log
     // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
     const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
     const deletedList = result.deleted.map(c => `"${c.organisationName}"`).join(', ');

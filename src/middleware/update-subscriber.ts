@@ -4,7 +4,17 @@ import {
     UpdateEvent,
     DataSource,
   } from 'typeorm';
-import { AuditLogService } from '../services/auditLog.service';
+// Keep the subscriber independent of the service's module path. The service is
+// supplied by the application's dependency-injection container at runtime.
+interface AuditLogService {
+  logChange(
+    entityName: string,
+    entityId: unknown,
+    databaseEntity: unknown,
+    changes: Record<string, { oldValue: any; newValue: any }>,
+    updatedBy: unknown,
+  ): Promise<void>;
+}
 
   
   @EventSubscriber()

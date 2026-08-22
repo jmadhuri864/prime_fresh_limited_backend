@@ -237,6 +237,10 @@ export class BranchessService {
 
     branch.deletionScheduledAt = sixMonthsFromNow;
     await this.branchesRepository.save(branch);
+
+    // Soft delete so it's immediately filtered out from getAll queries
+    await this.branchesRepository.softDelete({ id });
+
     await this.invalidateBranchCache(id, branchType);
 
     return { name: branch.name, type: branch.type };

@@ -1,0 +1,243 @@
+================================================================================
+ WEEKLY BUSINESS PLAN ACHIEVEMENT - DASHBOARD API
+================================================================================
+
+ Base URL : http://localhost:4000        (no global prefix; PORT defaults to 4000)
+ Auth     : Authorization: Bearer <access_token>     (or the access_token cookie)
+            Get one from  POST /auth/login  { "uid": "...", "password": "..." }
+
+ Four endpoints, ONE response shape. Only the data changes.
+
+
+================================================================================
+ 1. ENDPOINT LIST
+================================================================================
+
+ #  METHOD  ENDPOINT                                          WHOSE DATA
+ -  ------  ------------------------------------------------  -----------------
+ 1  GET     /dashboard/business-plan/weekly/procurement/own    Team member, own
+ 2  GET     /dashboard/business-plan/weekly/sales/own          Team member, own
+ 3  GET     /dashboard/business-plan/weekly/procurement/team   Team leader, team
+ 4  GET     /dashboard/business-plan/weekly/sales/team         Team leader, team
+
+ The logged-in user is taken from the token. Nothing identifies the employee in
+ the URL, so a member cannot read somebody else's numbers.
+
+
+================================================================================
+ 2. QUERY PARAMETERS  (same for all four)
+================================================================================
+
+ NAME    TYPE  REQUIRED  DEFAULT              NOTES
+ ------  ----  --------  -------------------  ----------------------------------
+ month   int   no        current month        1-12
+ year    int   no        current year         2000-2100
+
+ Examples:
+   GET /dashboard/business-plan/weekly/procurement/own
+   GET /dashboard/business-plan/weekly/procurement/own?month=8&year=2026
+   GET /dashboard/business-plan/weekly/sales/team?month=2&year=2028
+
+
+================================================================================
+ 3. RESPONSE  200 OK   (identical structure for all four)
+================================================================================
+
+{
+  "success": true,
+  "message": "Weekly own procurement achievement retrieved successfully",
+  "data": [
+    {
+      "week": "week-1",
+      "assignedQuantity": 1200,
+      "achievedQuantity": 1045.5,
+      "achievedAmount": 261375
+    },
+    {
+      "week": "week-2",
+      "assignedQuantity": 1200,
+      "achievedQuantity": 1310,
+      "achievedAmount": 327500
+    },
+    {
+      "week": "week-3",
+      "assignedQuantity": 1500,
+      "achievedQuantity": 0,
+      "achievedAmount": 0
+    },
+    {
+      "week": "week-4",
+      "assignedQuantity": 1500,
+      "achievedQuantity": 0,
+      "achievedAmount": 0
+    },
+    {
+      "week": "week-5",
+      "assignedQuantity": 600,
+      "achievedQuantity": 0,
+      "achievedAmount": 0
+    }
+  ]
+}
+
+ The array always covers the whole month - 4 weeks for a 28-day February,
+ 5 weeks otherwise. Weeks with no plan and no activity come back as zeros
+ rather than being left out, so the chart keeps a fixed x-axis.
+
+
+================================================================================
+ 4. WHAT EACH FIELD MEANS
+================================================================================
+
+ FIELD              PROCUREMENT (1 and 3)          SALES (2 and 4)
+ -----------------  -----------------------------  ---------------------------
+ week               "week-1" .. "week-5"           same
+ assignedQuantity   Planned QUANTITY from the      Planned AMOUNT in rupees
+                    procurement business plan      from the sales business plan
+ achievedQuantity   Net weight received on GRNs    Net weight on the delivery
+                                                   challans behind the invoices
+ achievedAmount     Total value of those GRNs      Total value of those invoices
+
+ >> IMPORTANT: the two plans are written in different units.
+    A procurement plan is set in quantity; a sales plan is set in rupees.
+    So for SALES, compare  assignedQuantity  against  achievedAmount.
+    For PROCUREMENT, compare  assignedQuantity  against  achievedQuantity.
+    The field names are shared to keep one response shape, as requested.
+
+
+================================================================================
+ 5. HOW THE NUMBERS ARE BUILT
+================================================================================
+
+ WEEKS
+   Weeks are 7-day blocks counted from the 1st of the month:
+     week-1 = 1st to 7th      week-4 = 22nd to 28th
+     week-2 = 8th to 14th     week-5 = 29th to end of month
+     week-3 = 15th to 21st
+   The last block is short (2 or 3 days), and a 28-day February has no week-5.
+
+ ASSIGNED
+   Procurement : SUM(procurement_target_weeks.qty)
+                 for every product in the plan, matched by week number
+   Sales       : SUM(sales_target_weeks.sale_amount)
+                 for every customer/product in the plan, matched by week number
+   Only plans for the requested month and year are counted.
+
+   >> The month you pass is always 1-12. The two plan tables store it
+      differently, and the service converts before querying:
+        procurement_targets.month is 0-BASED  (January 0 ... December 11)
+        sales_targets.month       is 1-BASED  (January 1 ... December 12)
+      So ?month=7 reads procurement_targets.month = 6 and
+      sales_targets.month = 7, both meaning July.
+
+ ACHIEVED
+   Procurement : GRNs created by the covered employees whose document reached
+                 status COMPLETE
+                   achievedAmount   = SUM(grns.totalAmt)
+                   achievedQuantity = SUM(grn_products.netWeight)
+   Sales       : Final invoices created by the covered employees whose document
+                 reached status COMPLETE
+                   achievedAmount   = SUM(invoices.totalAmount)
+                   achievedQuantity = SUM(delivery_challan_purchase.netProductWeight)
+                                      for the challans those invoices point at
+
+                 >> The weight is NOT taken from invoices.netProductWeight -
+                    that column is not reliably filled in. It is read from the
+                    delivery challan each invoice links to through
+                    invoices.delivery_challan_id, which is where the weight
+                    actually lives.
+                 >> The challans are de-duplicated first. One challan can carry
+                    several invoices and the goods left the yard once, so
+                    summing per invoice would count the same weight twice.
+
+   A document still in approval is NOT counted - it is not achievement yet.
+   A document is placed in a week by its createdAt, which is the same basis the
+   rest of the dashboard uses.
+
+ WHO IS COUNTED
+   own   : just the logged-in user.
+   team  : the logged-in user AND everyone below them in workflow_hierarchy,
+           for the relevant department - PURCHASE for procurement, SALE for
+           sales. The leader's own numbers are included in the team totals,
+           matching the existing team-performance endpoints.
+
+ NO PLAN FOR THAT MONTH
+   You still get every week of the month, with assignedQuantity 0 and the real
+   achieved figures. That way work done without a plan is still visible.
+
+
+================================================================================
+ 6. ERROR RESPONSES
+================================================================================
+
+ 400  Bad month
+      { "success": false,
+        "message": "month must be a whole number between 1 and 12" }
+
+ 400  Bad year
+      { "success": false,
+        "message": "year must be a whole number between 2000 and 2100" }
+
+ 401  No or invalid token
+      { "status": "fail", "message": "You are not logged in" }
+
+ 401  Token has no resolvable user
+      { "success": false, "message": "User not authenticated" }
+
+ 500  Anything else
+      { "success": false, "message": "<error message>" }
+
+
+================================================================================
+ 7. CURL EXAMPLES
+================================================================================
+
+ TOKEN=$(curl -s -X POST http://localhost:4000/auth/login \
+   -H "Content-Type: application/json" \
+   -d '{"uid":"EMP0001","password":"secret"}' | jq -r .access_token)
+
+ # 1 - own procurement, current month
+ curl -H "Authorization: Bearer $TOKEN" \
+   "http://localhost:4000/dashboard/business-plan/weekly/procurement/own"
+
+ # 2 - own sales, August 2026
+ curl -H "Authorization: Bearer $TOKEN" \
+   "http://localhost:4000/dashboard/business-plan/weekly/sales/own?month=8&year=2026"
+
+ # 3 - team procurement, August 2026
+ curl -H "Authorization: Bearer $TOKEN" \
+   "http://localhost:4000/dashboard/business-plan/weekly/procurement/team?month=8&year=2026"
+
+ # 4 - team sales, August 2026
+ curl -H "Authorization: Bearer $TOKEN" \
+   "http://localhost:4000/dashboard/business-plan/weekly/sales/team?month=8&year=2026"
+
+
+================================================================================
+ 8. WHERE THE CODE LIVES
+================================================================================
+
+ Service     src/dashboard/service/weeklyBusinessPlan.service.ts
+ Endpoints   src/dashboard/controller/dashboard.controller.ts
+ Tests       src/test/service/weeklyBusinessPlan.spec.ts   (week bucketing)
+ DI          TYPES.WeeklyBusinessPlanService in src/types.ts,
+             bound in src/inversify.config.ts
+
+
+================================================================================
+ 9. ONE THING TO BE AWARE OF
+================================================================================
+
+ The tables procurement_achievements and sales_achievements exist in the schema
+ but nothing in the codebase ever writes a row to them. These endpoints
+ therefore do NOT read them - "achieved" is computed from the GRNs and invoices
+ themselves, which is what the rest of the dashboard already does and is the
+ only source with real data in it.
+
+ If those achievement tables are meant to be populated later, these endpoints
+ should be revisited so the two definitions of "achieved" do not diverge.
+
+ Second: procurement_targets and sales_targets number their months differently
+ (0-based versus 1-based). These endpoints hide that from callers, but every
+ other query against those tables has to know about it. Worth normalising the
+ two to one convention when there is a chance to migrate the data.

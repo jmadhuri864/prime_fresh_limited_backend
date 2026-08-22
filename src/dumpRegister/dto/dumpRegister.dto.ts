@@ -60,9 +60,15 @@ export interface CreateDumpRegisterDto {
 
 export interface UpdateDumpProductInputDto {
   id?: string | null;
+  /** product id — accepted as productName or productId, same as create */
   productName?: string | null;
+  productId?: string | null;
+  /** variant id — accepted as variant or variantId, same as create */
   variant?: string | null;
+  variantId?: string | null;
+  /** uom id — accepted as uom or uomId, same as create */
   uom?: string | null;
+  uomId?: string | null;
   quantity?: number | null;
   unitPrice?: number | null;
   amount?: number | null;

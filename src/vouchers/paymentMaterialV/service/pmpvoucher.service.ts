@@ -13,7 +13,7 @@ import { DocumentStatus, DocumentTypeEnum } from '../../../approvalFlow/entity/d
 import { In, DataSource } from 'typeorm';
 
 import { createHash } from 'crypto';
-import { CreatePMPVoucherDto, PMPVoucherListItemDto, PMPVoucherDetailDto, UpdatePMPVoucherDto } from './pmpVoucher.dto';
+import { CreatePMPVoucherDto, PMPVoucherListItemDto, PMPVoucherDetailDto, UpdatePMPVoucherDto } from '../dto/pmpVoucher.dto';
 import { formatAddress } from '../../../utils/addressFormate.utils';
 import { BulkDeleteResultDto, DeleteResultDto } from '../../../global/general.dto';
 import { string } from 'zod';

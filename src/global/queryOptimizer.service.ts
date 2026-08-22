@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { SelectQueryBuilder, Repository } from 'typeorm';
+import { ObjectLiteral, SelectQueryBuilder, Repository } from 'typeorm';
 
 export interface OptimizedQueryOptions {
   select?: string[];
@@ -15,7 +15,7 @@ export class QueryOptimizerService {
   /**
    * Optimize SELECT queries by only fetching required fields
    */
-  optimizeSelect<T>(
+  optimizeSelect<T extends ObjectLiteral>(
     queryBuilder: SelectQueryBuilder<T>,
     options: OptimizedQueryOptions
   ): SelectQueryBuilder<T> {
@@ -53,7 +53,7 @@ export class QueryOptimizerService {
   /**
    * Create optimized pagination query
    */
-  createPaginatedQuery<T>(
+  createPaginatedQuery<T extends ObjectLiteral>(
     repository: Repository<T>,
     page: number = 1,
     limit: number = 10,
@@ -73,7 +73,7 @@ export class QueryOptimizerService {
   /**
    * Batch process large datasets
    */
-  async processBatch<T>(
+  async processBatch<T extends ObjectLiteral>(
     repository: Repository<T>,
     batchSize: number = 1000,
     processor: (batch: T[]) => Promise<void>
@@ -105,7 +105,7 @@ export class QueryOptimizerService {
   /**
    * Create efficient search query with full-text search
    */
-  createSearchQuery<T>(
+  createSearchQuery<T extends ObjectLiteral>(
     repository: Repository<T>,
     searchTerm: string,
     searchFields: string[],

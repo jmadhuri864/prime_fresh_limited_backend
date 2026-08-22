@@ -13,6 +13,6 @@ export class ApprovalHierarchy  extends Model{
   @Column()
   description: string;
 
-  @OneToMany(() => ApprovalLevel, (level) => level.hierarchy)
+  @OneToMany(() => ApprovalLevel, "hierarchy")
   levels: ApprovalLevel[];
 }

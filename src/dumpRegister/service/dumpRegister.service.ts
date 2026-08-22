@@ -162,7 +162,7 @@ const serialNo = await this.generateSerialNo();
         
 
         
-        // Create DumpProduct records and update inventory
+        // Create DumpProduct records
         for (const productData of data.dumpProducts) {
           
           // Handle both field name variations
@@ -202,48 +202,10 @@ const serialNo = await this.generateSerialNo();
           const dumpProduct = queryRunner.manager.create(this.dumpProductRepository.target, dumpProductData);
           await queryRunner.manager.save(dumpProduct);
 
-          // Update inventory stock
-          const companyId = data.companyId || data.companyName;
-          const locationId = data.locationId || data.location;
-
-          let stock = await queryRunner.manager.findOne(this.inventoryStockRepository.target, {
-            where: {
-              company: { id: companyId! },
-              location: { id: locationId! },
-              product: { id: productId },
-              variant: variantId ? { id: variantId } : IsNull(),
-            },
-          });
-
-          if (!stock) {
-            // Create new stock record if it doesn't exist
-            const stockData: Record<string, any> = {
-              company: { id: companyId },
-              location: { id: locationId },
-              product: { id: productId },
-              inwardQty: 0,
-              inwardAmt: 0,
-              dumpQty: dumpQty,
-              dumpAmt: dumpAmt,
-            };
-
-            if (variantId) {
-              stockData.variant = { id: variantId };
-            }
-
-            stock = queryRunner.manager.create(this.inventoryStockRepository.target, stockData);
-          } else {
-            // Update existing stock
-            stock.inwardQty = Number(stock.inwardQty ?? 0) - dumpQty;
-            stock.inwardAmt = Number(stock.inwardAmt ?? 0) - dumpAmt;
-            stock.dumpQty = Number(stock.dumpQty ?? 0) + dumpQty;
-            stock.dumpAmt = Number(stock.dumpAmt ?? 0) + dumpAmt;
-          }
-
-          if (stock) {
-            await queryRunner.manager.save(stock);
-            //console.log(`Updated stock for variant ${variantId}: -${dumpQty} inwardQty, +${dumpQty} dumpQty`);
-          }
+          // Inventory is NOT touched here.
+          // inwardQty/inwardAmt are reduced and dumpQty/dumpAmt increased only
+          // when this Dump Register's document reaches DocumentStatus.COMPLETE
+          // — see InventoryMovementService.applyDumpRegister().
         }
 
         // Commit transaction - all operations succeeded
@@ -653,17 +615,25 @@ public async updateDumpRegister(
     
     await this.dumpProductRepository.delete({ dumpRegister: { id } });
 
-    const newDumpProducts = dumpProducts.map(product =>
-      this.dumpProductRepository.create({
+    // Accept the same field aliases the create path accepts. The edit form
+    // posts back the create payload shape (productId/variantId/uomId); reading
+    // only productName/variant/uom silently dropped the variant, which then
+    // moved stock against a NULL-variant inventory_stock row.
+    const newDumpProducts = dumpProducts.map(product => {
+      const productId = product.productId || product.productName;
+      const variantId = product.variantId || product.variant;
+      const uomId = product.uomId || product.uom;
+
+      return this.dumpProductRepository.create({
         dumpRegister: existingDumpRegister,
-        productName: product.productName ? ({ id: product.productName } as any) : undefined,
-        variant: product.variant ? ({ id: product.variant } as any) : undefined,
-        uom: product.uom ? ({ id: product.uom } as any) : undefined,
+        productName: productId ? ({ id: productId } as any) : undefined,
+        variant: variantId ? ({ id: variantId } as any) : undefined,
+        uom: uomId ? ({ id: uomId } as any) : undefined,
         quantity: product.quantity ?? undefined,
         unitPrice: product.unitPrice ?? undefined,
         amount: product.amount ?? undefined,
-      }),
-    );
+      });
+    });
 
     await this.dumpProductRepository.save(newDumpProducts as any);
     existingDumpRegister.dumpProducts = newDumpProducts;

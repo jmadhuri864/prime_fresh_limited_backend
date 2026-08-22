@@ -11,8 +11,8 @@ import logger from '../../utils/logger';
 import { FinalizerBlockRepository } from '../repository/finalizerBlock.repository';
 import { ApprovalLevelRepository } from '../repository/approvalLevel.repository';
 import { ApproverBlockRepository } from '../repository/approverBlock.repository';
-import { ApprovalFlow } from '../entity/approvalFlow.entity';
 import { User } from '../../employee/entity/user.entity';
+import { CacheService } from '../../global/cache.service';
 type ApproverBlockInput = {
   hierarchy: number;
   minAmtCanApprove: number;
@@ -33,7 +33,25 @@ export class ApprovalFlowService {
     private approvalLevelRepository: ApprovalLevelRepository,
     @inject(TYPES.ApproverBlockRepository)
     private approverBlockRepository: ApproverBlockRepository,
+    @inject(TYPES.CacheService)
+    private readonly cacheService: CacheService,
   ) {}
+
+  private readonly CACHE_PREFIX = 'approvalFlow';
+  private readonly CACHE_TTL = 180; // 3 minutes
+
+  private async invalidateCache(id?: string): Promise<void> {
+    const tasks: Promise<any>[] = [
+      this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:list:*`),
+    ];
+    if (id) {
+      tasks.push(
+        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
+      );
+    }
+    await Promise.all(tasks);
+  }
 
   async create(data: {
     creator: string;
@@ -148,10 +166,16 @@ export class ApprovalFlowService {
     
     logger.log('Approval flow', approvalFlow);
 
-    return await this.approvalFlowRepository.save(approvalFlow);
+    const saved = await this.approvalFlowRepository.save(approvalFlow);
+    await this.invalidateCache();
+    return saved;
   }
 
  async getAll(type?: string, page?: number, limit?: number): Promise<any> {
+    const cacheKey = `${this.CACHE_PREFIX}:list:${type ?? 'all'}:${page ?? 0}:${limit ?? 0}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const query = this.approvalFlowRepository
       .createQueryBuilder('approvalflows')
       .leftJoinAndSelect('approvalflows.creator', 'creator')
@@ -239,11 +263,11 @@ export class ApprovalFlowService {
         //     lastName: verifier.lastName,
         //   };
         // }),
-        verifiers: result.verifiers.map((verifier) => {
+        verifiers: (result.verifiers ?? []).map((verifier) => {
           return `${verifier.firstName} ${verifier.lastName}`;
         }),
         approvers:
-          result.approvers !== null
+          result.approvers
             ? {
                 firstApprover: result.approvers.firstApprover
                   ? mapApprover(result.approvers.firstApprover)
@@ -267,35 +291,38 @@ export class ApprovalFlowService {
             : null,
 
         finalizers: {
-          firstFinalizers: result.finalizers.firstFinalizers
-            ? result.finalizers?.firstFinalizers.map(
-                (firstFinalizer) =>
-                  `${firstFinalizer.firstName} ${firstFinalizer.lastName}`,
-              )
-            : [],
-          secondFinalizers: result.finalizers.secondFinalizers
-            ? result.finalizers?.secondFinalizers.map(
-                (secondFinalizers) =>
-                  `${secondFinalizers.firstName} ${secondFinalizers.lastName}`,
-              )
-            : [],
+          firstFinalizers:
+            result.finalizers?.firstFinalizers?.map(
+              (firstFinalizer) =>
+                `${firstFinalizer.firstName} ${firstFinalizer.lastName}`,
+            ) ?? [],
+          secondFinalizers:
+            result.finalizers?.secondFinalizers?.map(
+              (secondFinalizers) =>
+                `${secondFinalizers.firstName} ${secondFinalizers.lastName}`,
+            ) ?? [],
         },
       };
-      return result;
     });
     const effectivePage = isPaginated ? page! : 1;
     const effectiveLimit = isPaginated ? limit! : total;
 
-    return {
+    const result = {
       data: formattedResponse,
       total,
       page: effectivePage,
       limit: effectiveLimit,
       totalPages: isPaginated ? Math.ceil(total / limit!) : 1,
     };
+    await this.cacheService.set(cacheKey, result, this.CACHE_TTL);
+    return result;
   }
 
   async getbyidforview(id: string): Promise<any> {
+    const cacheKey = `${this.CACHE_PREFIX}:view:${id}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const result = await this.approvalFlowRepository
       .createQueryBuilder('approvalflows')
       .leftJoinAndSelect('approvalflows.creator', 'creator')
@@ -366,10 +393,14 @@ export class ApprovalFlowService {
       },
     };
 
+    await this.cacheService.set(cacheKey, formattedResponse, this.CACHE_TTL);
     return formattedResponse;
   }
 
   async getByIdForUpdate(id: string): Promise<any> {
+    const cacheKey = `${this.CACHE_PREFIX}:update:${id}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
     const result = await this.approvalFlowRepository
       .createQueryBuilder('approvalflows')
       .leftJoinAndSelect('approvalflows.creator', 'creator')
@@ -430,6 +461,7 @@ export class ApprovalFlowService {
       },
     };
 
+    await this.cacheService.set(cacheKey, formattedResponse, this.CACHE_TTL);
     return formattedResponse;
   }
 
@@ -583,114 +615,76 @@ export class ApprovalFlowService {
     Object.assign(result, rest);
 
     const updated = await this.approvalFlowRepository.save(result);
+    await this.invalidateCache(id);
     return updated;
   }
 
+  /**
+   * Swap every reference to `oldUserId` for `newUserId` across the approval
+   * system. A user can only be referenced from five places, so rather than
+   * hydrating every flow with its full relation tree and re-saving each one,
+   * each place is rewritten with a single statement.
+   *
+   * The junction tables are keyed on (owner_id, user_id), so a plain UPDATE
+   * would violate that key whenever the owner already lists the new user.
+   * Deleting just the old rows that would collide keeps the previous
+   * "drop the old user, add the new one only if missing" behaviour.
+   */
   async replaceUserInApprovalSystem(
     oldUserId: string,
     newUserId: string,
   ): Promise<void> {
+    if (oldUserId === newUserId) return;
+
     await AppDataSource.transaction(async (manager) => {
       const userRepo = manager.getRepository(User);
-      const approvalFlowRepo = manager.getRepository(ApprovalFlow);
 
-      const oldUser = await userRepo.findOneOrFail({
-        where: { id: oldUserId },
-      });
-      const newUser = await userRepo.findOneOrFail({
-        where: { id: newUserId },
-      });
+      await userRepo.findOneOrFail({ where: { id: oldUserId } });
+      await userRepo.findOneOrFail({ where: { id: newUserId } });
 
-      const allFlows = await approvalFlowRepo.find({
-        relations: [
-          'creator',
-          'verifiers',
-          'finalizers',
-          'finalizers.firstFinalizers',
-          'finalizers.secondFinalizers',
-          'approvers',
-          'approvers.firstApprover',
-          'approvers.firstApprover.users',
-          'approvers.secondApprover',
-          'approvers.secondApprover.users',
-          'approvers.thirdApprover',
-          'approvers.thirdApprover.users',
-          'approvers.fourthApprover',
-          'approvers.fourthApprover.users',
-          'approvers.fifthApprover',
-          'approvers.fifthApprover.users',
-          'approvers.sixthApprover',
-          'approvers.sixthApprover.users',
-        ],
-      });
+      const junctions = [
+        { table: 'approval_flow_verifiers', owner: 'approval_flow_id' },
+        { table: 'approver_block_users', owner: 'block_id' },
+        {
+          table: 'finalizer_block_first_finalizers',
+          owner: 'finalizer_block_id',
+        },
+        {
+          table: 'finalizer_block_second_finalizers',
+          owner: 'finalizer_block_id',
+        },
+      ];
 
-      for (const flow of allFlows) {
-        // Replace creator
-        if (flow.creator?.id === oldUserId) {
-          flow.creator = newUser;
-        }
-        // Replace in verifiers
-        flow.verifiers = this.replaceUserInArray(
-          flow.verifiers,
-          oldUserId,
-          newUser,
+      for (const { table, owner } of junctions) {
+        await manager.query(
+          `DELETE FROM "${table}"
+            WHERE "user_id" = $1
+              AND "${owner}" IN (
+                SELECT "${owner}" FROM "${table}" WHERE "user_id" = $2
+              )`,
+          [oldUserId, newUserId],
         );
 
-        // Replace in finalizers
-        if (flow.finalizers) {
-          flow.finalizers.firstFinalizers = this.replaceUserInArray(
-            flow.finalizers.firstFinalizers,
-            oldUserId,
-            newUser,
-          );
-          flow.finalizers.secondFinalizers = this.replaceUserInArray(
-            flow.finalizers.secondFinalizers,
-            oldUserId,
-            newUser,
-          );
-          await manager.save(flow.finalizers);
-        }
-
-        // Replace in each approver block
-        const level = flow.approvers;
-        if (level) {
-          const blocks = [
-            level.firstApprover,
-            level.secondApprover,
-            level.thirdApprover,
-            level.fourthApprover,
-            level.fifthApprover,
-            level.sixthApprover,
-          ];
-          for (const block of blocks) {
-            if (block) {
-              block.users = this.replaceUserInArray(
-                block.users,
-                oldUserId,
-                newUser,
-              );
-              await manager.save(block);
-            }
-          }
-        }
-
-        await manager.save(flow); // Save main ApprovalFlow if needed
+        await manager.query(
+          `UPDATE "${table}" SET "user_id" = $2 WHERE "user_id" = $1`,
+          [oldUserId, newUserId],
+        );
       }
+
+      await manager.query(
+        `UPDATE "approval_flows"
+            SET "creator_id" = $2, "updatedAt" = now()
+          WHERE "creator_id" = $1`,
+        [oldUserId, newUserId],
+      );
     });
+
+    // Invalidate all approval flow cache entries since user references changed across all flows
+    await this.invalidatePattern();
   }
 
-  private replaceUserInArray(
-    users: User[],
-    oldUserId: string,
-    newUser: User,
-  ): User[] {
-    const hasOldUser = users.some((u) => u.id === oldUserId);
-    if (!hasOldUser) return users;
-
-    const filtered = users.filter((u) => u.id !== oldUserId);
-    const alreadyExists = filtered.some((u) => u.id === newUser.id);
-    if (!alreadyExists) filtered.push(newUser);
-    return filtered;
+  private async invalidatePattern(): Promise<void> {
+    await this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:*`);
   }
 
   //TODO: Here we check approval flow for logged user

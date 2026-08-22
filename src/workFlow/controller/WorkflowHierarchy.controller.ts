@@ -6,13 +6,11 @@ import { TYPES } from "../../types";
 import { normalizeDepartment } from "../entity/workflowClosure.entity";
 import { ControllerLogger } from "../../utils/controllerLogger";
 import { WorkflowHierarchyService } from "../service/workFlowHierarchy.service";
-import { NotificationService } from "../../notification/service/notification.service";
 
 @controller("/workflow", deserializeUser, requireUser)
 export class WorkflowHierarchyController {
   constructor(
     @inject(TYPES.WorkflowHierarchyService) private workflowService: WorkflowHierarchyService,
-    @inject(TYPES.NotificationService) private notificationService: NotificationService
   ) {}
 
  
@@ -40,14 +38,14 @@ export class WorkflowHierarchyController {
 
       ControllerLogger.logSuccess('Workflow relation added', `${managerId} -> ${subordinateId}`, req, res);
 
-      // Send notification for workflow relation addition
-      const userId = res.locals.user?.id;
-      if (userId) {
-        await this.notificationService.createNoti(
-          `Workflow relation added successfully: ${managerId} -> ${subordinateId}`,
-          userId
-        );
-      }
+      // Notification removed — not needed for workflow operations
+      // const userId = res.locals.user?.id;
+      // if (userId) {
+      //   await this.notificationService.createNoti(
+      //     `Workflow relation added successfully: ${managerId} -> ${subordinateId}`,
+      //     userId
+      //   );
+      // }
 
       return res.status(201).json({
         status: "success",
@@ -83,15 +81,6 @@ export class WorkflowHierarchyController {
       );
 
       ControllerLogger.logSuccess('Bulk workflow relations added', `${relations.length} relations`, req, res);
-
-      // Send notification for bulk workflow relations addition
-      const userId = res.locals.user?.id;
-      // if (userId) {
-      //   await this.notificationService.createNoti(
-      //     `Bulk workflow relations added successfully: ${relations.length} relations`,
-      //     userId
-      //   );
-      // }
 
       return res.status(201).json({
         status: "success",

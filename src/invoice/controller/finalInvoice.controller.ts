@@ -3,6 +3,7 @@ import {
   httpPost,
   httpGet,
   httpPatch,
+  httpPut,
   request,
   requestParam,
   response,
@@ -27,10 +28,16 @@ import { CreateInvoiceDto } from '../dto/invoice.dto';
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
 import { NotificationService } from '../../notification/service/notification.service';
 import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
+import { FinalInvoiceReportService } from '../../reports/service/finalInvoiceReport.service';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { s3 } from '../../middleware/spaces.config';
 
 
 @controller('/final-invoice', deserializeUser, requireUser)
 export class FinalInvoiceController {
+  private s3Client: S3Client;
+  private bucketName: string;
+
   constructor(
     @inject(TYPES.FinalInvoiceService)
     private finalInvoiceService: FinalInvoiceService,
@@ -39,7 +46,12 @@ export class FinalInvoiceController {
     @inject(TYPES.PdfGeneratorService)
     private pdfGeneratorService: PdfGeneratorService,
     @inject(TYPES.UserActivityLogService) private activityLogService: UserActivityLogService,
-  ) {}
+    @inject(TYPES.FinalInvoiceReportService)
+    private finalInvoiceReportService: FinalInvoiceReportService,
+  ) {
+    this.s3Client = s3;
+    this.bucketName = process.env.DO_SPACES_BUCKET || 'your-bucket-name';
+  }
 
   @httpGet('/')
   public async getAllInvoices(
@@ -98,9 +110,65 @@ export class FinalInvoiceController {
   }
 
 
+  @httpPost('/export-report')
+  public async exportReport(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const buffer = await this.finalInvoiceReportService.generateInvoiceReport(req.body);
+
+      if (!buffer) {
+        ControllerLogger.logOperationFailed('Export', 'Final Invoice Report', 'No data found for the given filters', req, res);
+        return res.status(404).json({
+          status: 'error',
+          message: 'No data found for the given filters',
+        });
+      }
+
+      // Upload to DigitalOcean Spaces
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileName = `Final_Invoice_Report_${timestamp}.xlsx`;
+      const s3Key = `reports/invoice/${fileName}`;
+
+      await this.s3Client.send(new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: s3Key,
+        Body: buffer,
+        ContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ContentDisposition: `attachment; filename="${fileName}"`,
+        ACL: 'public-read' as const,
+      }));
+
+      const fileUrl = `https://${this.bucketName}.sgp1.digitaloceanspaces.com/${s3Key}`;
+
+      // Send notification
+      try {
+        const userId = res.locals.user?.id;
+        if (userId) {
+          await this.notificationService.createNoti(
+            `Final Invoice report stored in cloud: ${fileName}`,
+            userId
+          );
+        }
+      } catch (_) {}
+
+      ControllerLogger.logSuccess('Final Invoice report stored in DigitalOcean Spaces', fileUrl, req, res);
+
+      return res.status(200).json({
+        status: 'success',
+        message: 'Final Invoice report generated and stored successfully',
+        data: { fileUrl },
+      });
+    } catch (err) {
+      ControllerLogger.logError('Export Final Invoice Report', err, req, res);
+      next(err);
+    }
+  }
+
   @httpPost('/:deliveryChallanId')
-  public async createInvoice(
-    @requestParam('deliveryChallanId') deliveryChallanId: string,
+  public async createInvoice(    @requestParam('deliveryChallanId') deliveryChallanId: string,
     @request() req: Request,
     @response() res: Response,
     @next() next: NextFunction,
@@ -309,6 +377,33 @@ export class FinalInvoiceController {
     }
       catch (error) {
        ControllerLogger.logError('Final Invoices deleteed', error, req, res);
+      next(error);
+    }
+  }
+  @httpPut('/amount-status/:id')
+  public async updateAmountStatus(
+    @requestParam('id') id: string,
+    @request() req: Request<{ id: string }, {}, { ammountStatus: string }>,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const { ammountStatus: status } = req.body;
+
+      if (!status || !['paid', 'unpaid'].includes(status)) {
+        return next(new AppError(400, 'Invalid status. Must be "paid" or "unpaid"'));
+      }
+
+      const result = await this.finalInvoiceService.updateAmountStatus(id, status as any);
+
+      ControllerLogger.logSuccess('Invoice amount status updated', id, req, res);
+
+      res.status(200).json({
+        status: 'success',
+        message: `Invoice amount status updated`,
+      });
+    } catch (error) {
+      ControllerLogger.logError('Invoice amount status update', error, req, res);
       next(error);
     }
   }

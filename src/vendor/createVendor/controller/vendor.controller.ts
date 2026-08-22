@@ -323,15 +323,23 @@ public async getAllVendorsWithselectedSub(
       }
 
       const filePath = (req.file as any).location;
-      
-      const result = await this.vendorService.createVendorWithExcel(filePath);
+
+      const userId = res.locals.user?.id;
+      if (!userId) {
+        return next(new AppError(401, 'User not authenticated'));
+      }
+
+      // Every imported vendor is owned by whoever ran the import - the sheet
+      // has no say in it.
+      const summary = await this.vendorService.createVendorWithExcel(filePath, userId);
       
       // 🔔 Send notification for vendor Excel upload
       try {
         const userId = res.locals.user?.id;
         if (userId) {
           await this.notificationService.createNoti(
-            `Vendor Excel file "${req.file.filename}" uploaded successfully`,
+            `Vendor Excel imported: ${summary.created} created, ` +
+              `${summary.skipped.length} skipped, ${summary.failed.length} failed`,
             userId
           );
         }
@@ -341,8 +349,11 @@ public async getAllVendorsWithselectedSub(
       ControllerLogger.logSuccess('Vendor Excel uploaded', 'bulk', req, res);
       res.status(200).json({
         status: "success",
-        message: "Vendor data uploaded successfully",
-        data: result,
+        message:
+          `${summary.created} vendor(s) imported` +
+          (summary.skipped.length ? `, ${summary.skipped.length} skipped` : '') +
+          (summary.failed.length ? `, ${summary.failed.length} failed` : ''),
+        data: summary,
       });
     } catch (error) {
       ControllerLogger.logError('Vendor Excel upload', error, req, res);
@@ -491,7 +502,7 @@ public async getAllVendorsWithselectedSub(
         }
       }
 
-      const vendor = await this.vendorService.submitVendor(id, fileUpdates, vendorData);
+      const vendor = await this.vendorService.submitVendor(id, fileUpdates, vendorData, res.locals.user.id);
       ControllerLogger.logSuccess('Vendor submitted', id, req, res);
       return res.status(200).json({
         status: 'success',
@@ -596,6 +607,56 @@ public async getAllVendorsWithselectedSub(
 
 
 
+  @httpGet('/export/excel')
+  public async exportVendorsExcel(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const userId = res.locals.user?.id;
+      if (!userId) {
+        return next(new AppError(401, 'User not authenticated'));
+      }
+
+      const { search, sort } = req.query;
+
+      // Same options the list endpoint builds, minus page/limit - an export
+      // covers the whole filtered set, not one page of it.
+      const queryOptions: PaginationOptions = {
+        filters: {},
+        sort: (sort as string) || undefined,
+        search: (search as string) || '',
+      };
+
+      const file = await this.vendorService.exportToExcel(queryOptions, userId);
+
+      try {
+        await this.notificationService.createNoti(
+          `Vendor Excel export ready (${file.rowCount} vendors)`,
+          userId,
+        );
+      } catch (notifError) {
+        // A failed notification must not fail the export.
+      }
+
+      ControllerLogger.logList('Vendor Excel Export', req, res);
+
+      return res.status(200).json({
+        status: 'success',
+        message: `${file.rowCount} vendor(s) exported successfully`,
+        data: {
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+          totalRecords: file.rowCount,
+        },
+      });
+    } catch (error) {
+      ControllerLogger.logError('Vendor Excel export', error, req, res);
+      next(error);
+    }
+  }
+
   @httpGet('/download/template')
   public async downloadExcelTemplate(
     @request() req: Request,
@@ -603,44 +664,38 @@ public async getAllVendorsWithselectedSub(
     @next() next: NextFunction,
   ) {
     try {
-      const key = 'formats/Vendor_Form.xlsx';
-      
-      
-      
-      
-      const fileUrl = `https://${process.env.DO_SPACES_BUCKET}.sgp1.digitaloceanspaces.com/${key}`;
-      
-      
+      // Generated from the same column map the importer reads, so the template
+      // can never drift out of sync with what the upload endpoint accepts.
+      const file = await this.vendorService.buildExcelTemplate();
+
       try {
         const userId = res.locals.user?.id;
         if (userId) {
           await this.notificationService.createNoti(
-            `Vendor template "${key.split('/').pop()}" accessed`,
-            userId
+            `Vendor template "${file.fileName}" generated`,
+            userId,
           );
         }
       } catch (notifError) {
+        // A failed notification must not fail the download.
       }
-      
-      ControllerLogger.logList('Vendor Template URL Generated', req, res);
-      
-      // Return the URL in JSON response
+
+      ControllerLogger.logList('Vendor Template Generated', req, res);
+
       res.status(200).json({
         status: 'success',
         message: 'Template URL generated successfully',
         data: {
-          // templateUrl: fileUrl,
-          // fileName: key.split('/').pop(),
-          downloadUrl: fileUrl, // Alternative property name for clarity
-          //fileKey: key // Include the key for reference
-        }
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+        },
       });
     } catch (error) {
       ControllerLogger.logError('Generate Vendor Template URL', error, req, res);
       next(error);
     }
+  }
 
-}
  @httpDelete("/delete/multiple")
 public async softDeleteMultipleVendors(
   @request() req: Request,

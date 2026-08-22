@@ -49,17 +49,24 @@ export class SSEService {
    * Add a new SSE client connection
    */
   addClient(userId: string, clientId: string, res: Response): void {
-    // Get existing clients for this user
-    const userClients = this.clients.get(userId) || [];
-    
-    // Add new client
-    userClients.push({
+    // Close and evict all existing connections for this user before adding the new one.
+    // This prevents stale tabs / React-StrictMode double-mounts from accumulating
+    // connections that each receive a copy of every subsequent notification.
+    const existingClients = this.clients.get(userId);
+    if (existingClients && existingClients.length > 0) {
+      existingClients.forEach(client => {
+        try { client.response.end(); } catch (_) {}
+      });
+      this.clients.delete(userId);
+      this.messageBuffer.delete(userId);
+      logger.info(`SSE evicted ${existingClients.length} stale connection(s) for user: ${userId}`);
+    }
+
+    this.clients.set(userId, [{
       id: clientId,
       userId,
       response: res,
-    });
-    
-    this.clients.set(userId, userClients);
+    }]);
 
     logger.info(`SSE client connected: ${clientId} for user: ${userId}`);
 

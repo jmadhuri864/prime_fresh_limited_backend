@@ -10,6 +10,7 @@ import { ProcurementTargetWeekRepository } from "../repository/procurmentTargetW
 import { WorkflowHierarchyRepository } from "../../workFlow/repository/WorkflowHierarchy.repository";
 import * as ExcelJS from 'exceljs';
 import { AppDataSource } from "../../utils/data-source";
+import { toPlanMonth } from '../../utils/planMonth';
 
 import * as path from 'path';
 import * as fs from 'fs';
@@ -19,7 +20,51 @@ import { ProcurementTargetProduct } from "../entity/procurementTargetProduct.ent
 import { Product } from "../../product/createproduct/entity/product.entity";
 import { ProcurementTargetWeek } from "../entity/procurementTargetWeek.entity";
 import { User } from "../../employee/entity/user.entity";
+import { RfpaRepository } from "../../rfpa/repository/rfpa.repository";
+import { DealSlipRepository } from "../../dealSlip/repository/dealSlip.repository";
+import { GrnRepository } from "../../grn/repository/grn.repository";
 
+
+/** One GRN line, reduced to what the weekly roll-up needs. */
+export interface AchievedLine {
+    productId: string;
+    netWeight: number;
+    amount: number;
+    at: Date;
+}
+
+/**
+ * Net weight procured inside one plan week.
+ *
+ * `productId` narrows it to a single product; pass null for everything received
+ * that week, whatever the product. The week-wise view wants the total - a
+ * buyer's week-3 figure is everything they brought in, not only the lines that
+ * happen to appear in the plan - while the per-product view wants one product.
+ *
+ * The week boundaries come out of the plan as dates with no time on them, so
+ * `end` is pushed to the end of its day. Without that, a GRN raised at 11am on
+ * the last day of a week falls outside its own week and the quantity silently
+ * lands nowhere.
+ */
+export function sumAchievedInWeek(
+    lines: AchievedLine[],
+    productId: string | null,
+    start: Date | null,
+    end: Date | null,
+): number {
+    if (!start || !end) return 0;
+
+    const from = new Date(start);
+    from.setHours(0, 0, 0, 0);
+
+    const to = new Date(end);
+    to.setHours(23, 59, 59, 999);
+
+    return lines
+        .filter(line => productId === null || line.productId === productId)
+        .filter(line => line.at >= from && line.at <= to)
+        .reduce((sum, line) => sum + line.netWeight, 0);
+}
 
 @injectable()
 export class ProcurementTargetService {
@@ -37,7 +82,13 @@ export class ProcurementTargetService {
         @inject(TYPES.ProcurementTargetAchievementRepository)
         private procurementAchievementRepo: ProcurementTargetAchievementRepository,
         @inject(TYPES.WorkflowHierarchyRepository)
-        private workflowHierarchyRepo: WorkflowHierarchyRepository
+        private workflowHierarchyRepo: WorkflowHierarchyRepository,
+        @inject(TYPES.RfpaRepository)
+        private rfpaRepository: RfpaRepository,
+        @inject(TYPES.DealSlipRepository)
+        private dealSlipRepository: DealSlipRepository,
+        @inject(TYPES.GrnRepository)
+        private grnRepository: GrnRepository
     ) {}
 
     async create(payload: any) {
@@ -563,6 +614,61 @@ async getMonthlyPlanUpdateStructured(
     }
 
     // Get target performance
+    /**
+     * Procurement actually done by an employee in a month, as one row per
+     * GRN line.
+     *
+     * The `procurement_achievements` table is not used: nothing in the codebase
+     * ever writes a row to it, so reading it made every "achieved" figure zero
+     * even when the employee had completed GRNs. The GRNs themselves are the
+     * record of what was procured, which is what the rest of the dashboard
+     * measures too.
+     *
+     * Only GRNs whose document reached COMPLETE are counted - one still moving
+     * through approval is not procurement yet.
+     *
+     * Fetched once per request and bucketed in memory, rather than a query per
+     * week per product.
+     */
+    private async fetchAchievedLines(
+        employeeId: string,
+        month: number,
+        year: number,
+    ): Promise<AchievedLine[]> {
+        // A calendar month with room either side, so a plan week that runs a
+        // day past the month boundary still finds its GRNs.
+        const from = new Date(Date.UTC(year, month - 2, 1, 0, 0, 0, 0));
+        const to = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+
+        const rows = await AppDataSource.query(
+            `
+            SELECT gp.product_id            AS "productId",
+                   gp."netWeight"           AS "netWeight",
+                   gp.amount                AS "amount",
+                   grn."createdAt"          AS "at"
+              FROM grn_products gp
+              INNER JOIN grns grn
+                      ON grn.id = gp.grn_id
+              INNER JOIN documents doc
+                      ON doc.document_type_id = grn.id::text
+                     AND doc.type = $1
+                     AND doc.status = $2
+             WHERE grn.createdby_id = $3::uuid
+               AND grn."createdAt" BETWEEN $4 AND $5
+               AND grn."isDeleted" = false
+               AND gp."isDeleted" = false
+            `,
+            ['grn', 'COMPLETE', employeeId, from, to],
+        );
+
+        return rows.map((row: any) => ({
+            productId: String(row.productId ?? ''),
+            netWeight: Number(row.netWeight ?? 0),
+            amount: Number(row.amount ?? 0),
+            at: new Date(row.at),
+        }));
+    }
+
     async getTargetPerformance(
         employeeId: string,
         month: number,
@@ -573,7 +679,10 @@ async getMonthlyPlanUpdateStructured(
             const target = await this.procurementTargetRepository.findOne({
                 where: {
                     employee: { id: employeeId },
-                    month: month,
+                    // The URL carries a 1-12 month; this table stores 0-11.
+                    // Passing it through unconverted read the *following*
+                    // month's plan, which came back as "no plan found".
+                    month: toPlanMonth(month, 'procurement'),
                     year: year
                 },
                 relations: ['employee']
@@ -598,9 +707,13 @@ async getMonthlyPlanUpdateStructured(
                 return [];
             }
 
+            const achievedLines = await this.fetchAchievedLines(employeeId, month, year);
+
             const weeklyDataMap = new Map<number, {
                 weekNo: number;
                 period: string;
+                start: Date | null;
+                end: Date | null;
                 targetAssigned: number;
                 targetAchieved: number;
             }>();
@@ -614,12 +727,6 @@ async getMonthlyPlanUpdateStructured(
                 for (const week of weeklyTargets) {
                     const weekTarget = Number(week.qty || 0);
 
-                    const achievements = await this.procurementAchievementRepo.find({
-                        where: { weeklyProcurement: { id: week.id } }
-                    });
-
-                    const weekAchieved = achievements.reduce((sum, ach) => sum + Number(ach.achievedQty || 0), 0);
-
                     if (!weeklyDataMap.has(week.weekNo)) {
                         const startDate = week.weekStartDate ? new Date(week.weekStartDate) : null;
                         const endDate = week.weekEndDate ? new Date(week.weekEndDate) : null;
@@ -627,6 +734,8 @@ async getMonthlyPlanUpdateStructured(
                         weeklyDataMap.set(week.weekNo, {
                             weekNo: week.weekNo,
                             period: `${startDate?.toISOString().split('T')[0] || ''} to ${endDate?.toISOString().split('T')[0] || ''}`,
+                            start: startDate,
+                            end: endDate,
                             targetAssigned: 0,
                             targetAchieved: 0
                         });
@@ -634,8 +743,23 @@ async getMonthlyPlanUpdateStructured(
 
                     const weekData = weeklyDataMap.get(week.weekNo)!;
                     weekData.targetAssigned += weekTarget;
-                    weekData.targetAchieved += weekAchieved;
                 }
+            }
+
+            // Achieved is summed once per week, not once per planned product.
+            // Adding it inside the product loop would count the same week's
+            // procurement again for every product in the plan.
+            //
+            // With no productId filter this is everything received that week,
+            // including products the plan never mentioned - the row is a
+            // week total, and getProcurementPerProduct is the per-product view.
+            for (const weekData of weeklyDataMap.values()) {
+                weekData.targetAchieved = sumAchievedInWeek(
+                    achievedLines,
+                    productId ?? null,
+                    weekData.start,
+                    weekData.end,
+                );
             }
 
             const weeklyBreakdown = Array.from(weeklyDataMap.values())
@@ -677,7 +801,10 @@ async getMonthlyPlanUpdateStructured(
             const target = await this.procurementTargetRepository.findOne({
                 where: {
                     employee: { id: employeeId },
-                    month: month,
+                    // The URL carries a 1-12 month; this table stores 0-11.
+                    // Passing it through unconverted read the *following*
+                    // month's plan, which came back as "no plan found".
+                    month: toPlanMonth(month, 'procurement'),
                     year: year
                 },
                 relations: ['employee']
@@ -696,6 +823,8 @@ async getMonthlyPlanUpdateStructured(
             if (targetProducts.length === 0) {
                 return [];
             }
+
+            const achievedLines = await this.fetchAchievedLines(employeeId, month, year);
 
             const productDataMap = new Map<string, {
                 productId: string;
@@ -720,11 +849,14 @@ async getMonthlyPlanUpdateStructured(
                     const weekTarget = Number(week.qty || 0);
                     productTargetTotal += weekTarget;
 
-                    const achievements = await this.procurementAchievementRepo.find({
-                        where: { weeklyProcurement: { id: week.id } }
-                    });
-
-                    const weekAchieved = achievements.reduce((sum, ach) => sum + Number(ach.achievedQty || 0), 0);
+                    // Real GRN lines, not the never-populated
+                    // procurement_achievements table.
+                    const weekAchieved = sumAchievedInWeek(
+                        achievedLines,
+                        String(targetProduct.product?.id ?? ''),
+                        week.weekStartDate ? new Date(week.weekStartDate) : null,
+                        week.weekEndDate ? new Date(week.weekEndDate) : null,
+                    );
                     productAchievedTotal += weekAchieved;
                 }
 
@@ -770,6 +902,168 @@ async getMonthlyPlanUpdateStructured(
         }
     }
 
+    // Get procurement report (RFPA + Deal Slip + GRN documents with target vs achievement)
+    async getProcurementReport(filters: {
+        employeeId: string;
+        startDate: Date;
+        endDate: Date;
+        company?: string;
+        location?: string;
+        vendor?: string;
+        farmer?: string;
+        product?: string;
+    }) {
+        const { employeeId, startDate, endDate, company, location, vendor, farmer, product } = filters;
+
+        // ── RFPA documents ───────────────────────────────────────────────────
+        const rfpaQuery = this.rfpaRepository
+            .createQueryBuilder('rfpa')
+            .leftJoinAndSelect('rfpa.rfpaProducts', 'rfpaProducts')
+            .leftJoinAndSelect('rfpaProducts.productName', 'rfpaProductName')
+            .leftJoinAndSelect('rfpa.selectedVendor', 'selectedVendor')
+            .leftJoinAndSelect('rfpa.selectedFarmer', 'selectedFarmer')
+            .leftJoinAndSelect('rfpa.companyName', 'companyName')
+            .leftJoinAndSelect('rfpa.purchaseLocation', 'purchaseLocation')
+            .where('rfpa.createdBy = :employeeId', { employeeId })
+            .andWhere('rfpa.createdAt >= :startDate', { startDate })
+            .andWhere('rfpa.createdAt <= :endDate', { endDate })
+            .andWhere('rfpa.isDeleted = false');
+
+        if (company) {
+            rfpaQuery.andWhere('LOWER(companyName.name) LIKE LOWER(:company)', { company: `%${company}%` });
+        }
+        if (location) {
+            rfpaQuery.andWhere('LOWER(purchaseLocation.name) LIKE LOWER(:location)', { location: `%${location}%` });
+        }
+        if (vendor) {
+            rfpaQuery.andWhere('LOWER(selectedVendor.companyName) LIKE LOWER(:vendor)', { vendor: `%${vendor}%` });
+        }
+        if (farmer) {
+            rfpaQuery.andWhere(
+                `LOWER(CONCAT(selectedFarmer.farmerfName, ' ', selectedFarmer.farmerlName)) LIKE LOWER(:farmer)`,
+                { farmer: `%${farmer}%` }
+            );
+        }
+        if (product) {
+            rfpaQuery.andWhere('LOWER(rfpaProductName.name) LIKE LOWER(:product)', { product: `%${product}%` });
+        }
+
+        const rfpaDocuments = await rfpaQuery.orderBy('rfpa.createdAt', 'DESC').getMany();
+
+        // ── Deal Slip documents ──────────────────────────────────────────────
+        const dealSlipQuery = this.dealSlipRepository
+            .createQueryBuilder('dealSlip')
+            .leftJoinAndSelect('dealSlip.rfpa', 'rfpa')
+            .leftJoinAndSelect('rfpa.rfpaProducts', 'rfpaProducts')
+            .leftJoinAndSelect('rfpaProducts.productName', 'rfpaProductName')
+            .leftJoinAndSelect('rfpa.selectedVendor', 'selectedVendor')
+            .leftJoinAndSelect('rfpa.selectedFarmer', 'selectedFarmer')
+            .leftJoinAndSelect('rfpa.companyName', 'companyName')
+            .leftJoinAndSelect('rfpa.purchaseLocation', 'purchaseLocation')
+            .where('dealSlip.createdBy = :employeeId', { employeeId })
+            .andWhere('dealSlip.createdAt >= :startDate', { startDate })
+            .andWhere('dealSlip.createdAt <= :endDate', { endDate })
+            .andWhere('dealSlip.isDeleted = false');
+
+        if (company) {
+            dealSlipQuery.andWhere('LOWER(companyName.name) LIKE LOWER(:company)', { company: `%${company}%` });
+        }
+        if (location) {
+            dealSlipQuery.andWhere('LOWER(purchaseLocation.name) LIKE LOWER(:location)', { location: `%${location}%` });
+        }
+        if (vendor) {
+            dealSlipQuery.andWhere('LOWER(selectedVendor.companyName) LIKE LOWER(:vendor)', { vendor: `%${vendor}%` });
+        }
+        if (farmer) {
+            dealSlipQuery.andWhere(
+                `LOWER(CONCAT(selectedFarmer.farmerfName, ' ', selectedFarmer.farmerlName)) LIKE LOWER(:farmer)`,
+                { farmer: `%${farmer}%` }
+            );
+        }
+        if (product) {
+            dealSlipQuery.andWhere('LOWER(rfpaProductName.name) LIKE LOWER(:product)', { product: `%${product}%` });
+        }
+
+        const dealSlipDocuments = await dealSlipQuery.orderBy('dealSlip.createdAt', 'DESC').getMany();
+
+        // ── GRN documents ────────────────────────────────────────────────────
+        const grnQuery = this.grnRepository
+            .createQueryBuilder('grn')
+            .leftJoinAndSelect('grn.grnProducts', 'grnProducts')
+            .leftJoinAndSelect('grnProducts.productName', 'grnProductName')
+            .leftJoinAndSelect('grn.selectedVendor', 'selectedVendor')
+            .leftJoinAndSelect('grn.selectedFarmer', 'selectedFarmer')
+            .leftJoinAndSelect('grn.companyName', 'companyName')
+            .leftJoinAndSelect('grn.purchaseLocation', 'purchaseLocation')
+            .where('grn.createdBy = :employeeId', { employeeId })
+            .andWhere('grn.createdAt >= :startDate', { startDate })
+            .andWhere('grn.createdAt <= :endDate', { endDate })
+            .andWhere('grn.isDeleted = false');
+
+        if (company) {
+            grnQuery.andWhere('LOWER(companyName.name) LIKE LOWER(:company)', { company: `%${company}%` });
+        }
+        if (location) {
+            grnQuery.andWhere('LOWER(purchaseLocation.name) LIKE LOWER(:location)', { location: `%${location}%` });
+        }
+        if (vendor) {
+            grnQuery.andWhere('LOWER(selectedVendor.companyName) LIKE LOWER(:vendor)', { vendor: `%${vendor}%` });
+        }
+        if (farmer) {
+            grnQuery.andWhere(
+                `LOWER(CONCAT(selectedFarmer.farmerfName, ' ', selectedFarmer.farmerlName)) LIKE LOWER(:farmer)`,
+                { farmer: `%${farmer}%` }
+            );
+        }
+        if (product) {
+            grnQuery.andWhere('LOWER(grnProductName.name) LIKE LOWER(:product)', { product: `%${product}%` });
+        }
+
+        const grnDocuments = await grnQuery.orderBy('grn.createdAt', 'DESC').getMany();
+
+        // ── Target vs Achievement ────────────────────────────────────────────
+        // Derive month/year from the startDate for the target lookup
+        const month = startDate.getMonth() + 1; // 1-12
+        const year = startDate.getFullYear();
+
+        const target = await this.procurementTargetRepository.findOne({
+            where: {
+                employee: { id: employeeId },
+                month: toPlanMonth(month, 'procurement'),
+                year,
+            },
+        });
+
+        let targetQty = 0;
+        if (target) {
+            targetQty = Number(target.monthlyTotalQty ?? 0);
+        }
+
+        // Sum net weight from completed GRNs in the date range
+        const achievedQty = grnDocuments.reduce((sum, grn) => {
+            const grnNet = (grn.grnProducts ?? []).reduce(
+                (s: number, p: any) => s + Number(p.netWeight ?? 0),
+                0
+            );
+            return sum + grnNet;
+        }, 0);
+
+        const achievementPercentage = targetQty > 0
+            ? Number(((achievedQty / targetQty) * 100).toFixed(2))
+            : 0;
+
+        return {
+            rfpa: { documents: rfpaDocuments },
+            dealSlip: { documents: dealSlipDocuments },
+            grn: { documents: grnDocuments },
+            targetvsachievement: {
+                targetQty: Number(targetQty.toFixed(2)),
+                achievedQty: Number(achievedQty.toFixed(2)),
+                achievementPercentage,
+            },
+        };
+    }
+
     // Get procurement summary
     async getProcurementSummary(
         employeeId: string,
@@ -780,7 +1074,10 @@ async getMonthlyPlanUpdateStructured(
             const target = await this.procurementTargetRepository.findOne({
                 where: {
                     employee: { id: employeeId },
-                    month: month,
+                    // The URL carries a 1-12 month; this table stores 0-11.
+                    // Passing it through unconverted read the *following*
+                    // month's plan, which came back as "no plan found".
+                    month: toPlanMonth(month, 'procurement'),
                     year: year
                 },
                 relations: ['employee']
@@ -811,6 +1108,8 @@ async getMonthlyPlanUpdateStructured(
             let totalAchievedQuantity = 0;
 
             // Product performance tracking
+            const achievedLines = await this.fetchAchievedLines(employeeId, month, year);
+
             const productPerformance = new Map<string, {
                 name: string;
                 assigned: number;
@@ -836,11 +1135,14 @@ async getMonthlyPlanUpdateStructured(
                     productAssigned += weekTarget;
                     totalAssignedQuantity += weekTarget;
 
-                    const achievements = await this.procurementAchievementRepo.find({
-                        where: { weeklyProcurement: { id: week.id } }
-                    });
-
-                    const weekAchieved = achievements.reduce((sum, ach) => sum + Number(ach.achievedQty || 0), 0);
+                    // Real GRN lines, not the never-populated
+                    // procurement_achievements table.
+                    const weekAchieved = sumAchievedInWeek(
+                        achievedLines,
+                        String(targetProduct.product?.id ?? ''),
+                        week.weekStartDate ? new Date(week.weekStartDate) : null,
+                        week.weekEndDate ? new Date(week.weekEndDate) : null,
+                    );
                     productAchieved += weekAchieved;
                     totalAchievedQuantity += weekAchieved;
 

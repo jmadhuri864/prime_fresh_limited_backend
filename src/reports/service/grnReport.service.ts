@@ -46,7 +46,6 @@ export interface IGrnReportFilters {
 }
 import { TYPES } from '../../types';
 import { GrnRepository } from '../../grn/repository/grn.repository';
-import { IGrnReportFilters } from '../../interfaces/grn-report.interface';
 
 @injectable()
 export class GrnReportService {

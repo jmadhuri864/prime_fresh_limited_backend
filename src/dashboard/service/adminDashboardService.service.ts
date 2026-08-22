@@ -264,46 +264,56 @@ public async getTop5Vendors(): Promise<any> {
 }> {
   console.log("inside active user service");
 
-  
+  // Refresh token expiry in minutes (135 min = 2h 15m as per config)
+  const REFRESH_TOKEN_EXPIRES_IN_MS = 135 * 60 * 1000;
+
   const allUsers = await this.userRepository.find({
     select: ['id', 'username'],
   });
 
-  
+  // Fetch all sessions marked as active
   const activeSessions = await this.activeSessionRepo.find({
     where: { is_active: true },
-    select: ['user_id'], 
+    select: ['user_id', 'login_time'],
   });
 
-  console.log("active sessions:", activeSessions);
+  const now = Date.now();
 
-  
-  const activeUserIds = activeSessions.map((s) => s.user_id);
-  console.log("active user IDs:", activeUserIds);
+  // Separate truly active vs token-expired sessions
+  const genuinelyActive: string[] = [];
+  const tokenExpiredSessionUserIds: string[] = [];
 
-  
+  for (const session of activeSessions) {
+    const loginTime = new Date(session.login_time).getTime();
+    const sessionAge = now - loginTime;
+
+    if (sessionAge > REFRESH_TOKEN_EXPIRES_IN_MS) {
+      // Both tokens are expired — this user is effectively logged out
+      tokenExpiredSessionUserIds.push(session.user_id);
+    } else {
+      genuinelyActive.push(session.user_id);
+    }
+  }
+
+  // Auto-cleanup: mark expired sessions as inactive in DB (fire-and-forget)
+  if (tokenExpiredSessionUserIds.length > 0) {
+    this.activeSessionRepo
+      .createQueryBuilder()
+      .update()
+      .set({ is_active: false })
+      .where('user_id IN (:...ids) AND is_active = true', { ids: tokenExpiredSessionUserIds })
+      .execute()
+      .catch((err) => console.error('Failed to cleanup expired sessions:', err));
+  }
+
   const activeUsers = allUsers
-    .filter((u) => activeUserIds.includes(u.id))
+    .filter((u) => genuinelyActive.includes(u.id))
     .map((u) => ({ id: u.id, username: u.username }));
-
-  console.log("active users:", activeUsers);
-
-  
-  const inactiveSessions = await this.activeSessionRepo.find({
-    where: { is_active: false },
-    select: ['user_id'],
-  });
-  const inactiveUserIds = inactiveSessions.map((s) => s.user_id);
-
 
   const inactiveUsers = allUsers
-    .filter(
-      (u) =>
-        !activeUserIds.includes(u.id) || inactiveUserIds.includes(u.id)
-    )
+    .filter((u) => !genuinelyActive.includes(u.id))
     .map((u) => ({ id: u.id, username: u.username }));
 
-  
   return {
     totalUser: allUsers.length,
     activeCount: activeUsers.length,

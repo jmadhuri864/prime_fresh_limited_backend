@@ -38,6 +38,15 @@ export class CustomerDeliveryChallan extends DeliveryChallanPurchase {
   @JoinColumn({ name: 'deliveryAddres_id' })
   deliveryAddress: Address; //
 
+
+   @ManyToOne(() => Address, {
+    nullable: true,
+    onDelete: 'SET NULL',
+    cascade: true,
+  })
+  @JoinColumn({ name: 'currentshippingAddres_id' })
+  currentShippingAddress: Address; //
+
   @Column({ default: false })
   isInvoiceCreated: boolean;
 

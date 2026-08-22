@@ -339,6 +339,7 @@ DumpProductRepository:Symbol.for("DumpProductRepository"),
     InventoryStockService:Symbol.for("InventoryStockService"),
     InventoryStockRepository :Symbol.for("InventoryStockRepository"),
     InventoryStockController:Symbol.for("InventoryStockController"),
+    InventoryMovementService:Symbol.for("InventoryMovementService"),
 
 //product varient
 ProductVarientsRepository:Symbol.for("ProductVarientsRepository"),
@@ -375,6 +376,7 @@ ApproverBlockRepository:Symbol.for("ApproverBlockRepository"),
   DocSingalApproverService: Symbol.for("DocSingalApproverService"),
    AdminDashboardController: Symbol.for("AdminDashboardController"),
   AdminDashboardService: Symbol.for("AdminDashboardService"),
+  WeeklyBusinessPlanService: Symbol.for("WeeklyBusinessPlanService"),
 
   InwardProductRepository:Symbol.for("InwardProductRepository"),
   ProductVarientRepository:Symbol.for("ProductVarientRepository"),

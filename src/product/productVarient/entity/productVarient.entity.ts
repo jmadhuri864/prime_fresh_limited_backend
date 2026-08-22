@@ -56,8 +56,7 @@ export class ProductVarient extends Model {
   @Column({ type: 'varchar', length: 100, nullable: true })
   brand: string | null;
 
-  @Column({ type: 'int', nullable: true })
-  thresholdStock: number | null;
+ 
 
   
 }

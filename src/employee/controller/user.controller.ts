@@ -70,8 +70,10 @@ async resolveLocation(id: string): Promise<{
     @next() next: NextFunction
   ) {
     try {
+      console.log(req.body)
       logger.info("Creating a new Employee");
       const result: CreateUserDto & Record<string, any> = req.body;
+      result.createdBy = res.locals.user?.id;
      // Handle joining location
 if (result.joiningLocation) {
   try {
@@ -160,7 +162,7 @@ if (result.currentWorkLocation) {
         sort: sort as string || undefined, // Adjust this line to match your sorting requirements
         search: search as string|| '',
       };
-      const users: UserListResponseDto = await this.userService.getAllUsers(queryOptions);
+      const users: UserListResponseDto = await this.userService.getAllUsers(queryOptions, res.locals.user?.id);
       if (!users || users.data.length === 0) {
         logger.error("Employee Not Found");
         ControllerLogger.logError('Employee list retrieval', new AppError(404, "Employee Not Found"), req, res);
@@ -413,6 +415,38 @@ public async updateUser(
       next(err);
     }
   }
+
+  /**
+   * PATCH /employees/submit/:id
+   * Submits the employee draft (sets status to "INACTIVE" for admin review).
+   * Frontend calls this when user clicks "Submit".
+   */
+  @httpPatch('/submit/:id')
+  public async submitEmployee(
+    @requestParam('id') id: string,
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const body = req.body;
+
+      // Remove any fields that should not be updated on submit
+      const employeeData = { ...body };
+
+      const employee = await this.userService.submitEmployee(id, employeeData);
+      ControllerLogger.logSuccess('Employee submitted', id, req, res);
+      return res.status(200).json({
+        status: 'success',
+        message: 'Employee submitted successfully',
+        data: { id: employee.id, status: employee.status },
+      });
+    } catch (err) {
+      ControllerLogger.logError('Submit Employee', err, req, res);
+      next(err);
+    }
+  }
+
 @httpPatch("/status/:id")
   public async updateEmployeeStatus  (
     @request() req: Request, 

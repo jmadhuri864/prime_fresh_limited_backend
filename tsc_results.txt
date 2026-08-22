@@ -1,0 +1,5 @@
+﻿src/reports/controller/grnReport.controller.ts(59,78): error TS2345: Argument of type 'import("C:/Users/Dell/Downloads/Aniket Project/dell/kiro-optimization/3augPrimeFresh - Copy/src/interfaces/grn-report.interface").IGrnReportFilters' is not assignable to parameter of type 'import("C:/Users/Dell/Downloads/Aniket Project/dell/kiro-optimization/3augPrimeFresh - Copy/src/reports/service/grnReport.service").IGrnReportFilters'.
+  Types of property 'startDate' are incompatible.
+    Type 'Date' is not assignable to type 'string'.
+src/reports/controller/procurementReport.controller.ts(28,54): error TS2551: Property 'getProcurementReport' does not exist on type 'ProcurementTargetService'. Did you mean 'getProcurementPerProduct'?
+src/reports/controller/procurementReport.controller.ts(56,58): error TS2551: Property 'getProcurementReport' does not exist on type 'ProcurementTargetService'. Did you mean 'getProcurementPerProduct'?

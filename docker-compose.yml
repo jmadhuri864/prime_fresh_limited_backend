@@ -1,44 +1,7 @@
 services:
 
-  # ─────────────────────────────────────────────────────────────
-  # Node.js Application Server
-  # ─────────────────────────────────────────────────────────────
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    container_name: app_primefresh
-    ports:
-      - "4000:4000"           # Expose app port (also proxied by NGINX on 8004)
-    env_file:
-      - .env                  # Loads all secrets / config at runtime
-    environment:
-      NODE_ENV: production
-      TZ: Asia/Kolkata
-      # Override DB/Redis hosts to use Docker service names
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      REDIS_URL: redis://:redis123@redis:6379
-    volumes:
-      - app_logs:/app/logs            # Persist Winston log files
-      - app_exports:/app/exports      # Persist generated Excel/PDF exports
-      - app_uploads:/app/uploads      # Persist uploaded files
-      - app_multiuploads:/app/multiuploads
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - primefresh_network
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:4000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+  # NOTE: app service removed — run locally with "npm start"
+  # Connects to postgres on localhost:6500 and redis on localhost:6379
 
   # ─────────────────────────────────────────────────────────────
   # NGINX — Reverse Proxy + Static File Server
@@ -52,11 +15,9 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro          # SSL certificates (optional)
-      - app_exports:/var/www/exports:ro         # Serve generated files directly
-      - app_uploads:/var/www/uploads:ro         # Serve uploaded files directly
       - nginx_logs:/var/log/nginx
     depends_on:
-      app:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -138,10 +99,6 @@ volumes:
   redis_data:
   pgadmin_data:
   nginx_logs:
-  app_logs:
-  app_exports:
-  app_uploads:
-  app_multiuploads:
 
 # ─────────────────────────────────────────────────────────────
 # Network

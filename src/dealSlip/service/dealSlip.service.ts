@@ -368,7 +368,7 @@ public async getAllDealSlipsNo(
   const dealSlips = await this.dealSlipRepository.find({
     select: ["id", "dealSlipNo", "isGrnCreated"],
     where,
-    relations: ["createdBy"],
+    relations: ["createdBy", "rfpa"],
     order: { createdAt: "DESC" }
   });
 
@@ -414,7 +414,7 @@ public async getAllDealSlipsNo(
     }
   }
 
-  const filteredResults: { id: string; dealSlipNo: string; documentId: string | null }[] = [];
+  const filteredResults: { id: string; dealSlipNo: string; documentId: string | null; rfpaId: string | null }[] = [];
 
   for (const dealSlip of validDealSlips) {
     const doc = docMap.get(dealSlip.id);
@@ -442,7 +442,7 @@ public async getAllDealSlipsNo(
     const matchesGrn = typeof filter?.isGrnCreated !== 'boolean' || dealSlip.isGrnCreated === filter.isGrnCreated;
 
     if (matchesStatus && matchesGrn) {
-      filteredResults.push({ id: dealSlip.id, dealSlipNo: dealSlip.dealSlipNo, documentId });
+      filteredResults.push({ id: dealSlip.id, dealSlipNo: dealSlip.dealSlipNo, documentId, rfpaId: (dealSlip as any).rfpa?.id || null });
     }
   }
 

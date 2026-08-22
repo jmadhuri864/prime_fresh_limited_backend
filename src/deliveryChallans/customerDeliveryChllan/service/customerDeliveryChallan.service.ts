@@ -274,67 +274,12 @@ export class CustomerDeliveryChallanService {
         document_type_id: actualChallan.id,
       });
 
-      const challn = actualChallan;
-
-      // 10. Update Inventory (STOCK OUT) - Now we know stock is sufficient
-      for (const item of challn.deliveryChallanProducts ?? []) {
-        const deliveredQty = Number(item.netWeight ?? 0);
-        const deliveredAmt = Number(item.amount ?? 0);
-
-        const variantId = typeof item.variant === 'object' ? item.variant.id : item.variant;
-        const productId = typeof item.productName === 'object' ? item.productName.id : item.productName;
-
-        let productInfo;
-
-        // If variant exists, fetch variant with product
-        if (variantId) {
-          const variant = await queryRunner.manager.findOne(this.productVarientsRepository.target, {
-            where: { id: variantId },
-            relations: ['product'],
-          });
-
-          if (variant) {
-            productInfo = {
-              productId: variant.product.id,
-              variantId: variant.id
-            };
-          }
-        } else {
-          // No variant - use product directly
-          productInfo = {
-            productId: productId,
-            variantId: null
-          };
-        }
-
-        if (!productInfo) continue;
-
-        // Get existing stock (we know it exists from validation)
-        const stockWhere: any = {
-          company: { id: typeof challn.companyName === 'string' ? challn.companyName : challn.companyName?.id },
-          location: { id: typeof challn.fromLocation === 'string' ? challn.fromLocation : challn.fromLocation?.id },
-          product: { id: productInfo.productId },
-        };
-
-        // Add variant condition only if variant exists
-        if (productInfo.variantId) {
-          stockWhere.variant = { id: productInfo.variantId };
-        } else {
-          stockWhere.variant = IsNull();
-        }
-
-        const existingStock = await queryRunner.manager.findOne(this.inventoryStockRepository.target, {
-          where: stockWhere,
-        });
-
-        if (existingStock) {
-          // Reduce inward (OUTWARD movement)
-          existingStock.inwardQty = +(existingStock.inwardQty - deliveredQty);
-          existingStock.inwardAmt = +(existingStock.inwardAmt - deliveredAmt);
-
-          await queryRunner.manager.save(existingStock);
-        }
-      }
+      // 10. Inventory is NOT reduced here.
+      //     The stock check above stays so the user gets an immediate 400 if the
+      //     goods are not available, but the actual stock movement happens only
+      //     when this challan's document reaches DocumentStatus.COMPLETE —
+      //     see InventoryMovementService.applyCustomerDeliveryChallan(), which
+      //     re-validates availability at that point.
 
       // Commit transaction - all operations succeeded
       await queryRunner.commitTransaction();
@@ -381,6 +326,7 @@ export class CustomerDeliveryChallanService {
       .leftJoin('challan.customerName', 'customerName')
       .leftJoin('challan.billingAddress', 'billingAddress')
       .leftJoin('challan.deliveryAddress', 'deliveryAddress')
+      .leftJoin('challan.currentShippingAddress','currentShippingAddress')
       .leftJoin('challan.companyName', 'companyName')
       .leftJoin('challan.offices', 'office')
       .leftJoin('challan.grnNo', 'grn')
@@ -397,6 +343,8 @@ export class CustomerDeliveryChallanService {
         'billingAddress.location', 'billingAddress.city', 'billingAddress.state', 'billingAddress.pincode',
         'deliveryAddress.id', 'deliveryAddress.address1', 'deliveryAddress.address2',
         'deliveryAddress.location', 'deliveryAddress.city', 'deliveryAddress.state', 'deliveryAddress.pincode',
+        'currentShippingAddress.id', 'currentShippingAddress.address1', 'currentShippingAddress.address2',
+        'currentShippingAddress.location', 'currentShippingAddress.city', 'currentShippingAddress.state', 'currentShippingAddress.pincode',
         'companyName.id', 'office.id', 'grn.id',
         'products.id', 'products.quantity', 'products.unitPrice', 'products.amount',
         'products.netWeight', 'products.grossWeight',
@@ -428,6 +376,7 @@ export class CustomerDeliveryChallanService {
       transitInsuranceNo: challan.transitInsuranceNo ?? null,
       billingAddress: mapAddress(challan.billingAddress),
       deliveryAddress: mapAddress(challan.deliveryAddress),
+      currentShippingAddress: mapAddress(challan.currentShippingAddress),
       companyName: challan.companyName?.id ?? null,
       office: challan.offices?.id ?? null,
       grnNo: challan.grnNo?.id ?? null,
@@ -504,6 +453,7 @@ export class CustomerDeliveryChallanService {
       .leftJoin('challan.customerName', 'customerName')
       .leftJoin('challan.billingAddress', 'billingAddress')
       .leftJoin('challan.deliveryAddress', 'deliveryAddress')
+      .leftJoin('challan.currentShippingAddress','currentShippingAddress')
       .leftJoin('challan.companyName', 'company')
       .leftJoin('challan.offices', 'office')
       .leftJoin('challan.grnNo', 'grn')
@@ -521,6 +471,8 @@ export class CustomerDeliveryChallanService {
         'billingAddress.location', 'billingAddress.city', 'billingAddress.state', 'billingAddress.pincode',
         'deliveryAddress.id', 'deliveryAddress.address1', 'deliveryAddress.address2',
         'deliveryAddress.location', 'deliveryAddress.city', 'deliveryAddress.state', 'deliveryAddress.pincode',
+         'currentShippingAddress.id', 'currentShippingAddress.address1', 'currentShippingAddress.address2',
+        'currentShippingAddress.location', 'currentShippingAddress.city', 'currentShippingAddress.state', 'currentShippingAddress.pincode',
         'company.name', 'office.name', 'grn.grnNo',
         'products.id', 'products.quantity', 'products.unitPrice', 'products.amount',
         'products.netWeight', 'products.grossWeight',
@@ -552,6 +504,7 @@ export class CustomerDeliveryChallanService {
       fromLocation: challan.fromLocation?.name ?? null,
       billingAddress: mapAddress(challan.billingAddress),
       deliveryAddress: mapAddress(challan.deliveryAddress),
+      currentShippingAddress: mapAddress(challan.currentShippingAddress),
       companyName: challan.companyName?.name ?? null,
       office: challan.offices?.name ?? null,
       grnNo: challan.grnNo?.grnNo ?? null,
@@ -636,6 +589,7 @@ export class CustomerDeliveryChallanService {
         .leftJoin('challan.fromLocation', 'fromLocation')
         .leftJoin('challan.billingAddress', 'billingAddress')
         .leftJoin('challan.deliveryAddress', 'deliveryAddress')
+        .leftJoin('challan.currentShippingAddress','currentShippingAddress')
         .leftJoin('challan.companyName', 'company')
         .leftJoin('challan.offices', 'office')
         .leftJoin('challan.grnNo', 'grn')
@@ -653,6 +607,8 @@ export class CustomerDeliveryChallanService {
           'billingAddress.location', 'billingAddress.city', 'billingAddress.state', 'billingAddress.pincode',
           'deliveryAddress.id', 'deliveryAddress.address1', 'deliveryAddress.address2',
           'deliveryAddress.location', 'deliveryAddress.city', 'deliveryAddress.state', 'deliveryAddress.pincode',
+           'currentShippingAddress.id', 'currentShippingAddress.address1', 'currentShippingAddress.address2',
+        'currentShippingAddress.location', 'currentShippingAddress.city', 'currentShippingAddress.state', 'currentShippingAddress.pincode',
           'company.id', 'company.name',
           'office.id', 'office.name',
           'grn.grnNo',
@@ -694,6 +650,7 @@ export class CustomerDeliveryChallanService {
           customerName: challan.customerName?.organisationName ?? null,
           billingAddress: mapAddress(challan.billingAddress),
           deliveryAddress: mapAddress(challan.deliveryAddress),
+          currentShippingAddress:mapAddress(challan.currentShippingAddress),
           fromLocation: challan.fromLocation ? { id: challan.fromLocation.id, name: challan.fromLocation.name } : null,
           transitInsuranceNo: challan.transitInsuranceNo ?? null,
           grnNo: challan.grnNo?.grnNo ?? null,

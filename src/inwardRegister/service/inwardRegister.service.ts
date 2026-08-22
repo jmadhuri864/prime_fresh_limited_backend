@@ -253,71 +253,10 @@ const serialNo = await this.generateSerialNo();
       document_type_id: savedInwardId
     });
 
-    await this.documentbService.startApprovalFlow(document.id);
-
-    // 6. Process inward products into inventory stock
-    for (const item of data.inwardProducts) {
-      const { variant, quantity, unitPrice, netWeight, productName } = item;
-
-      // Validate required fields
-      if (!productName) {
-        console.warn(`Skipping item without product:`, item);
-        continue;
-      }
-
-      // Ensure numeric values with defaults
-      const itemNetWeight = Number(netWeight) || 0;
-      const itemQuantity = Number(quantity) || 0;
-      const itemUnitPrice = Number(unitPrice) || 0;
-
-      // Amount calculation
-      const amount = +(itemUnitPrice * itemQuantity).toFixed(2);
-
-      console.log(`Processing inward item: Product=${productName}, Variant=${variant || 'null'}, NetWeight=${itemNetWeight}, Amount=${amount}`);
-
-      // FIND existing stock for (company + product + variant + location)
-      const existingStock = await queryRunner.manager.findOne(this.inventoryStockRepository.target, {
-        where: {
-          company: { id: data.companyName },
-          product: { id: productName },
-          variant: variant ? { id: variant } : IsNull(),
-          location: { id: data.location },
-        },
-      });
-
-      if (existingStock) {
-        // UPDATE inward stock movement
-        const currentInwardQty = Number(existingStock.inwardQty) || 0;
-        const currentInwardAmt = Number(existingStock.inwardAmt) || 0;
-
-        existingStock.inwardQty = +(currentInwardQty + itemNetWeight).toFixed(2);
-        existingStock.inwardAmt = +(currentInwardAmt + amount).toFixed(2);
-
-        console.log(`✅ Updated existing stock: InwardQty=${existingStock.inwardQty}, InwardAmt=${existingStock.inwardAmt}`);
-
-        await queryRunner.manager.save(existingStock);
-
-      } else {
-        // NEW STOCK ENTRY
-        const stockData: Record<string, any> = {
-          company: { id: data.companyName },
-          location: { id: data.location },
-          product: { id: productName },
-          inwardQty: itemNetWeight,
-          inwardAmt: amount,
-        };
-
-        if (variant) {
-          stockData.variant = { id: variant };
-        }
-
-        const newStock = queryRunner.manager.create(this.inventoryStockRepository.target, stockData);
-
-        console.log(`✅ Created new stock: InwardQty=${newStock.inwardQty}, InwardAmt=${newStock.inwardAmt}`);
-
-        await queryRunner.manager.save(newStock);
-      }
-    }
+    // 6. Inventory is NOT touched here.
+    //    Stock is added to inventory_stock only when this Inward Register's
+    //    document reaches DocumentStatus.COMPLETE — see
+    //    InventoryMovementService.applyInwardRegister().
 
     // Commit transaction - all operations succeeded
     await queryRunner.commitTransaction();

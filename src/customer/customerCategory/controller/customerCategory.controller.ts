@@ -167,7 +167,7 @@ export class CustomerCategoryController {
 
       // 📝 Activity log
       // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
       this.activityLogService.logActivity({
@@ -237,7 +237,7 @@ export class CustomerCategoryController {
 
       // 📝 Activity log
       // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
       this.activityLogService.logActivity({
@@ -286,7 +286,7 @@ export class CustomerCategoryController {
 
       // � Activity log
       // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
 
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
@@ -343,7 +343,7 @@ public async softDeleteMultipleCustomerCategory(
 
     // 📝 Activity log
     // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
     const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
     const deletedList = result.deleted.map(c => `"${c.name}"`).join(', ');

@@ -4,7 +4,7 @@ import { ProductVarientRepository } from "../../product/productVarient/repositor
 import { DataSource, In } from "typeorm";
 import logger, { UserLogger } from "../../utils/logger";
 import { ReturnToVendorRepository } from "../repository/returnToVendor.repository";
-import { InventoryStockRepository } from "../../inventoryStock/repository/inventoryStock.repository";
+import AppError from "../../utils/appError";
 import { DocumentStatus, DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
 import { DocumentTypeEnum as DocDefEnum } from "../../documentDef/entity/documentdef.entity";
 import { PaginationOptions } from "../../utils/pagination";
@@ -33,7 +33,6 @@ export class ReturnToVendorService {
                @inject(TYPES.ProductVarientRepository)
                        private productVarientsRepository: ProductVarientRepository,
                     @inject(TYPES.ReturnToVendorRepository) private postReturnToVendorRepository: ReturnToVendorRepository,
-                    @inject(TYPES.InventoryStockRepository) private inventoryStockRepository: InventoryStockRepository,
                     @inject(TYPES.DocumentbService) private documentbService: DocumentbService,
                     @inject(TYPES.DataSource) private dataSource: DataSource,
                     @inject(TYPES.DocDoubleApproverService)
@@ -137,8 +136,6 @@ export class ReturnToVendorService {
           const savedNewReturn = await queryRunner.manager.save(newReturn);
           const savedreturn = Array.isArray(savedNewReturn) ? savedNewReturn[0] : savedNewReturn;
 
-          await queryRunner.commitTransaction();
-
           const document = await this.documentbService.createDocument({
             type: DocumentTypeEnum.RETURN_TO_VENDOR,
             docDef: DocDefEnum.OPERATION,
@@ -148,14 +145,20 @@ export class ReturnToVendorService {
             document_type_id: savedreturn.id,
           });
 
+          // Commit only once the RTV and its document both exist, so a failure
+          // in either rolls both back. (Previously the commit happened before
+          // the document was created and before inventory was touched, which
+          // made the catch block's rollback a no-op for that work.)
+          await queryRunner.commitTransaction();
+
+          // Inventory is NOT touched here. Stock is reduced only when this
+          // RTV's document reaches DocumentStatus.COMPLETE — see
+          // InventoryMovementService.applyReturnToVendor().
+
           try {
             await this.documentbService.startApprovalFlow(document.id);
           } catch (approvalError: any) {
             logger.warn('Approval flow not started (no flow configured):', approvalError?.message);
-          }
-
-          if (Array.isArray(savedreturn.rtvProducts)) {
-            await this.processInventoryForReturn(savedreturn);
           }
 
           UserLogger.logRfpaCreated(savedreturn.id, requestedBy, clientIp);
@@ -171,89 +174,6 @@ export class ReturnToVendorService {
       } finally {
           await queryRunner.release();
       }
-    }
-
-    private async processInventoryForReturn(returnRecord: any): Promise<void> {
-        try {
-            const companyId = returnRecord?.companyName?.id ?? returnRecord?.companyName;
-            const locationId = returnRecord?.location?.id ?? returnRecord?.location;
-
-            if (!Array.isArray(returnRecord.rtvProducts) || returnRecord.rtvProducts.length === 0) {
-                return;
-            }
-
-            const productGroups = new Map<string, any[]>();
-            for (const item of returnRecord.rtvProducts) {
-                const productId = item?.productName?.id ?? item?.productName;
-                if (productId) {
-                    if (!productGroups.has(productId)) {
-                        productGroups.set(productId, []);
-                    }
-                    productGroups.get(productId)?.push(item);
-                }
-            }
-
-            for (const item of returnRecord.rtvProducts) {
-                const itemVariantId = item?.variant?.id ?? item?.variant;
-                const itemProductId = item?.productName?.id ?? item?.productName;
-                
-                const variantCount = productGroups.get(itemProductId)?.length || 1;
-                const isMultiVariant = variantCount > 1;
-
-                if (!itemProductId || !itemVariantId || !companyId || !locationId) {
-                    logger.warn(`❌ Skipping item due to missing relation ids:`, {
-                        product: itemProductId,
-                        variant: itemVariantId,
-                        company: companyId,
-                        location: locationId,
-                    });
-                    continue;
-                }
-
-                const itemNetWeight = Number(item.netWeight) || 0;
-                const itemQuantity = Number(item.quantity) || 0;
-                const itemUnitPrice = Number(item.unitPrice) || 0;
-                const amount = +(itemUnitPrice * itemQuantity).toFixed(2);
-
-                const variantLabel = isMultiVariant ? `[Variant ${variantCount}/${productGroups.get(itemProductId)?.length}]` : '';
-
-                const existingStock = await this.inventoryStockRepository.findOne({
-                    where: {
-                        company: { id: companyId },
-                        product: { id: itemProductId },
-                        variant: { id: itemVariantId },
-                        location: { id: locationId },
-                    },
-                });
-
-                if (existingStock) {
-                    const currentInwardQty = Number(existingStock.inwardQty) || 0;
-                    const currentInwardAmt = Number(existingStock.inwardAmt) || 0;
-
-                    existingStock.inwardQty = +(currentInwardQty - itemNetWeight).toFixed(2);
-                    existingStock.inwardAmt = +(currentInwardAmt - amount).toFixed(2);
-
-                    await this.inventoryStockRepository.save(existingStock);
-                } else {
-                    const newStock = this.inventoryStockRepository.create({
-                        company: { id: companyId },
-                        location: { id: locationId },
-                        product: { id: itemProductId },
-                        variant: { id: itemVariantId },
-                        inwardQty: +(0 - itemNetWeight).toFixed(2),
-                        inwardAmt: +(0 - amount).toFixed(2),
-                        dumpQty: 0,
-                        dumpAmt: 0,
-                    });
-
-                    await this.inventoryStockRepository.save(newStock);
-                }
-            }
-
-        } catch (error) {
-            logger.error('❌ Error processing inventory for return:', error);
-            throw error;
-        }
     }
 
     public async getAll(queryOptions: PaginationOptions, userId: string): Promise<RTVListResponseDto> {
@@ -504,28 +424,34 @@ export class ReturnToVendorService {
 
             const existingRecord = await this.postReturnToVendorRepository.findOne({
                 where: { id },
-                relations: ['rtvProducts', 'rtvProducts.productName', 'rtvProducts.variant', 'companyName', 'location'],
+                relations: ['rtvProducts', 'rtvProducts.productName', 'rtvProducts.variant', 'companyName', 'location', 'document'],
             });
 
             if (!existingRecord) {
                 throw new Error(`Return to vendor record with ID ${id} not found`);
             }
 
-            const original = { ...existingRecord };
+            // Once the document is COMPLETE its stock movement has already been
+            // written, so the product lines can no longer be edited — doing so
+            // would silently desynchronise inventory_stock from the document.
+            if (
+                updateData.rtvProducts &&
+                Array.isArray(updateData.rtvProducts) &&
+                existingRecord.document?.inventoryProcessed
+            ) {
+                throw new AppError(
+                    400,
+                    'Products cannot be changed: this Return To Vendor is already approved and its stock movement has been applied',
+                );
+            }
 
-            const oldRtvProducts = existingRecord.rtvProducts.map(p => ({
-    productName: p.productName?.id ?? p.productName,
-    variant: p.variant?.id ?? p.variant,
-    netWeight: Number(p.netWeight),
-    quantity: Number(p.quantity),
-    unitPrice: Number(p.unitPrice)
-}));
+            const original = { ...existingRecord };
 
             if(updateData.id) delete updateData.id;
 
-            if (updateData.rtvProducts && Array.isArray(updateData.rtvProducts)) {
-                await this.reprocessInventoryForUpdate(existingRecord, oldRtvProducts, updateData.rtvProducts);
-            }
+            // No inventory work here. Nothing was applied at creation time, so
+            // there is nothing to re-process — stock is written once, when the
+            // document reaches DocumentStatus.COMPLETE.
 
             Object.assign(existingRecord, updateData);
 
@@ -539,114 +465,6 @@ export class ReturnToVendorService {
             return updatedRecord;
         } catch (error) {
             logger.error('Error updating return to vendor:', error);
-            throw error;
-        }
-    }
-
-    private async reprocessInventoryForUpdate(existingRecord: any, oldProducts: any[], newProducts: any[]): Promise<void> {
-        try {
-            const companyId = existingRecord?.companyName?.id ?? existingRecord?.companyName;
-            const locationId = existingRecord?.location?.id ?? existingRecord?.location;
-
-            if (!companyId || !locationId) {
-                logger.warn('Cannot re-process inventory: missing company or location');
-                return;
-            }
-
-            const makeKey = (p: any, v: any) => `${p}::${v}`;
-
-            const oldMap = new Map<string, { productId: string, variantId: string, weight: number, amount: number, count: number }>();
-            const newMap = new Map<string, { productId: string, variantId: string, weight: number, amount: number, count: number }>();
-
-            const accumulate = (map: Map<string, any>, item: any) => {
-
-                    const productId =
-                    item?.productName?.id ??
-                    item?.productName ??
-                    item?.productId;
-
-                    const variantId =
-                    item?.variant?.id ??
-                    item?.variant ??
-                    item?.variantId;
-                if (!productId || !variantId) return;
-                const key = makeKey(productId, variantId);
-                const netWeight = Number(item.netWeight) || 0;
-                const quantity = Number(item.quantity) || 0;
-                const unitPrice = Number(item.unitPrice) || 0;
-                const amt = +(unitPrice * quantity).toFixed(2);
-                if (!map.has(key)) {
-                    map.set(key, { productId, variantId, weight: 0, amount: 0, count: 0 });
-                }
-                const entry = map.get(key)!;
-                entry.weight = +(entry.weight + netWeight).toFixed(2);
-                entry.amount = +(entry.amount + amt).toFixed(2);
-                entry.count = entry.count + 1;
-            };
-
-            for (const it of oldProducts) accumulate(oldMap, it);
-            for (const it of newProducts) accumulate(newMap, it);
-
-            const allKeys = new Set<string>([...oldMap.keys(), ...newMap.keys()]);
-            for (const key of allKeys) {
-                const oldEntry = oldMap.get(key) || { productId: null, variantId: null, weight: 0, amount: 0, count: 0 };
-                const newEntry = newMap.get(key) || { productId: null, variantId: null, weight: 0, amount: 0, count: 0 };
-
-                const productId = newEntry.productId ?? oldEntry.productId;
-                const variantId = newEntry.variantId ?? oldEntry.variantId;
-
-                if (!productId || !variantId) {
-                    logger.warn('Skipping key with missing ids', { key, oldEntry, newEntry });
-                    continue;
-                }
-
-                const deltaWeight = +(newEntry.weight - oldEntry.weight).toFixed(2); // positive => more returned now
-                const deltaAmount = +(newEntry.amount - oldEntry.amount).toFixed(2);
-
-                const variantLabel = (oldEntry.count + newEntry.count) > 1 ? `[Aggregated ${oldEntry.count + newEntry.count}]` : '';
-
-                const stock = await this.inventoryStockRepository.findOne({
-                    where: {
-                        company: { id: companyId },
-                        product: { id: productId },
-                        variant: { id: variantId },
-                        location: { id: locationId },
-                    },
-                });
-
-                if (stock) {
-                    const currentInwardQty = Number(stock.inwardQty) || 0;
-                    const currentInwardAmt = Number(stock.inwardAmt) || 0;
-
-                    stock.inwardQty = +(currentInwardQty - deltaWeight).toFixed(2);
-                    stock.inwardAmt = +(currentInwardAmt - deltaAmount).toFixed(2);
-
-                    await this.inventoryStockRepository.save(stock);
-                } else {
-                    if (deltaWeight === 0 && deltaAmount === 0) {
-                        continue;
-                    }
-
-                    const createQty = +(0 - deltaWeight).toFixed(2);
-                    const createAmt = +(0 - deltaAmount).toFixed(2);
-
-                    const newStock = this.inventoryStockRepository.create({
-                        company: { id: companyId },
-                        location: { id: locationId },
-                        product: { id: productId },
-                        variant: { id: variantId },
-                        inwardQty: createQty,
-                        inwardAmt: createAmt,
-                        dumpQty: 0,
-                        dumpAmt: 0,
-                    });
-
-                    await this.inventoryStockRepository.save(newStock);
-                }
-            }
-
-        } catch (error) {
-        logger.error('❌ Error re-processing inventory:', error);
             throw error;
         }
     }

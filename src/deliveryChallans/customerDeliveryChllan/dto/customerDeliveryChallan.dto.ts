@@ -68,7 +68,7 @@ export interface CreateCustomerDeliveryChallanDto {
 
   billingAddress?: ChallanAddressDto | null;
   deliveryAddress?: ChallanAddressDto | null;
-
+currentShippingAddress?:ChallanAddressDto|null;
   totalProductAmount?: number | null;
   netProductWeight?: number | null;
   netPackagingMaterialWeight?: number | null;
@@ -133,6 +133,7 @@ export interface CustomerDeliveryChallanUpdateFormDto {
   transitInsuranceNo: string | null;
   billingAddress: ChallanAddressDto | null;
   deliveryAddress: ChallanAddressDto | null;
+  currentShippingAddress?:ChallanAddressDto|null;
   companyName: string | null;
   office: string | null;
   grnNo: string | null;
@@ -196,6 +197,7 @@ export interface CustomerDeliveryChallanViewDto {
   fromLocation: string | null;
   billingAddress: ChallanAddressDto | null;
   deliveryAddress: ChallanAddressDto | null;
+  currentShippingAddress?:ChallanAddressDto|null;
   /** Company name */
   companyName: string | null;
   /** Office name */
@@ -259,6 +261,7 @@ export interface CustomerDeliveryChallanListItemDto {
   customerName: string | null;
   billingAddress: ChallanAddressDto | null;
   deliveryAddress: ChallanAddressDto | null;
+  currentShippingAddress?:ChallanAddressDto|null;
   fromLocation: { id: string; name: string } | null;
   transitInsuranceNo: string | null;
   grnNo: string | null;

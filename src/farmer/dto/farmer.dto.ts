@@ -58,7 +58,7 @@ export interface CreateFarmerDto {
   email: string | null;
   gender: string | null;
   dob: string | null;
-
+status?:Status
   // ── Address ───────────────────────────────────────────────────────────────
   residensialAddress: AddressDto;
   farmAddress: AddressDto;

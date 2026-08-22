@@ -17,6 +17,7 @@ import { getReadableDocumentType } from "../../utils/documentTypeLabel";
 import { CacheService } from "../../global/cache.service";
 import { NotificationService } from "../../notification/service/notification.service";
 import { DocumentbRepository } from "../repository/documentb.repository";
+import { InventoryMovementService } from "../../inventoryStock/service/inventoryMovement.service";
 
 @injectable()
 export class DocDoubleApproverService {
@@ -29,6 +30,7 @@ export class DocDoubleApproverService {
     @inject(TYPES.DocumentApprovalFlowRepository) private documentApprovalFlowRepository: DocumentApprovalFlowRepository,
     @inject(TYPES.DocumentbService) private documentBService: DocumentbService,
     @inject(TYPES.CacheService) private cacheService: CacheService,
+    @inject(TYPES.InventoryMovementService) private inventoryMovementService: InventoryMovementService,
   ) {
   }
 
@@ -171,6 +173,16 @@ export class DocDoubleApproverService {
     throw new Error('User is not authorized to act on this document');
   }
 
+  // Terminal-state guard. Without this, a document already at COMPLETE could be
+  // driven through the approval branch again — which, now that inventory is
+  // applied here, would be an attempt at a second stock movement.
+  if (document.status === DocumentStatus.COMPLETE) {
+    throw new Error('Document is already fully approved');
+  }
+  if (document.status === DocumentStatus.REJECT) {
+    throw new Error('Document is already rejected');
+  }
+
   // REJECTED handling (immediate)
   if (action === ApproverStatus.REJECTED) {
     const stage = await this.approvalStageInfoRepository.save({
@@ -228,6 +240,21 @@ export class DocDoubleApproverService {
 
   // APPROVED handling
   if (action === ApproverStatus.APPROVED) {
+    // Pre-flight the stock movement BEFORE anything is persisted. Approving is
+    // what moves stock now, so if the movement is impossible (e.g. the goods
+    // have been consumed since the document was raised) we must fail here,
+    // while the action is still fully retryable — once the stage record is
+    // saved the "approver already acted" guard would block a second attempt.
+    // This action completes the document only if the OTHER level has already
+    // approved — mirroring the completion check further down.
+    const otherLevelApproved = isFirstApprover
+      ? info.secondApproved?.status === ApproverStatus.APPROVED
+      : info.firstApproved?.status === ApproverStatus.APPROVED;
+
+    if (otherLevelApproved) {
+      await this.inventoryMovementService.assertMovementIsApplicable(document);
+    }
+
     const stage = await this.approvalStageInfoRepository.save({
       userId,
       userName,
@@ -263,7 +290,10 @@ export class DocDoubleApproverService {
     if (firstApproved && secondApproved) {
       document.status = DocumentStatus.COMPLETE;
       document.remarks = `${document.type} Approved by Required Approvers`;
-      await this.documentbRepository.save(document);
+      // Persists the status AND applies this document's stock movement in a
+      // single transaction, guarded by documents.inventoryProcessed so a
+      // repeated or concurrent approval cannot move stock twice.
+      await this.inventoryMovementService.completeDocumentWithInventory(document);
       await this.invalidateDocumentCache(documentId, document);
 
       // 🔔 Actor

@@ -454,14 +454,15 @@ public async softDeleteMultipleProducts(
         return next(new AppError(400, 'File URL is required'));
       }
       
-      const success = await this.productService.createProductWithExcel(fileUrl);
+      const summary = await this.productService.createProductWithExcel(fileUrl);
       
       // 🔔 Send notification for product Excel upload
       try {
         const userId = res.locals.user?.id;
         if (userId) {
           await this.notificationService.createNoti(
-            `Product Excel file "${req.file.filename}" uploaded successfully`,
+            `Product Excel imported: ${summary.created} created, ` +
+              `${summary.skipped.length} skipped, ${summary.failed.length} failed`,
             userId
           );
         }
@@ -471,52 +472,101 @@ public async softDeleteMultipleProducts(
       ControllerLogger.logSuccess('Product Excel uploaded', 'bulk', req, res);
       res.status(200).json({
         status: 'success',
-        message: 'Product data uploaded successfully',
-        data: success,
+        message:
+          `${summary.created} product(s) imported` +
+          (summary.skipped.length ? `, ${summary.skipped.length} skipped` : '') +
+          (summary.failed.length ? `, ${summary.failed.length} failed` : ''),
+        data: summary,
       });
     } catch (err) {
       ControllerLogger.logError('Product Excel upload', err, req, res);
       next(err);
     }
   }
- @httpGet('/download/template')
+  @httpGet('/export/excel')
+  public async exportProductsExcel(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const { search, sort } = req.query;
+
+      // Same options the list endpoint builds, minus page/limit — an export
+      // covers the whole filtered set, not one page of it.
+      const queryOptions: PaginationOptions = {
+        filters: {},
+        sort: (sort as string) || undefined,
+        search: (search as string) || '',
+      };
+
+      const file = await this.productService.exportToExcel(queryOptions);
+
+      try {
+        const userId = res.locals.user?.id;
+        if (userId) {
+          await this.notificationService.createNoti(
+            `Product Excel export ready (${file.rowCount} products)`,
+            userId,
+          );
+        }
+      } catch (notifError) {
+        logger.warn('Could not create product export notification', {
+          error: notifError,
+        });
+      }
+
+      ControllerLogger.logList('Product Excel Export', req, res);
+
+      return res.status(200).json({
+        status: 'success',
+        message: `${file.rowCount} product(s) exported successfully`,
+        data: {
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+          totalRecords: file.rowCount,
+        },
+      });
+    } catch (error) {
+      ControllerLogger.logError('Product Excel export', error, req, res);
+      next(error);
+    }
+  }
+
+  @httpGet('/download/template')
   public async downloadExcelTemplate(
     @request() req: Request,
     @response() res: Response,
     @next() next: NextFunction,
   ) {
     try {
-      const key = 'formats/Product_Template.xlsx';
-      
-      
-      
-      
-      const fileUrl = `https://${process.env.DO_SPACES_BUCKET}.sgp1.digitaloceanspaces.com/${key}`;
-      
-      
+      // Generated from the same column map the importer reads, so the template
+      // can never drift out of sync with what the upload endpoint accepts.
+      const file = await this.productService.buildExcelTemplate();
+console.log("in controller");
       try {
         const userId = res.locals.user?.id;
         if (userId) {
           await this.notificationService.createNoti(
-            `product template "${key.split('/').pop()}" accessed`,
-            userId
+            `Product template "${file.fileName}" generated`,
+            userId,
           );
         }
       } catch (notifError) {
+        logger.warn('Could not create product template notification', {
+          error: notifError,
+        });
       }
-      
-      ControllerLogger.logList('Product Template URL Generated', req, res);
-      
-      // Return the URL in JSON response
+
+      ControllerLogger.logList('Product Template Generated', req, res);
+
       res.status(200).json({
         status: 'success',
         message: 'Template URL generated successfully',
         data: {
-          // templateUrl: fileUrl,
-          // fileName: key.split('/').pop(),
-          downloadUrl: fileUrl, // Alternative property name for clarity
-          //fileKey: key // Include the key for reference
-        }
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+        },
       });
     } catch (error) {
       ControllerLogger.logError('Generate product Template URL', error, req, res);

@@ -60,9 +60,18 @@ export class UserReportController {
 
       const result = await this.userReportService.totalPurchase(filters);
 
+      const page = filters.page ?? 1;
+
       res.status(200).json({
         success: true,
-        data: result,
+        data: {
+          overallTotalQty: result.overallTotalQty,
+          overallTotalAmount: result.overallTotalAmount,
+          dateWise: result.dateWise,
+        },
+        allRecords: result.pagination.totalRecords,
+        totalPages: result.pagination.totalPages,
+        page: Number(page),
       });
     } catch (error) {
       console.error('Error fetching total purchase:', error);
@@ -92,9 +101,18 @@ export class UserReportController {
 
       const result = await this.userReportService.totalSale(filters);
 
+      const page = filters.page ?? 1;
+
       res.status(200).json({
         success: true,
-        data: result,
+        data: {
+          overallTotalQty: result.overallTotalQty,
+          overallTotalAmount: result.overallTotalAmount,
+          dateWise: result.dateWise,
+        },
+        allRecords: result.pagination.totalRecords,
+        totalPages: result.pagination.totalPages,
+        page: Number(page),
       });
     } catch (error) {
       console.error('Error fetching total purchase:', error);

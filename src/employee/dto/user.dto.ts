@@ -28,7 +28,7 @@ export interface UserPermissionDto {
 }
 
 /** User status values. */
-export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DRAFT';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Create User DTO  (POST /employee)

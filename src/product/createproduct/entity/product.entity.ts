@@ -86,6 +86,8 @@ export class Product extends Model {
   //   onDelete: 'CASCADE',
   // })
   // variants:ProductVarients[];
+   @Column({ type: 'int', nullable: true })
+  thresholdStock: number | null;
 
   @OneToMany(
     () => QualityParameter,

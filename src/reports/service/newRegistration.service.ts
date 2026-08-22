@@ -24,6 +24,7 @@ export interface NewRegistrationFilters {
   state?: string;
   pincode?: string;
   employee?: string[];
+  employees?: string[]; // frontend sends "employees" (plural)
 }
 
 export interface DateRange {
@@ -264,7 +265,8 @@ export class NewRegistrationService {
    * Build employee filter for queries
    */
   private buildEmployeeFilter(filters: NewRegistrationFilters, paramStartIndex: number, columnName: string = 'created_by'): { filter: string; params: any[] } {
-    const employeeIds = filters.employee || [];
+    // Accept either "employees" (frontend) or "employee" (legacy) field
+    const employeeIds = filters.employees ?? filters.employee ?? [];
     
     if (!employeeIds || employeeIds.length === 0) {
       return { filter: '', params: [] };
@@ -715,9 +717,10 @@ export class NewRegistrationService {
     row7.getCell(2).border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
     // Employee Names
+    const employeeIdList = filters.employees ?? filters.employee ?? [];
     let employeeNamesText = 'All';
-    if (filters.employee && filters.employee.length > 0) {
-      const employeeNames = await this.getEmployeeNames(filters.employee);
+    if (employeeIdList.length > 0) {
+      const employeeNames = await this.getEmployeeNames(employeeIdList);
       if (employeeNames.length > 0) {
         employeeNamesText = employeeNames.join(', ');
       }

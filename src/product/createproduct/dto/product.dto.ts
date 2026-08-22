@@ -20,7 +20,6 @@ export interface ProductVariantDto {
   variety?: string | null;
   origin?: string | null;
   brand?: string | null;
-  thresholdStock?: number | null;
 }
 
 export interface UomDto {
@@ -69,6 +68,8 @@ export interface CreateProductDto {
 
   storageTemp?: number;
 
+  thresholdStock?: number | null;
+
   variant?: ProductVariantDto[];
 
   qualityParameters?: QualityParameterDto[];
@@ -99,6 +100,7 @@ export interface ProductDetailResponseDto {
 
   shelfLife: number | null;
   storageTemp: number | null;
+  thresholdStock: number | null;
 
   classification: string | null;
   category: string | null;

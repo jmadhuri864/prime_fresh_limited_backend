@@ -52,12 +52,9 @@ export class ProductVarientsService {
             'varient.variety',
             'varient.origin',
             'varient.brand',
-            'varient.thresholdStock',
             'varient.createdAt',
             'product.id',
             'product.name',
-  
-            
           ]);
   
         return await buildQuery(queryBuilder, queryOptions, 'varient');

@@ -15,6 +15,7 @@ import { getReadableDocumentType } from "../../utils/documentTypeLabel";
 import logger from "../../utils/logger";
 import { DocumentbRepository } from "../repository/documentb.repository";
 import { NotificationService } from "../../notification/service/notification.service";
+import { InventoryMovementService } from "../../inventoryStock/service/inventoryMovement.service";
 
 
 @injectable()
@@ -33,6 +34,8 @@ export class DocSingalApproverService {
     private documentBService: DocumentbService,
     @inject(TYPES.CacheService)
     private cacheService: CacheService,
+    @inject(TYPES.InventoryMovementService)
+    private inventoryMovementService: InventoryMovementService,
   ){}
 
   // Convert document type to readable format — moved to src/utils/documentTypeLabel.ts
@@ -177,6 +180,15 @@ export class DocSingalApproverService {
           ); 
         }
 
+        // Pre-flight the stock movement BEFORE anything is persisted.
+        // Approving is what moves stock now, so if the movement is impossible
+        // (e.g. the goods are no longer available) we must fail here, while the
+        // action is still fully retryable — once the stage record is saved the
+        // "already acted" guard would block a second attempt.
+        if (action === 'approved') {
+          await this.inventoryMovementService.assertMovementIsApplicable(document);
+        }
+
         // Create and save stage info
         const stage = this.approvalStageInfoRepository.create({
           userId,
@@ -220,7 +232,10 @@ export class DocSingalApproverService {
           const remark = `${document.type} Document Approved By Approvers`;
           document.status = DocumentStatus.COMPLETE;
           document.remarks = remark;
-          await this.documentbRepository.save(document);
+          // Persists the status AND applies this document's stock movement in a
+          // single transaction, guarded by documents.inventoryProcessed so a
+          // repeated or concurrent approval cannot move stock twice.
+          await this.inventoryMovementService.completeDocumentWithInventory(document);
           await this.invalidateRelatedCache(document.type, documentId, document.document_type_id ?? undefined);
 
           // 🔔 Actor

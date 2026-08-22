@@ -2297,7 +2297,7 @@ public async getEmployeeCountByDept(query: any): Promise<any> {
 
     const achievedQty     = Number(achievedResult?.achievedQty || 0);
     const achievementRate = assignedTargetQty > 0 ? (achievedQty / assignedTargetQty) * 100 : 0;
-    const variance        = assignedTargetQty - achievedQty;
+    const variance        = achievedQty - assignedTargetQty;
 
     // GRN count
     const grnCountResult = await this.grnRepo
@@ -2573,7 +2573,7 @@ async getSaleTeamMembersPerformance(
     const achievementRate = assignedTargetQty > 0
       ? (achievedQty / assignedTargetQty) * 100
       : 0;
-    const variance = assignedTargetQty - achievedQty;
+    const variance = achievedQty - assignedTargetQty;
 
     // Invoice count
     const result2 = await this.finalInvoiceRepo
@@ -2842,7 +2842,7 @@ const targets = await this.procurementTargetRepo
   .andWhere("target.month = :month", { month: month?selectedMonth:selectedMonth-1 })  ////
   .andWhere("target.year = :year", { year: selectedYear })
   .getRawOne();
-  const AsignedTargetQty = Number(targets?.totalTarget || 0);
+  const asignedTargetQty = Number(targets?.totalTarget || 0);
 
 const newCurrentMnth=new Date().getMonth()+1;
   const result1 = await this.grnRepo
@@ -2865,11 +2865,11 @@ const newCurrentMnth=new Date().getMonth()+1;
 
   const achievedQty = Number(result1?.achievedQty || 0);
 
-  const achievementRate = AsignedTargetQty > 0
-  ? (achievedQty / AsignedTargetQty) * 100
+  const achievementRate = asignedTargetQty > 0
+  ? (achievedQty / asignedTargetQty) * 100
   : 0;
 
-   const variance = AsignedTargetQty - achievedQty;
+   const variance = achievedQty - asignedTargetQty;
 
    const totalRegisteredFarmers = await this.farmerRepo
   .createQueryBuilder("farmer")
@@ -2923,7 +2923,7 @@ const vendorCount =
    return{
     totalProcurementAmount:totalProcurementAmount,  
     totalProcurementQty:totalProcurementQty,
-    AsignedTargetQty:AsignedTargetQty,
+    asignedTargetQty:asignedTargetQty,
     achievedQty:achievedQty,
     achievementRate:achievementRate,
     variance:variance,
@@ -3000,7 +3000,7 @@ const targets = await this.saleTargetRepo
   .andWhere("target.month = :month", { month: month?selectedMonth:selectedMonth-1 })
   .andWhere("target.year = :year", { year: selectedYear })
   .getRawOne();
-  const AsignedTargetQty = Number(targets?.totalTarget || 0);
+  const asignedTargetQty = Number(targets?.totalTarget || 0);
 
   const newCurrentMnth=new Date().getMonth()+1;
   const result1 = await this.finalInvoiceRepo
@@ -3022,11 +3022,11 @@ const targets = await this.saleTargetRepo
 
   const achievedQty = Number(result1?.totalQty || 0);
 
-  const achievementRate = AsignedTargetQty > 0
-  ? (achievedQty / AsignedTargetQty) * 100
+  const achievementRate = asignedTargetQty > 0
+  ? (achievedQty / asignedTargetQty) * 100
   : 0;
 
-   const variance = AsignedTargetQty - achievedQty;
+   const variance = achievedQty - asignedTargetQty;
 
    const totalRegisteredCutomers = await this.customerRepo
   .createQueryBuilder("customer")
@@ -3055,7 +3055,7 @@ const targets = await this.saleTargetRepo
    return{
     totalSaleAmount:totalSaleAmount,  
     totalSaleQty:totalSaleQty,
-    AsignedTargetQty:AsignedTargetQty,
+    asignedTargetQty:asignedTargetQty,
     achievedQty:achievedQty,
     achievementRate:achievementRate,
     variance:variance,

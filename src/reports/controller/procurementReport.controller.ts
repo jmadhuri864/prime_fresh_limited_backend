@@ -25,7 +25,7 @@ export class ProcurementReportController {
   ) {
     const { startDate, endDate, company, location,vendor,farmer,product } = req.query;
 
-    const data = await this.procurementReportService.getReport({
+    const data = await this.procurementReportService.getProcurementReport({
       employeeId,
       startDate: new Date(startDate as string),
       endDate: new Date(endDate as string),
@@ -53,7 +53,7 @@ export class ProcurementReportController {
     try {
       const { startDate, endDate, company, location, vendor, farmer, product } = req.query;
 
-      const report = await this.procurementReportService.getReport({
+      const report = await this.procurementReportService.getProcurementReport({
         employeeId,
         startDate: new Date(startDate as string),
         endDate: new Date(endDate as string),

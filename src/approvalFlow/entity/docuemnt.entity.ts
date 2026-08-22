@@ -88,5 +88,13 @@ export class Documentb extends Model {
 
    @Column({ type: 'varchar', nullable: true })
    document_type_id: string | null;
+
+  /**
+   * True once this document's stock movement has been written to inventory_stock.
+   * Set inside the same transaction that moves the status to COMPLETE, so a
+   * repeated / concurrent approval call can never apply the movement twice.
+   */
+  @Column({ default: false })
+  inventoryProcessed: boolean;
   
 }

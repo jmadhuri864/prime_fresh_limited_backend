@@ -55,12 +55,15 @@ export class ApprovalFlowController {
     try {
       const type = typeof req.query.type === "string" ? req.query.type : undefined;
 
-      const pageParam = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
-      const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+      const toPositiveInt = (value: unknown): number | undefined => {
+        if (typeof value !== "string" || value.trim() === "") return undefined;
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed < 1) return undefined;
+        return parsed;
+      };
 
-      // Only apply pagination if both page and limit are provided
-      const page = pageParam && limitParam ? pageParam : undefined;
-      const limit = pageParam && limitParam ? limitParam : undefined;
+      const page = toPositiveInt(req.query.page);
+      const limit = toPositiveInt(req.query.limit);
 
       const result = await this.approvalFlowService.getAll(type, page, limit);
 
@@ -75,10 +78,10 @@ export class ApprovalFlowController {
       return res.status(200).json({
         status: "success",
         data: result.data,
-        allRecords: result.limit,
-          totalPages: result.totalPages,
-          page: result.page,
-      
+        allRecords: result.total,
+        totalPages: result.totalPages,
+        page: result.page,
+        limit: result.limit,
       });
     } catch (err) {
       ControllerLogger.logError('Approval Flow retrieval', err, req, res);
@@ -171,7 +174,7 @@ export class ApprovalFlowController {
 
   )
   {
-     const { oldUserId, newUserId } = req.body;
+     const { oldUserId, newUserId } = data ?? req.body;
 
     if (!oldUserId || !newUserId) {
       ControllerLogger.logValidationError('User replacement', 'Both oldUserId and newUserId are required', req, res);

@@ -65,6 +65,7 @@ export class FarmerController {
   ) {
     try {
       const farmerData = req.body;
+      console.log(farmerData)
       farmerData.createdBy = res.locals.user.id;
       
       if (req.files) {
@@ -98,11 +99,12 @@ export class FarmerController {
         res.locals.user.id,
       );
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const currentUser = res.locals.user;
+      const isAdmin = currentUser.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
-      const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      const userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || 'Unknown User';
       this.activityLogService.logActivity({
-        userId: res.locals.user.id,
+        userId: currentUser.id,
         userName,
         action: ActivityAction.CREATE,
         module: ActivityModule.OTHER,
@@ -241,7 +243,7 @@ export class FarmerController {
       delete farmerData.idProofCopy;
       delete farmerData.sevenTwelveCopy;
 
-      const farmer = await this.farmerService.submitFarmer(id, fileUpdates, farmerData);
+      const farmer = await this.farmerService.submitFarmer(id, fileUpdates, farmerData, res.locals.user.id);
 
       ControllerLogger.logSuccess('Farmer submitted', id, req, res);
       return res.status(200).json({
@@ -412,10 +414,27 @@ export class FarmerController {
         return next(new AppError(400, 'No file uploaded'));
       }
 
-      await this.farmerService.createFarmerwithExcel((req.file as any).location || (req.file as any).path || req.file.filename);
+      const userId = res.locals.user?.id;
+      if (!userId) {
+        return next(new AppError(401, 'User not authenticated'));
+      }
+
+      // Every imported farmer is owned by whoever ran the import - the sheet
+      // has no say in it.
+      const summary = await this.farmerService.createFarmerwithExcel(
+        (req.file as any).location || (req.file as any).path || req.file.filename,
+        userId,
+      );
 
       ControllerLogger.logSuccess('Farmer Excel uploaded', 'bulk', req, res);
-      res.status(200).json({ message: 'File processed successfully' });
+      res.status(200).json({
+        status: 'success',
+        message:
+          `${summary.created} farmer(s) imported` +
+          (summary.skipped.length ? `, ${summary.skipped.length} skipped` : '') +
+          (summary.failed.length ? `, ${summary.failed.length} failed` : ''),
+        data: summary,
+      });
     } catch (error) {
       ControllerLogger.logError('Upload Farmer Excel', error, req, res);
       next(error);
@@ -560,11 +579,12 @@ export class FarmerController {
         res.locals.user.id,
       );
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const currentUser = res.locals.user;
+      const isAdmin = currentUser.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
-      const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      const userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || 'Unknown User';
       this.activityLogService.logActivity({
-        userId: res.locals.user.id,
+        userId: currentUser.id,
         userName,
         action: ActivityAction.UPDATE,
         module: ActivityModule.OTHER,
@@ -622,11 +642,12 @@ export class FarmerController {
 
       ControllerLogger.logSuccess('Farmer deleted', id, req, res);
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const currentUser = res.locals.user;
+      const isAdmin = currentUser.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
-      const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      const userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || 'Unknown User';
       this.activityLogService.logActivity({
-        userId: res.locals.user.id,
+        userId: currentUser.id,
         userName,
         action: ActivityAction.DELETE,
         module: ActivityModule.OTHER,
@@ -680,6 +701,56 @@ export class FarmerController {
     }
   }
 
+  @httpGet('/export/excel')
+  public async exportFarmersExcel(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const userId = res.locals.user?.id;
+      if (!userId) {
+        return next(new AppError(401, 'User not authenticated'));
+      }
+
+      const { search, sort } = req.query;
+
+      // Same options the list endpoint builds, minus page/limit - an export
+      // covers the whole filtered set, not one page of it.
+      const queryOptions: PaginationOptions = {
+        filters: {},
+        sort: (sort as string) || undefined,
+        search: (search as string) || '',
+      };
+
+      const file = await this.farmerService.exportToExcel(queryOptions, userId);
+
+      try {
+        await this.notificationService.createNoti(
+          `Farmer Excel export ready (${file.rowCount} farmers)`,
+          userId,
+        );
+      } catch (notifError) {
+        // A failed notification must not fail the export.
+      }
+
+      ControllerLogger.logList('Farmer Excel Export', req, res);
+
+      return res.status(200).json({
+        status: 'success',
+        message: `${file.rowCount} farmer(s) exported successfully`,
+        data: {
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+          totalRecords: file.rowCount,
+        },
+      });
+    } catch (error) {
+      ControllerLogger.logError('Farmer Excel export', error, req, res);
+      next(error);
+    }
+  }
+
   @httpGet('/download/template')
   public async downloadExcelTemplate(
     @request() req: Request,
@@ -687,43 +758,38 @@ export class FarmerController {
     @next() next: NextFunction,
   ) {
     try {
-      const key = 'formats/FarmerDetailsTemplate.xlsx';
-      
-      
-      
-      
-      const fileUrl = `https://${process.env.DO_SPACES_BUCKET}.sgp1.digitaloceanspaces.com/${key}`;
-      
-      
+      // Generated from the same column map the importer reads, so the template
+      // can never drift out of sync with what the upload endpoint accepts.
+      const file = await this.farmerService.buildExcelTemplate();
+
       try {
         const userId = res.locals.user?.id;
         if (userId) {
           await this.notificationService.createNoti(
-            `Farmer template "${key.split('/').pop()}" accessed`,
-            userId
+            `Farmer template "${file.fileName}" generated`,
+            userId,
           );
         }
       } catch (notifError) {
+        // A failed notification must not fail the download.
       }
-      
-      ControllerLogger.logList('Farmer Template URL Generated', req, res);
-      
-      // Return the URL in JSON response
+
+      ControllerLogger.logList('Farmer Template Generated', req, res);
+
       res.status(200).json({
         status: 'success',
         message: 'Template URL generated successfully',
         data: {
-          // templateUrl: fileUrl,
-          // fileName: key.split('/').pop(),
-          downloadUrl: fileUrl, // Alternative property name for clarity
-          //fileKey: key // Include the key for reference
-        }
+          downloadUrl: file.downloadUrl,
+          fileName: file.fileName,
+        },
       });
     } catch (error) {
       ControllerLogger.logError('Generate Farmer Template URL', error, req, res);
       next(error);
     }
   }
+
   //TODO:Delete Mutilple
    @httpDelete("/delete/multiple")
   public async softDeleteMultipleFarmers(
@@ -755,11 +821,12 @@ export class FarmerController {
         res
       );
 // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = user.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const currentUser = res.locals.user;
+      const isAdmin = currentUser.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
       if (!isAdmin) {
-      const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
+      const userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || 'Unknown User';
       this.activityLogService.logActivity({
-        userId: res.locals.user.id,
+        userId: currentUser.id,
         userName,
         action: ActivityAction.DELETE,
         module: ActivityModule.OTHER,

@@ -198,10 +198,10 @@ export class User extends Model {
 
   @Column({
     type: 'enum',
-    enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
+    enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'DRAFT'],
     default: 'INACTIVE',
   })
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DRAFT';
 
   @BeforeInsert()
   async hashPassword() {

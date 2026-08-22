@@ -29,10 +29,10 @@ const formattedResult={
         documentType:result.documentDefinition.documentType,
       
     },
-    level: {
-        id: result.level.id,
-        name: result.level.name,
-    },
+    // level: {
+    //     id: result.level.id,
+    //     name: result.level.name,
+    // },
     canCreate: result.canCreate,
     canView: result.canView,
     canEdit: result.canEdit,
@@ -62,10 +62,10 @@ const formattedResult={
                     documentType:permission.documentDefinition.documentType,
                   
                 },
-                level: {
-                    id: permission.level.id,
-                    name: permission.level.name,
-                },
+                // level: {
+                //     id: permission.level.id,
+                //     name: permission.level.name,
+                // },
                 canCreate: permission.canCreate,
                 canView: permission.canView,
                 canEdit: permission.canEdit,

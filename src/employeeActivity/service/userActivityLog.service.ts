@@ -63,6 +63,8 @@ export class UserActivityLogService {
             endpoint: log.endpoint ?? null,
             httpMethod: log.httpMethod ?? null,
             statusCode: log.statusCode ?? null,
+            userAgent: log.userAgent ?? null,
+            responseTime: log.responseTime ?? null,
             isError: log.isError,
             errorMessage: log.errorMessage ?? null,
             createdAt: log.createdAt,

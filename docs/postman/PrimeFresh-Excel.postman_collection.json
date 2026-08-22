@@ -1,0 +1,694 @@
+{
+  "info": {
+    "_postman_id": "b7e41d20-5c3a-4f18-9a6e-1c2d3e4f5a60",
+    "name": "Prime Fresh — Excel Import / Export",
+    "description": "Import and export endpoints for Product, Farmer, Customer and Vendor.\n\n## Setup\n1. Select the **Prime Fresh — Local** environment (top right).\n2. Fill in `uid` and `password`.\n3. Run **0. Login** — it saves the token automatically.\n4. Everything else uses that token via collection-level Bearer auth.\n\n## Sheets in a generated file\n| Sheet | Purpose |\n|---|---|\n| Data sheet | Row 1 is the header row; required headers are shaded dark red |\n| `Instructions` | Column Name / Type / Allowed Values & Notes |\n| `Lists` | Hidden — backs the dropdowns, never needs opening |\n\n## Dropdowns\nEvery enum and yes/no column is pick-only in Excel, including the ones inside repeating\nblocks — `Parameter1.Type` through `Parameter5.Type` all carry the same\n`good | bad | average` list. The dropdown extends 500 rows past the last record, so blank\nrows you type into already have it. Paste beyond that and the dropdown stops, but the\nimport still rejects unknown values.\n\n## Cell formats\n| Type | Accepted |\n|---|---|\n| Date | `DD-MM-YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`, or a real Excel date cell. Day-first — `03-04-2024` is 3 April |\n| Boolean | Pick `Yes` or `No` from the dropdown. `True`/`False`, `Y`/`N`, `1`/`0` also accepted. Blank means \"not set\" |\n| Number | `1250.5`, `1,250.50`, `₹1250` — separators stripped |\n| Enum | Pick from the cell dropdown. Typed values also work in any case or spacing — `Fresh Fruits` matches `fresh fruits` |\n| List | `Onion, Potato; Tomato` — comma/semicolon/pipe, duplicates removed |\n| Blank | Empty cell, whitespace, or `-` |\n\n## Repeating blocks\nChild records are written as numbered blocks — `Variant1.Size`, `Crop2.Variety`. An export\nwrites 5 blocks; the importer reads up to **20**, so you can add `Crop6.Crop` by hand. A\nblock is read as soon as **any** of its columns has a value.\n\n| Module | Prefix | Columns |\n|---|---|---|\n| Product | `Variant` | Variant Name, Variant Code, Count, Size, Variety, Origin, Brand |\n| Product | `Parameter` | Name, Type (`good`/`bad`/`average`) |\n| Farmer | `Crop` | Crop, Variety, No_Of_Plants, Pruning Date, Expected Harvest Date, Expected Quantity (Tonnes) |\n| Customer | `Spec` | Article Name, Specifications, Packing Material Spec, Packing Parameters, Rejection Criteria, Comment |\n\n## Worth knowing\n- **Export URLs are public** — no login needed. Customer and Vendor exports carry PAN,\n  Aadhar and bank account numbers.\n- **Exports are purged after 7 days** by a nightly job at 01:30, so an old `downloadUrl`\n  will eventually 404.\n- **Import uploads are deleted immediately** after parsing.\n- **Lookup values are matched loosely, then created** — Category, Classification, UOM,\n  Subcategory, Customer Category/Type, Vendor Category/Subcategory are matched on their\n  letters and digits only, so `Fresh Produce` / `Fresh-Produce` / `freshproduce` all reuse\n  an existing `fresh produce` row. Only a genuinely new name creates one.\n- **Products, packing materials and users are never created** — an unmatched name there is\n  reported in `failed` and the field is left blank.\n- **Old header spellings still work** — `Storage Temp (C)`, `Middl Name`,\n  `Contact Mddele Name`, and the old camelCase customer headers.\n\nFull reference: `docs/excel-import-export-api.md`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Login (run this first)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "",
+              "const body = pm.response.json();",
+              "pm.environment.set('token', body.access_token);",
+              "console.log('Logged in as', body.userName, '| roles:', body.roles);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"uid\": \"{{uid}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Every other request needs the token this returns. The test script saves it to the\n`token` environment variable automatically, and the collection-level Bearer auth picks\nit up — so run this once and the rest just work.\n\nSet `uid` and `password` in the environment first.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"access_token\": \"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"refresh_token\": \"eyJhbGciOi...\",\n  \"id\": \"9f1c2e44-...\",\n  \"userName\": \"Admin Admin\",\n  \"roles\": [\"admin\"],\n  \"employeeId\": \"EMP0001\",\n  \"permissions\": [],\n  \"hasChild\": true\n}\n```\n\n**Errors** — `400` uid/password missing · `401` wrong credentials."
+      }
+    },
+    {
+      "name": "1. Product",
+      "description": "Template → export → import for products.\n\n**Suggested order:** download the template, fill 2–3 rows, import it, export, then\nre-import the exported file — every row should come back as a duplicate in `skipped`\nwith `created: 0`. That last step is the real check that export, template and importer\nare still in sync.",
+      "item": [
+        {
+          "name": "Product — download template",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/download/template",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "download",
+                "template"
+              ]
+            },
+            "description": "Generates an empty product workbook containing exactly the headers the\nimporter reads, plus an **Instructions** sheet listing every column, its type and\nits allowed values. Required headers are shaded red on the data sheet itself.\n\nColumns with a fixed set of values are **pick-only** — click the cell and a dropdown\nappears. Typing anything else raises *\"Not an allowed value\"*.\n\n**Sheets in the file**\n- `Products` — the data. Required headers are shaded dark red\n- `Instructions` — Column Name / Type / Allowed Values & Notes\n- `Lists` — hidden, backs the dropdowns. You never need to open it\n\nThe template leaves out the columns the system fills in itself — the record code,\n`Status` and `Created By`. They still appear on an **export**, so an export is wider\nthan a template.\n\nUploads it to Spaces and returns the URL — open `data.downloadUrl` in a browser.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"Template URL generated successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Product_Template_2026-08-21T09-14-22-511Z.xlsx\",\n    \"fileName\": \"Product_Template_2026-08-21T09-14-22-511Z.xlsx\"\n  }\n}\n```\n\n**Errors** — `401` no/invalid token · `500` `DO_SPACES_BUCKET` not configured."
+          }
+        },
+        {
+          "name": "Product — export to Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);",
+                  "",
+                  "pm.test('reports a record count', () =>",
+                  "  pm.expect(data.totalRecords).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products/export/excel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "export",
+                "excel"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Free-text match across the record, same as the list page"
+                },
+                {
+                  "key": "sort",
+                  "value": "",
+                  "disabled": true,
+                  "description": "field:ASC or field:DESC, comma-separated for multiple"
+                }
+              ]
+            },
+            "description": "Writes every product matching the filters to a workbook, uploads it to\nSpaces, returns the URL.\n\n**`page` and `limit` are deliberately ignored** — you get the whole filtered set, not\none page of it.\n\n### Query params (both optional, both disabled by default — tick them to use)\n| Param | Example |\n|---|---|\n| `search` | `Nashik` |\n| `sort` | `name:ASC,createdAt:DESC` |\n\nValid sort fields: `name`, `productCode`, `packingType`, `shelfLife`, `createdAt`\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"128 product(s) exported successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Products_2026-08-21T09-20-04-882Z.xlsx\",\n    \"fileName\": \"Products_2026-08-21T09-20-04-882Z.xlsx\",\n    \"totalRecords\": 128\n  }\n}\n```\n\nNothing matching still returns `200` with `totalRecords: 0` and a header-only file —\nnot a `404`.\n\n**Errors** — `401` no/invalid token, or (Farmer/Customer/Vendor)\n`{\"status\":\"fail\",\"message\":\"User not authenticated\"}` · `500` upload failed.\n\nNo per-user filtering — everyone gets every product."
+          }
+        },
+        {
+          "name": "Product — import from Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const summary = pm.response.json().data;",
+                  "console.log('Rows in sheet :', summary.totalRows);",
+                  "console.log('Created       :', summary.created);",
+                  "console.log('Skipped       :', JSON.stringify(summary.skipped, null, 2));",
+                  "console.log('Failed        :', JSON.stringify(summary.failed, null, 2));",
+                  "",
+                  "pm.test('no unrecognised columns (check for typos in headers)', () =>",
+                  "  pm.expect(summary.unknownColumns).to.eql([]));",
+                  "pm.test('no required columns missing', () =>",
+                  "  pm.expect(summary.missingColumns).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Your .xlsx / .xls file — click Select Files to pick it"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/products/upload-product",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                "upload-product"
+              ]
+            },
+            "description": "Uploads a spreadsheet to Spaces, parses it, creates records, then **deletes the\nuploaded file from Spaces** — whether the import succeeded, partly succeeded, or threw.\n\n### Body\n`form-data` with a single key `file` of type **File**. Do **not** set `Content-Type`\nyourself — Postman adds the multipart boundary.\n\n### Constraints\n- Max **10 MB**\n- Accepted: `.xlsx`, `.xls`, `.csv`\n- You can upload the exact file the export endpoint produced — the `Instructions` and\n  hidden `Lists` sheets are skipped automatically\n\n### Required columns\n`Product Name, Product Code Prefix`\n\nA file missing one of these headers is rejected with `400`. A row that leaves one\nblank is skipped and reported.\n\n### Duplicates\nMatched on **`Product Name` (case-insensitive)**. An existing record is **skipped and reported**, never\nupdated.\n\n### Columns the system fills in\nThe record code, `Status` and `Created By` are **not** read from the sheet — the\ntemplate leaves them out entirely. Status is always `pending` on import, and\n`Created By` is the **logged-in user who uploaded the file**.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"12 record(s) imported, 2 skipped, 1 failed\",\n  \"data\": {\n    \"totalRows\": 15,\n    \"created\": 12,\n    \"skipped\": [\n      { \"row\": 4, \"reason\": \"... already exists (CODE0001)\" },\n      { \"row\": 9, \"reason\": \"... is empty\" }\n    ],\n    \"failed\": [\n      { \"row\": 11, \"reason\": \"... did not match any product\" }\n    ],\n    \"unknownColumns\": [\"Extra Notes\"],\n    \"missingColumns\": []\n  }\n}\n```\n\n`row` is the Excel row number so you can jump straight to it.\n\n> A row can appear in `failed` **and still have been created** — e.g. a crop or\n> product name that matches nothing is left off, but the rest of the record is saved.\n\n**Errors** — `400` `{\"message\":\"No file uploaded\"}` · `400` `{\"message\":\"The uploaded\nfile is missing required column(s): ...\"}` · `401` no/invalid token · `500` wrong file\ntype or corrupt workbook."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Farmer",
+      "description": "Template → export → import for farmers.\n\n**Suggested order:** download the template, fill 2–3 rows, import it, export, then\nre-import the exported file — every row should come back as a duplicate in `skipped`\nwith `created: 0`. That last step is the real check that export, template and importer\nare still in sync.",
+      "item": [
+        {
+          "name": "Farmer — download template",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/farmers/download/template",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "farmers",
+                "download",
+                "template"
+              ]
+            },
+            "description": "Generates an empty farmer workbook containing exactly the headers the\nimporter reads, plus an **Instructions** sheet listing every column, its type and\nits allowed values. Required headers are shaded red on the data sheet itself.\n\nColumns with a fixed set of values are **pick-only** — click the cell and a dropdown\nappears. Typing anything else raises *\"Not an allowed value\"*.\n\n**Sheets in the file**\n- `Farmers` — the data. Required headers are shaded dark red\n- `Instructions` — Column Name / Type / Allowed Values & Notes\n- `Lists` — hidden, backs the dropdowns. You never need to open it\n\nThe template leaves out the columns the system fills in itself — the record code,\n`Status` and `Created By`. They still appear on an **export**, so an export is wider\nthan a template.\n\nUploads it to Spaces and returns the URL — open `data.downloadUrl` in a browser.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"Template URL generated successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Farmer_Template_2026-08-21T09-14-22-511Z.xlsx\",\n    \"fileName\": \"Farmer_Template_2026-08-21T09-14-22-511Z.xlsx\"\n  }\n}\n```\n\n**Errors** — `401` no/invalid token · `500` `DO_SPACES_BUCKET` not configured."
+          }
+        },
+        {
+          "name": "Farmer — export to Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);",
+                  "",
+                  "pm.test('reports a record count', () =>",
+                  "  pm.expect(data.totalRecords).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/farmers/export/excel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "farmers",
+                "export",
+                "excel"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Free-text match across the record, same as the list page"
+                },
+                {
+                  "key": "sort",
+                  "value": "",
+                  "disabled": true,
+                  "description": "field:ASC or field:DESC, comma-separated for multiple"
+                }
+              ]
+            },
+            "description": "Writes every farmer matching the filters to a workbook, uploads it to\nSpaces, returns the URL.\n\n**`page` and `limit` are deliberately ignored** — you get the whole filtered set, not\none page of it.\n\n### Query params (both optional, both disabled by default — tick them to use)\n| Param | Example |\n|---|---|\n| `search` | `Nashik` |\n| `sort` | `farmerfName:ASC,createdAt:DESC` |\n\nValid sort fields: `farmerfName`, `farmerCode`, `primaryMobileNo`, `status`, `createdAt`\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"128 farmer(s) exported successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Farmers_2026-08-21T09-20-04-882Z.xlsx\",\n    \"fileName\": \"Farmers_2026-08-21T09-20-04-882Z.xlsx\",\n    \"totalRecords\": 128\n  }\n}\n```\n\nNothing matching still returns `200` with `totalRecords: 0` and a header-only file —\nnot a `404`.\n\n**Errors** — `401` no/invalid token, or (Farmer/Customer/Vendor)\n`{\"status\":\"fail\",\"message\":\"User not authenticated\"}` · `500` upload failed.\n\n### Row visibility\n- **Admin / Verifier** — all records\n- **Verifier (not admin)** — drafts excluded\n- **Anyone else** — only records they created"
+          }
+        },
+        {
+          "name": "Farmer — import from Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const summary = pm.response.json().data;",
+                  "console.log('Rows in sheet :', summary.totalRows);",
+                  "console.log('Created       :', summary.created);",
+                  "console.log('Skipped       :', JSON.stringify(summary.skipped, null, 2));",
+                  "console.log('Failed        :', JSON.stringify(summary.failed, null, 2));",
+                  "",
+                  "pm.test('no unrecognised columns (check for typos in headers)', () =>",
+                  "  pm.expect(summary.unknownColumns).to.eql([]));",
+                  "pm.test('no required columns missing', () =>",
+                  "  pm.expect(summary.missingColumns).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Your .xlsx / .xls file — click Select Files to pick it"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/farmers/upload-farmer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "farmers",
+                "upload-farmer"
+              ]
+            },
+            "description": "Uploads a spreadsheet to Spaces, parses it, creates records, then **deletes the\nuploaded file from Spaces** — whether the import succeeded, partly succeeded, or threw.\n\n### Body\n`form-data` with a single key `file` of type **File**. Do **not** set `Content-Type`\nyourself — Postman adds the multipart boundary.\n\n### Constraints\n- Max **10 MB**\n- Accepted: `.xlsx`, `.xls`, `.csv`\n- You can upload the exact file the export endpoint produced — the `Instructions` and\n  hidden `Lists` sheets are skipped automatically\n\n### Required columns\n`First Name, Primary Mobile No`\n\nA file missing one of these headers is rejected with `400`. A row that leaves one\nblank is skipped and reported.\n\n### Duplicates\nMatched on **`Primary Mobile No`**. An existing record is **skipped and reported**, never\nupdated.\n\n### Columns the system fills in\nThe record code, `Status` and `Created By` are **not** read from the sheet — the\ntemplate leaves them out entirely. Status is always `pending` on import, and\n`Created By` is the **logged-in user who uploaded the file**.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"12 record(s) imported, 2 skipped, 1 failed\",\n  \"data\": {\n    \"totalRows\": 15,\n    \"created\": 12,\n    \"skipped\": [\n      { \"row\": 4, \"reason\": \"... already exists (CODE0001)\" },\n      { \"row\": 9, \"reason\": \"... is empty\" }\n    ],\n    \"failed\": [\n      { \"row\": 11, \"reason\": \"... did not match any product\" }\n    ],\n    \"unknownColumns\": [\"Extra Notes\"],\n    \"missingColumns\": []\n  }\n}\n```\n\n`row` is the Excel row number so you can jump straight to it.\n\n> A row can appear in `failed` **and still have been created** — e.g. a crop or\n> product name that matches nothing is left off, but the rest of the record is saved.\n\n**Errors** — `400` `{\"message\":\"No file uploaded\"}` · `400` `{\"message\":\"The uploaded\nfile is missing required column(s): ...\"}` · `401` no/invalid token · `500` wrong file\ntype or corrupt workbook."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Customer",
+      "description": "Template → export → import for customers.\n\n**Suggested order:** download the template, fill 2–3 rows, import it, export, then\nre-import the exported file — every row should come back as a duplicate in `skipped`\nwith `created: 0`. That last step is the real check that export, template and importer\nare still in sync.",
+      "item": [
+        {
+          "name": "Customer — download template",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/download/template",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "download",
+                "template"
+              ]
+            },
+            "description": "Generates an empty customer workbook containing exactly the headers the\nimporter reads, plus an **Instructions** sheet listing every column, its type and\nits allowed values. Required headers are shaded red on the data sheet itself.\n\nColumns with a fixed set of values are **pick-only** — click the cell and a dropdown\nappears. Typing anything else raises *\"Not an allowed value\"*.\n\n**Sheets in the file**\n- `Customers` — the data. Required headers are shaded dark red\n- `Instructions` — Column Name / Type / Allowed Values & Notes\n- `Lists` — hidden, backs the dropdowns. You never need to open it\n\nThe template leaves out the columns the system fills in itself — the record code,\n`Status` and `Created By`. They still appear on an **export**, so an export is wider\nthan a template.\n\nUploads it to Spaces and returns the URL — open `data.downloadUrl` in a browser.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"Template URL generated successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Customer_Template_2026-08-21T09-14-22-511Z.xlsx\",\n    \"fileName\": \"Customer_Template_2026-08-21T09-14-22-511Z.xlsx\"\n  }\n}\n```\n\n**Errors** — `401` no/invalid token · `500` `DO_SPACES_BUCKET` not configured."
+          }
+        },
+        {
+          "name": "Customer — export to Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);",
+                  "",
+                  "pm.test('reports a record count', () =>",
+                  "  pm.expect(data.totalRecords).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers/export/excel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "export",
+                "excel"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Free-text match across the record, same as the list page"
+                },
+                {
+                  "key": "sort",
+                  "value": "",
+                  "disabled": true,
+                  "description": "field:ASC or field:DESC, comma-separated for multiple"
+                }
+              ]
+            },
+            "description": "Writes every customer matching the filters to a workbook, uploads it to\nSpaces, returns the URL.\n\n**`page` and `limit` are deliberately ignored** — you get the whole filtered set, not\none page of it.\n\n### Query params (both optional, both disabled by default — tick them to use)\n| Param | Example |\n|---|---|\n| `search` | `Nashik` |\n| `sort` | `organisationName:ASC,createdAt:DESC` |\n\nValid sort fields: `organisationName`, `customerCode`, `emailPrimary`, `status`, `createdAt`\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"128 customer(s) exported successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Customers_2026-08-21T09-20-04-882Z.xlsx\",\n    \"fileName\": \"Customers_2026-08-21T09-20-04-882Z.xlsx\",\n    \"totalRecords\": 128\n  }\n}\n```\n\nNothing matching still returns `200` with `totalRecords: 0` and a header-only file —\nnot a `404`.\n\n**Errors** — `401` no/invalid token, or (Farmer/Customer/Vendor)\n`{\"status\":\"fail\",\"message\":\"User not authenticated\"}` · `500` upload failed.\n\n### Row visibility\n- **Admin / Verifier** — all records\n- **Verifier (not admin)** — drafts excluded\n- **Anyone else** — only records they created"
+          }
+        },
+        {
+          "name": "Customer — import from Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const summary = pm.response.json().data;",
+                  "console.log('Rows in sheet :', summary.totalRows);",
+                  "console.log('Created       :', summary.created);",
+                  "console.log('Skipped       :', JSON.stringify(summary.skipped, null, 2));",
+                  "console.log('Failed        :', JSON.stringify(summary.failed, null, 2));",
+                  "",
+                  "pm.test('no unrecognised columns (check for typos in headers)', () =>",
+                  "  pm.expect(summary.unknownColumns).to.eql([]));",
+                  "pm.test('no required columns missing', () =>",
+                  "  pm.expect(summary.missingColumns).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Your .xlsx / .xls file — click Select Files to pick it"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/customers/upload/customerdata",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "upload",
+                "customerdata"
+              ]
+            },
+            "description": "Uploads a spreadsheet to Spaces, parses it, creates records, then **deletes the\nuploaded file from Spaces** — whether the import succeeded, partly succeeded, or threw.\n\n### Body\n`form-data` with a single key `file` of type **File**. Do **not** set `Content-Type`\nyourself — Postman adds the multipart boundary.\n\n### Constraints\n- Max **10 MB**\n- Accepted: `.xlsx`, `.xls` — **`.csv` is rejected** by this endpoint\n- You can upload the exact file the export endpoint produced — the `Instructions` and\n  hidden `Lists` sheets are skipped automatically\n\n### Required columns\n`Organisation Name, plus both addresses - Billing Address1/City/State/Pincode and Delivery Address1/City/State/Pincode`\n\nA file missing one of these headers is rejected with `400`. A row that leaves one\nblank is skipped and reported.\n\n### Duplicates\nMatched on **`Organisation Name` (case-insensitive)**. An existing record is **skipped and reported**, never\nupdated.\n\n### Columns the system fills in\nThe record code, `Status` and `Created By` are **not** read from the sheet — the\ntemplate leaves them out entirely. Status is always `pending` on import, and\n`Created By` is the **logged-in user who uploaded the file**.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"12 record(s) imported, 2 skipped, 1 failed\",\n  \"data\": {\n    \"totalRows\": 15,\n    \"created\": 12,\n    \"skipped\": [\n      { \"row\": 4, \"reason\": \"... already exists (CODE0001)\" },\n      { \"row\": 9, \"reason\": \"... is empty\" }\n    ],\n    \"failed\": [\n      { \"row\": 11, \"reason\": \"... did not match any product\" }\n    ],\n    \"unknownColumns\": [\"Extra Notes\"],\n    \"missingColumns\": []\n  }\n}\n```\n\n`row` is the Excel row number so you can jump straight to it.\n\n> A row can appear in `failed` **and still have been created** — e.g. a crop or\n> product name that matches nothing is left off, but the rest of the record is saved.\n\n**Errors** — `400` `{\"message\":\"No file uploaded\"}` · `400` `{\"message\":\"The uploaded\nfile is missing required column(s): ...\"}` · `401` no/invalid token · `500` wrong file\ntype or corrupt workbook."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Vendor",
+      "description": "Template → export → import for vendors.\n\n**Suggested order:** download the template, fill 2–3 rows, import it, export, then\nre-import the exported file — every row should come back as a duplicate in `skipped`\nwith `created: 0`. That last step is the real check that export, template and importer\nare still in sync.",
+      "item": [
+        {
+          "name": "Vendor — download template",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/download/template",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                "download",
+                "template"
+              ]
+            },
+            "description": "Generates an empty vendor workbook containing exactly the headers the\nimporter reads, plus an **Instructions** sheet listing every column, its type and\nits allowed values. Required headers are shaded red on the data sheet itself.\n\nColumns with a fixed set of values are **pick-only** — click the cell and a dropdown\nappears. Typing anything else raises *\"Not an allowed value\"*.\n\n**Sheets in the file**\n- `Vendors` — the data. Required headers are shaded dark red\n- `Instructions` — Column Name / Type / Allowed Values & Notes\n- `Lists` — hidden, backs the dropdowns. You never need to open it\n\nThe template leaves out the columns the system fills in itself — the record code,\n`Status` and `Created By`. They still appear on an **export**, so an export is wider\nthan a template.\n\nUploads it to Spaces and returns the URL — open `data.downloadUrl` in a browser.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"Template URL generated successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Vendor_Template_2026-08-21T09-14-22-511Z.xlsx\",\n    \"fileName\": \"Vendor_Template_2026-08-21T09-14-22-511Z.xlsx\"\n  }\n}\n```\n\n**Errors** — `401` no/invalid token · `500` `DO_SPACES_BUCKET` not configured."
+          }
+        },
+        {
+          "name": "Vendor — export to Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('status is success', () =>",
+                  "  pm.expect(pm.response.json().status).to.eql('success'));",
+                  "",
+                  "const data = pm.response.json().data;",
+                  "pm.test('returns a downloadUrl', () =>",
+                  "  pm.expect(data.downloadUrl).to.be.a('string').and.include('.xlsx'));",
+                  "",
+                  "// Saved so you can open it straight from the environment.",
+                  "pm.environment.set('lastDownloadUrl', data.downloadUrl);",
+                  "console.log('Download:', data.downloadUrl);",
+                  "",
+                  "pm.test('reports a record count', () =>",
+                  "  pm.expect(data.totalRecords).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/vendors/export/excel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                "export",
+                "excel"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Free-text match across the record, same as the list page"
+                },
+                {
+                  "key": "sort",
+                  "value": "",
+                  "disabled": true,
+                  "description": "field:ASC or field:DESC, comma-separated for multiple"
+                }
+              ]
+            },
+            "description": "Writes every vendor matching the filters to a workbook, uploads it to\nSpaces, returns the URL.\n\n**`page` and `limit` are deliberately ignored** — you get the whole filtered set, not\none page of it.\n\n### Query params (both optional, both disabled by default — tick them to use)\n| Param | Example |\n|---|---|\n| `search` | `Nashik` |\n| `sort` | `companyName:ASC,createdAt:DESC` |\n\nValid sort fields: `companyName`, `vendorCode`, `gstn`, `status`, `createdAt`\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"128 vendor(s) exported successfully\",\n  \"data\": {\n    \"downloadUrl\": \"https://<bucket>.sgp1.digitaloceanspaces.com/exports/Vendors_2026-08-21T09-20-04-882Z.xlsx\",\n    \"fileName\": \"Vendors_2026-08-21T09-20-04-882Z.xlsx\",\n    \"totalRecords\": 128\n  }\n}\n```\n\nNothing matching still returns `200` with `totalRecords: 0` and a header-only file —\nnot a `404`.\n\n**Errors** — `401` no/invalid token, or (Farmer/Customer/Vendor)\n`{\"status\":\"fail\",\"message\":\"User not authenticated\"}` · `500` upload failed.\n\n### Row visibility\n- **Admin / Verifier** — all records\n- **Verifier (not admin)** — drafts excluded\n- **Anyone else** — only records they created"
+          }
+        },
+        {
+          "name": "Vendor — import from Excel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "const summary = pm.response.json().data;",
+                  "console.log('Rows in sheet :', summary.totalRows);",
+                  "console.log('Created       :', summary.created);",
+                  "console.log('Skipped       :', JSON.stringify(summary.skipped, null, 2));",
+                  "console.log('Failed        :', JSON.stringify(summary.failed, null, 2));",
+                  "",
+                  "pm.test('no unrecognised columns (check for typos in headers)', () =>",
+                  "  pm.expect(summary.unknownColumns).to.eql([]));",
+                  "pm.test('no required columns missing', () =>",
+                  "  pm.expect(summary.missingColumns).to.eql([]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Your .xlsx / .xls file — click Select Files to pick it"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/vendors/upload-vendor",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vendors",
+                "upload-vendor"
+              ]
+            },
+            "description": "Uploads a spreadsheet to Spaces, parses it, creates records, then **deletes the\nuploaded file from Spaces** — whether the import succeeded, partly succeeded, or threw.\n\n### Body\n`form-data` with a single key `file` of type **File**. Do **not** set `Content-Type`\nyourself — Postman adds the multipart boundary.\n\n### Constraints\n- Max **10 MB**\n- Accepted: `.xlsx`, `.xls`, `.csv`\n- You can upload the exact file the export endpoint produced — the `Instructions` and\n  hidden `Lists` sheets are skipped automatically\n\n### Required columns\n`Company Name, Vendor Category`\n\nA file missing one of these headers is rejected with `400`. A row that leaves one\nblank is skipped and reported.\n\n### Duplicates\nMatched on **`Company Name` (case-insensitive)**. An existing record is **skipped and reported**, never\nupdated.\n\n### Columns the system fills in\nThe record code, `Status` and `Created By` are **not** read from the sheet — the\ntemplate leaves them out entirely. Status is always `pending` on import, and\n`Created By` is the **logged-in user who uploaded the file**.\n\n**Response 200**\n```json\n{\n  \"status\": \"success\",\n  \"message\": \"12 record(s) imported, 2 skipped, 1 failed\",\n  \"data\": {\n    \"totalRows\": 15,\n    \"created\": 12,\n    \"skipped\": [\n      { \"row\": 4, \"reason\": \"... already exists (CODE0001)\" },\n      { \"row\": 9, \"reason\": \"... is empty\" }\n    ],\n    \"failed\": [\n      { \"row\": 11, \"reason\": \"... did not match any product\" }\n    ],\n    \"unknownColumns\": [\"Extra Notes\"],\n    \"missingColumns\": []\n  }\n}\n```\n\n`row` is the Excel row number so you can jump straight to it.\n\n> A row can appear in `failed` **and still have been created** — e.g. a crop or\n> product name that matches nothing is left off, but the rest of the record is saved.\n\n**Errors** — `400` `{\"message\":\"No file uploaded\"}` · `400` `{\"message\":\"The uploaded\nfile is missing required column(s): ...\"}` · `401` no/invalid token · `500` wrong file\ntype or corrupt workbook."
+          }
+        }
+      ]
+    }
+  ]
+}

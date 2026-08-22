@@ -367,7 +367,7 @@ export class PostReturnByCustomerService {
         .set({
           returnedQty,
           rejectedQty,
-          acceptedQty: () => `CAST(COALESCE(quantity, 0) AS DECIMAL) - ${returnedQty} - ${rejectedQty}`,
+          acceptedQty: () => `GREATEST(CAST(COALESCE(quantity, 0) AS DECIMAL) - ${returnedQty} - ${rejectedQty}, 0)`,
         })
         .where('product_id = :productId', { productId: agg.productId })
         .andWhere(

@@ -23,6 +23,26 @@ import { QualityParameterRepository } from '../repository/qualityParameter.repos
 import { PaginatedResponse } from '../../../customer/addcustomer/dto/createCustomer.dto';
 import { CreateProductDto, ProductDetailResponseDto, ProductListResponseDto } from '../dto/product.dto';
 import { ProductVarient } from '../../productVarient/entity/productVarient.entity';
+import AppError from '../../../utils/appError';
+import {
+  buildDataWorkbook,
+  buildTemplateWorkbook,
+  deleteFromSpaces,
+  UploadedExport,
+  uploadWorkbookToSpaces,
+} from '../../../excel/excelFile.service';
+import {
+  emptySummary,
+  ImportSummary,
+  readUploadedSheet,
+} from '../../../excel/excelImport.service';
+import {
+  PRODUCT_PARAMETER_GROUP,
+  PRODUCT_SHEET,
+  PRODUCT_VARIANT_GROUP,
+} from '../excel/product.columns';
+import { Acceptability } from '../entity/quantityParameter.entity';
+import { findOrCreateByName } from '../../../excel/lookupByName';
 
 
 
@@ -110,41 +130,75 @@ export class ProductService {
     return combinations;
   }
 
-  private async generateProductCode(prefix: string): Promise<string> {
-    const existing = await this.productRepository
-      .createQueryBuilder('product')
-      .where(
-        'product.prefix = :prefix AND product.productCode LIKE :likePattern',
-        {
-          prefix,
-          likePattern: `${prefix}%`,
-        },
-      )
-      .orderBy('product.productCode', 'DESC')
-      .getOne();
+  /**
+   * Next code in the `<PREFIX><0000>` series, given the codes already issued.
+   *
+   * Kept pure and separate from the query so the numbering rules are testable
+   * without a database.
+   *
+   * Only codes of the form `<PREFIX><digits>` count, so the ONI series is not
+   * thrown off by ONION0007, and the highest number is picked numerically -
+   * sorting the codes as text would put ONI10000 below ONI9999.
+   */
+  static nextCodeInSeries(prefix: string, existingCodes: (string | null | undefined)[]): string {
+    const normalised = prefix.trim().toUpperCase();
+    const escaped = normalised.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`^${escaped}(\\d+)$`);
 
-    let nextNumber = 1;
-
-    if (existing?.productCode) {
-      const numberPart = existing.productCode.replace(prefix, '');
-      const parsed = parseInt(numberPart, 10);
-      if (!isNaN(parsed)) {
-        nextNumber = parsed + 1;
-      }
+    let highest = 0;
+    for (const code of existingCodes) {
+      const match = code?.trim().toUpperCase().match(pattern);
+      if (!match) continue;
+      const parsed = parseInt(match[1], 10);
+      if (Number.isFinite(parsed) && parsed > highest) highest = parsed;
     }
 
-    const padded = nextNumber.toString().padStart(4, '0');
-    return `${prefix}${padded}`;
+    return `${normalised}${String(highest + 1).padStart(4, '0')}`;
+  }
+
+  /**
+   * Reserves the next product code for a prefix.
+   *
+   * Matches on the code itself rather than on `product.prefix`: that column has
+   * historically been stored in whatever case the user typed, so an equality
+   * match against the upper-cased prefix found nothing and every product came
+   * back as PREFIX0001.
+   *
+   * Soft-deleted products are included so a deleted product's code is never
+   * handed out twice.
+   */
+  private async generateProductCode(prefix: string): Promise<string> {
+    const normalised = prefix.trim().toUpperCase();
+    if (!normalised) {
+      throw new AppError(400, 'Prefix is required for generating product code');
+    }
+
+    const rows = await this.productRepository
+      .createQueryBuilder('product')
+      .withDeleted()
+      .select('product.productCode', 'code')
+      .where('UPPER(product.productCode) LIKE :pattern', {
+        pattern: `${normalised}%`,
+      })
+      .getRawMany<{ code: string | null }>();
+
+    return ProductService.nextCodeInSeries(
+      normalised,
+      rows.map((row) => row.code),
+    );
   }
 
   async create(dto: CreateProductDto): Promise<Product> {
-    const prefix = dto.prefix?.toUpperCase();
+    const prefix = dto.prefix?.trim().toUpperCase();
     if (!prefix) {
-      throw new Error('Prefix is required for generating product code');
+      throw new AppError(400, 'Prefix is required for generating product code');
     }
 
-    const productCode = await this.generateProductCode(prefix);
-    dto.productCode = productCode;
+    // Store the normalised prefix, not the raw one the user typed. Saving "oni"
+    // while generating the code from "ONI" is what made every product restart
+    // the series at ONI0001.
+    dto.prefix = prefix;
+    dto.productCode = await this.generateProductCode(prefix);
 
     const varientData = dto.variant ?? dto.variant;
     const { variant, ...productDto } = dto;
@@ -289,10 +343,11 @@ export class ProductService {
         .select([
           'product.id', 'product.name', 'product.image', 'product.description',
           'product.prefix', 'product.packingType', 'product.shelfLife', 'product.storageTemp',
+          'product.thresholdStock',
           'classification.id', 'category.id', 'subcategory.id', 'uom.id',
           'qualityParameters.id', 'qualityParameters.name', 'qualityParameters.type',
           'variants.id', 'variants.variantCode', 'variants.count', 'variants.size',
-          'variants.variety', 'variants.origin', 'variants.brand', 'variants.thresholdStock',
+          'variants.variety', 'variants.origin', 'variants.brand',
         ])
         .where('product.id = :id', { id })
         .getOne();
@@ -308,6 +363,7 @@ export class ProductService {
         packingType: product.packingType,
         shelfLife: product.shelfLife,
         storageTemp: product.storageTemp,
+        thresholdStock: product.thresholdStock,
         classification: product.classification?.id ?? null,
         category: product.category?.id ?? null,
         subcategory: product.subcategory?.id ?? null,
@@ -321,7 +377,6 @@ export class ProductService {
           variety: v.variety,
           origin: v.origin,
           brand: v.brand,
-          thresholdStock: v.thresholdStock,
         })) ?? [],
       };
 
@@ -430,237 +485,282 @@ export class ProductService {
       throw new Error(`Error fetching product: ${error}`);
     }
   }
-  async createProductWithExcel(fileUrl: string): Promise<any> {
+  // ─── Excel Export / Import ────────────────────────────────────────────────
+
+  /**
+   * Every product matching the list-page filters, as an Excel file stored in
+   * Spaces.
+   *
+   * `page`/`limit` are deliberately dropped: the user is exporting the result
+   * of their search, not the page of it they happen to be looking at.
+   */
+  async exportToExcel(options: PaginationOptions): Promise<UploadedExport> {
+    const queryBuilder = this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.classification', 'classification')
+      .leftJoinAndSelect('product.category', 'category')
+      .leftJoinAndSelect('product.subcategory', 'subcategory')
+      .leftJoinAndSelect('product.uom', 'uom')
+      .leftJoinAndSelect('product.variant', 'variant')
+      .leftJoinAndSelect('product.qualityParameters', 'qualityParameters')
+      .orderBy('product.createdAt', 'DESC');
+
+    const { data } = await buildQuery(
+      queryBuilder,
+      { ...options, page: undefined, limit: undefined },
+      'product',
+    );
+
+    const workbook = buildDataWorkbook(PRODUCT_SHEET, data as Product[]);
+    return uploadWorkbookToSpaces(workbook, 'Products', data.length);
+  }
+
+  /**
+   * Blank workbook carrying exactly the headers the importer reads, generated
+   * from the same column map as the export so the two can never drift apart.
+   */
+  async buildExcelTemplate(): Promise<UploadedExport> {
+    const workbook = buildTemplateWorkbook(PRODUCT_SHEET);
+    return uploadWorkbookToSpaces(workbook, 'Product_Template', 0);
+  }
+
+  /**
+   * Imports products from a spreadsheet uploaded to Spaces.
+   *
+   * A row whose product already exists is skipped and reported rather than
+   * updated, and the uploaded file is removed from Spaces once read - success
+   * or failure.
+   */
+  async createProductWithExcel(fileUrl: string): Promise<ImportSummary> {
+    if (!fileUrl) {
+      throw new AppError(400, 'No file URL provided');
+    }
+
+    const summary = emptySummary();
+
     try {
-      console.log("In create product with Excel, fileUrl:", fileUrl);
+      const sheet = await readUploadedSheet(fileUrl, PRODUCT_SHEET);
+      summary.unknownColumns = sheet.unknownColumns;
+      summary.missingColumns = sheet.missingColumns;
+      summary.totalRows = sheet.rows.length;
 
-      // First, download the file from DigitalOcean Spaces
-      let fileBuffer: Buffer;
-
-      if (fileUrl.startsWith('https://')) {
-        // Extract the key from the URL
-        const urlParts = fileUrl.split('/');
-        const key = urlParts.slice(-2).join('/'); // Gets "single/filename"
-        console.log('Downloading file from Spaces with key:', key);
-
-        // Download file from Spaces
-        fileBuffer = await this.getExcelFromSpaces(key);
-      } else {
-        // If it's already a local path or key, try to get it from Spaces
-        fileBuffer = await this.getExcelFromSpaces(fileUrl);
+      if (sheet.missingColumns.length) {
+        throw new AppError(
+          400,
+          `The uploaded file is missing required column(s): ${sheet.missingColumns.join(', ')}`,
+        );
       }
 
-      // Read the Excel file from buffer instead of file path
-      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-      const sheetNames = workbook.SheetNames;
-      console.log("Sheet names found:", sheetNames);
+      const byHeader = new Map(PRODUCT_SHEET.columns.map((c) => [c.header, c]));
+      const column = (header: string) => {
+        const found = byHeader.get(header);
+        if (!found) throw new Error(`Unknown product column: ${header}`);
+        return found;
+      };
 
-      const productRepository = AppDataSource.getRepository(Product);
-      const uomRepository = AppDataSource.getRepository(UOM);
-      const categoryRepository = AppDataSource.getRepository(ProductCategory);
-      const subcategoryRepository = AppDataSource.getRepository(ProductSubcategory);
-
-      for (const sheetName of sheetNames) {
-        const worksheet = workbook.Sheets[sheetName];
-        console.log("Processing sheet:", sheetName);
-
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
-
-        if (jsonData.length < 2) {
-          console.warn("Sheet does not have enough rows:", sheetName);
-          continue;
-        }
-
-        const headers: string[] = (jsonData[0] as any[]).map((h: any) =>
-          h ? String(h).trim() : `UNKNOWN`
-        );
-        console.log("Headers found:", headers);
-
-        const dataRows = jsonData.slice(1); // Skip header row
-        console.log("Number of data rows:", dataRows.length);
-
-        for (const rowUntyped of dataRows) {
-          if (!Array.isArray(rowUntyped) || rowUntyped.length === 0) continue;
-
-          const rowData: Record<string, any> = {};
-          headers.forEach((header, index) => {
-            rowData[header] = rowUntyped[index];
-          });
-
-          console.log("Mapped Row:", rowData);
-
-          if (!rowData["Product Name"]) {
-            console.warn("Skipping incomplete row:", rowData);
+      for (const row of sheet.rows) {
+        try {
+          const name = row.cell<string | null>(column('Product Name'));
+          if (!name) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: 'Product Name is empty',
+            });
             continue;
           }
 
-          const productCode = await this.generateProductCode(rowData["Product Code Prefix"]);
+          const existing = await this.productRepository
+            .createQueryBuilder('product')
+            .where('LOWER(product.name) = LOWER(:name)', { name })
+            .getOne();
 
-          // --- Product Base ---
+          if (existing) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: `Product "${name}" already exists (${existing.productCode ?? existing.id})`,
+            });
+            continue;
+          }
+
+          // Upper-cased to match the form path. Postgres compares prefixes
+          // case-sensitively, so "oni" would start its own ONI0001 series
+          // running alongside the real one.
+          const prefix = row.cell<string | null>(column('Product Code Prefix'))?.toUpperCase();
+          if (!prefix) {
+            summary.skipped.push({
+              row: row.rowNumber,
+              reason: 'Product Code Prefix is empty - it is needed to generate the product code',
+            });
+            continue;
+          }
+
           const product = new Product();
-          product.name = rowData["Product Name"];
-          product.productCode = productCode;
-          product.description = rowData["Description"];
-          product.image = rowData["Product Image"];
-          product.prefix = rowData["Product Code Prefix"];
-          product.packingType = rowData["Packing Type"];
-          product.shelfLife = rowData["Shelf Life (Days)"];
-          product.storageTemp = rowData["Storage Temp (°C)"];
+          product.name = name;
+          product.description = row.cell(column('Description')) as string;
+          product.prefix = prefix;
+          product.packingType = row.cell(column('Packing Type')) as string;
+          product.shelfLife = row.cell<number | null>(column('Shelf Life (Days)'));
+          product.storageTemp = row.cell<number | null>(column('Storage Temp (°C)'));
+          product.thresholdStock = row.cell<number | null>(column('Threshold Stock'));
 
-          // --- Classification ---
-          if (rowData["Classification"]) {
-            let classification = await this.classificationRepository.findOne({ where: { name: rowData["Classification"] } });
-            if (!classification) {
-              classification = this.classificationRepository.create({ name: rowData["Classification"] });
-              classification = await this.classificationRepository.save(classification);
-            }
-            product.classification = classification;
+          // Always derived from the prefix - a Product Code typed into the sheet
+          // is ignored, and the column is left out of the template entirely.
+          product.productCode = await this.generateProductCode(prefix);
+
+          // Every lookup below matches on the name with case, spacing and
+          // punctuation ignored, so "Fresh Produce" in the sheet reuses a
+          // "fresh produce" row instead of adding a near-duplicate.
+          const classificationName = row.cell<string | null>(column('Classification'));
+          if (classificationName) {
+            product.classification = await findOrCreateByName(
+              this.classificationRepository,
+              'name',
+              classificationName,
+            );
           }
 
-          // --- UOM ---
-          if (rowData["UOM"]) {
-            let uom = await uomRepository.findOne({ where: { unit: rowData["UOM"] } });
-            if (!uom) {
-              uom = uomRepository.create({
-                unit: rowData["UOM"],
-                abbreviation: rowData["UOM Abbreviation"] || null,
-                description: rowData["UOM Description"] || null,
-              });
-              uom = await uomRepository.save(uom);
-            }
-            product.uom = uom;
+          const uomUnit = row.cell<string | null>(column('UOM'));
+          if (uomUnit) {
+            product.uom = await findOrCreateByName(this.uomRepository, 'unit', uomUnit, {
+              abbreviation:
+                row.cell<string | null>(column('UOM Abbreviation')) ?? undefined,
+              description:
+                row.cell<string | null>(column('UOM Description')) ?? undefined,
+            });
           }
 
-          // --- Category & Subcategory ---
-          const categoryName = rowData["Category"];
-          const subcategoryName = rowData["Subcategory"];
-
+          const categoryName = row.cell<string | null>(column('Category'));
           if (categoryName) {
-            let category = await categoryRepository.findOne({ where: { name: categoryName } });
-            if (!category) {
-              category = categoryRepository.create({ name: categoryName });
-              category = await categoryRepository.save(category);
-            }
+            const category = await findOrCreateByName(
+              this.categoryRepository,
+              'name',
+              categoryName,
+            );
             product.category = category;
 
+            const subcategoryName = row.cell<string | null>(column('Subcategory'));
             if (subcategoryName) {
-              let subcategory = await subcategoryRepository.findOne({
-                where: { name: subcategoryName, category: { id: category.id } },
-              });
-              if (!subcategory) {
-                subcategory = subcategoryRepository.create({ name: subcategoryName, category });
-                subcategory = await subcategoryRepository.save(subcategory);
-              }
-              product.subcategory = subcategory;
+              // Scoped to the category: two categories may each have a
+              // "Premium" subcategory and they are not the same row.
+              product.subcategory = await findOrCreateByName(
+                this.subcategoryRepository,
+                'name',
+                subcategoryName,
+                { category },
+                (queryBuilder) =>
+                  queryBuilder
+                    .innerJoin('lookup.category', 'parent')
+                    .andWhere('parent.id = :categoryId', { categoryId: category.id }),
+              );
             }
           }
 
-          // --- Variants ---
-          product.variant = [];
-          let i = 1;
-          while (rowData[`Variant${i}.Count`]) {
-            const pv = new ProductVarient();
-            pv.count = rowData[`Variant${i}.Count`] || null;
-            pv.size = rowData[`Variant${i}.Size`] || null;
-            pv.variety = rowData[`Variant${i}.Variety`] || null;
-            pv.origin = rowData[`Variant${i}.Origin`] || null;
-            pv.brand = rowData[`Variant${i}.Brand`] || null;
-            pv.thresholdStock = rowData[`Variant${i}.Threshold Stock`] || null;
-            product.variant.push(pv);
-            i++;
+          const variantInputs = row.eachGroupBlock(PRODUCT_VARIANT_GROUP, (index) => {
+            const at = (header: string) => {
+              const col = PRODUCT_VARIANT_GROUP.columns.find(
+                (c) => c.header === header,
+              )!;
+              return (
+                row.groupCell<string | null>(PRODUCT_VARIANT_GROUP, index, col) ?? ''
+              );
+            };
+
+            return {
+              count: at('Count'),
+              size: at('Size'),
+              variety: at('Variety'),
+              origin: at('Origin'),
+              brand: at('Brand'),
+            };
+          });
+
+          product.qualityParameters = row.eachGroupBlock(
+            PRODUCT_PARAMETER_GROUP,
+            (index) => {
+              const nameColumn = PRODUCT_PARAMETER_GROUP.columns.find(
+                (c) => c.header === 'Name',
+              )!;
+              const typeColumn = PRODUCT_PARAMETER_GROUP.columns.find(
+                (c) => c.header === 'Type',
+              )!;
+
+              const parameterName = row.groupCell<string | null>(
+                PRODUCT_PARAMETER_GROUP,
+                index,
+                nameColumn,
+              );
+              if (!parameterName) return null;
+
+              const parameter = new QualityParameter();
+              parameter.name = parameterName;
+              parameter.type =
+                row.groupCell<Acceptability | null>(
+                  PRODUCT_PARAMETER_GROUP,
+                  index,
+                  typeColumn,
+                ) ?? Acceptability.ACCEPTABLE;
+              return parameter;
+            },
+          );
+
+          const saved = await this.productRepository.save(product);
+
+          // Variants are saved after the product because their code is built
+          // from the product id and the running per-product sequence - the same
+          // two-step the create form uses. Saving them one at a time is what
+          // makes that sequence advance.
+          for (const input of variantInputs) {
+            const variantName = await getVariantIdentifier(
+              saved.name,
+              input.count,
+              input.size,
+              input.variety,
+              input.origin,
+              input.brand,
+            );
+            const variantCode = await generateVariantCode(
+              saved.id,
+              saved.prefix,
+              input.count,
+              input.size,
+              input.variety,
+              input.origin,
+              input.brand,
+            );
+
+            await this.productVarientsRepository.save(
+              this.productVarientsRepository.create({
+                count: input.count || null,
+                size: input.size || null,
+                variety: input.variety || null,
+                origin: input.origin || null,
+                brand: input.brand || null,
+                product: saved,
+                productName: saved.name,
+                variantName,
+                variantCode,
+              }),
+            );
           }
 
-          // --- Quality Parameters ---
-          product.qualityParameters = [];
-          let j = 1;
-          while (rowData[`Parameter${j}.Name`]) {
-            const qp = new QualityParameter();
-            qp.name = rowData[`Parameter${j}.Name`] || null;
-            qp.type = rowData[`Parameter${j}.Type`] || "good";
-            product.qualityParameters.push(qp);
-            j++;
-          }
-
-          // --- Save Product ---
-          console.log("Saving product:", product.name);
-          const result = await productRepository.save(product);
-          console.log("Saved product with ID:", result.id);
+          summary.created++;
+        } catch (rowError: any) {
+          summary.failed.push({
+            row: row.rowNumber,
+            reason: rowError?.message ?? 'Could not save this row',
+          });
         }
       }
 
-      // 🗑️ Delete the file from DigitalOcean Spaces after successful processing
-      await this.deleteFileFromSpaces(fileUrl);
-
-    } catch (error) {
-      console.error('Error processing product upload:', error);
-
-      // 🗑️ Still attempt to delete the file even if processing failed
-      try {
-        await this.deleteFileFromSpaces(fileUrl);
-      } catch (deleteError) {
-        console.error('Error deleting file after failed processing:', deleteError);
+      if (summary.created > 0) {
+        await this.invalidateProductCache();
       }
 
-      throw error;
-    }
-  }
-
-  /**
-   * Get Excel file from DigitalOcean Spaces
-   * @param key - Spaces key/path to the Excel file
-   * @returns Buffer containing the file data
-   */
-  private async getExcelFromSpaces(key: string): Promise<Buffer> {
-    try {
-      console.log('📂 Reading Excel file from Spaces:', key);
-
-      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-      const { s3 } = await import('../../../middleware/spaces.config');
-      const command = new GetObjectCommand({
-        Bucket: process.env.DO_SPACES_BUCKET!,
-        Key: key,
-      });
-
-      const response = await s3.send(command);
-
-      if (!response.Body) {
-        throw new Error('No file content found in Spaces response');
-      }
-
-      const bytes = await response.Body.transformToByteArray();
-      const fileBuffer = Buffer.from(bytes);
-
-      console.log('✅ Excel file read successfully, size:', fileBuffer.length, 'bytes');
-      return fileBuffer;
-    } catch (error) {
-      console.error('❌ Error reading Excel file from Spaces:', error);
-      throw new Error(`Failed to read Excel file: ${key}`);
-    }
-  }
-
-  /**
-   * Delete file from DigitalOcean Spaces
-   * @param fileUrl - The full URL or key of the file to delete
-   */
-  private async deleteFileFromSpaces(fileUrl: string): Promise<void> {
-    try {
-      // Extract the key from the fullget URL
-      // URL format: https://bucket-name.sgp1.digitaloceanspaces.com/documents/filename
-      const urlParts = fileUrl.split('/');
-      const key = urlParts.slice(-2).join('/'); // Gets "documents/filename"
-
-      const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
-      const { s3 } = await import('../../../middleware/spaces.config');
-      const deleteCommand = new DeleteObjectCommand({
-        Bucket: process.env.DO_SPACES_BUCKET!,
-        Key: key,
-      });
-
-      await s3.send(deleteCommand);
-      console.log(`Successfully deleted file: ${key}`);
-    } catch (error) {
-      console.error(`Failed to delete file from spaces: ${fileUrl}`, error);
-      // Don't throw error here to avoid breaking the main flow
+      return summary;
+    } finally {
+      // The upload is a transient staging file: remove it whether the import
+      // succeeded, partially succeeded, or threw.
+      await deleteFromSpaces(fileUrl);
     }
   }
 
@@ -763,31 +863,31 @@ export class ProductService {
       );
     }
 
-    console.log('existing product variants are:', product.variant);
+    // Compare normalised, so re-submitting "oni" for a stored "ONI" is not
+    // mistaken for a prefix change and does not burn a new code.
+    const requestedPrefix = productData.prefix?.trim().toUpperCase();
+    const currentPrefix = product.prefix?.trim().toUpperCase();
 
+    if (requestedPrefix) {
+      product.prefix = requestedPrefix;
 
-    console.log("product data received for update is ", productData.prefix);
+      if (requestedPrefix !== currentPrefix) {
+        // The prefix moved to a different series, so the code has to move with
+        // it - ONI0001 becomes ON0001 if nothing is on the ON series yet.
+        product.productCode = await this.generateProductCode(requestedPrefix);
+      }
+    }
 
+    // `prefix` and `productCode` are owned by this method: the edit form echoes
+    // the old code back, and letting it through here would overwrite the code
+    // that was just regenerated.
+    const {
+      variant,
+      prefix: _clientPrefix,
+      productCode: _clientProductCode,
+      ...cleanProductData
+    } = productData;
 
-    const prefix = productData.prefix;
-
-if (prefix && prefix !== product.prefix) {
-  const productCode = await this.generateProductCode(prefix);
-  productCode.toUpperCase();
-  product.productCode = productCode;
-}
-
-    // if (productData.prefix !== product.prefix) {
-    //   const productCode = await this.generateProductCode(productData.prefix);
-    //   productCode.toUpperCase();
-    //   product.productCode = productCode;
-    // }
-
-  oldData.productCode =
-  productData.productCode ?? oldData.productCode;
-    //oldData.productCode = productData.productCode;
-    // strip variant to prevent TypeORM cascade re-inserting them
-    const { variant, ...cleanProductData } = productData;
     product.variant = [];
 
     const updatedProduct = await this.productRepository.save({
@@ -920,7 +1020,6 @@ if (prefix && prefix !== product.prefix) {
         variety: v.variety,
         origin: v.origin,
         brand: v.brand,
-        thresholdStock: v.thresholdStock,
       })),
     };
     await this.cacheService.set(key, formattedproduct, CACHE_TTL_DETAIL);

@@ -32,7 +32,7 @@ export class Address extends Model {
   @OneToOne(() => Customer, (customer) => customer.customerAddress,{ onDelete: "SET NULL" })
   customer: Customer;
   
-  @OneToOne(() => User, (user) => user.address, { nullable:true,onDelete: "SET NULL" })
+  @OneToOne(() => User, { nullable: true, onDelete: "SET NULL" })
   user?: User;
 
   

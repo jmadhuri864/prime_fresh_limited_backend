@@ -1,7 +1,7 @@
-import {  Repository } from "typeorm";
+import { ObjectLiteral, Repository } from "typeorm";
 import { Role } from "../employee/entity/user.entity";
 
 
-export class RoleRepository extends Repository<Role> {
+export class RoleRepository extends Repository<Role & ObjectLiteral> {
 
 }

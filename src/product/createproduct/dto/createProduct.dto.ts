@@ -8,7 +8,6 @@ export const ProductVariantSchema = z.object({
   variety: z.string().optional(),
   origin: z.string().optional(),
   brand: z.string().optional(),
-  thresholdStock: z.number().optional(),
 });
 
 export const QualityParameterSchema = z.object({
@@ -42,6 +41,8 @@ export const CreateProductSchema = z
     shelfLife: z.coerce.number().optional(),
 
     storageTemp: z.coerce.number().optional(),
+
+    thresholdStock: z.coerce.number().optional(),
 
     variant: z.array(ProductVariantSchema).optional(),
 

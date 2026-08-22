@@ -246,6 +246,7 @@ import { InventoryStockRepository } from "./inventoryStock/repository/inventoryS
 import { InventoryStock } from "./inventoryStock/entity/inventoryStock.entity";
 import { InventoryStockController } from "./inventoryStock/controller/inventoryStock.controller";
 import { InventoryStockService } from "./inventoryStock/service/inventoryStock.service";
+import { InventoryMovementService } from "./inventoryStock/service/inventoryMovement.service";
 import { ProductVarientsRepository } from "./product/productVarient/repository/productVarients.repository";
 import { ProductVarient } from "./product/productVarient/entity/productVarient.entity";
 import { ProductVarientService } from "./product/productVarient/service/productVarient.service";
@@ -283,6 +284,7 @@ import { InwardProduct } from "./inwardRegister/entity/inwardProduct.entity";
 import { DocDoubleApproverService } from "./approvalFlow/service/docDoubleApprover.service";
 import { DocSingalApproverService } from "./approvalFlow/service/DocSingalApproverService.service";
 import { AdminDashboardService } from "./dashboard/service/adminDashboardService.service";
+import { WeeklyBusinessPlanService } from "./dashboard/service/weeklyBusinessPlan.service";
 import { AdminDashboardController } from "./dashboard/controller/adminDashboard.controller";
 import { ProductVarientRepository } from "./product/productVarient/repository/varients.repository";
 import { ProductVarientsService } from "./product/productVarient/service/varients.service";
@@ -1053,6 +1055,7 @@ container.bind<InventoryStockRepository>(TYPES.InventoryStockRepository).toDynam
 
 container.bind<InventoryStockController>(TYPES.InventoryStockController).to(InventoryStockController).inSingletonScope();
 container.bind<InventoryStockService>(TYPES.InventoryStockService).to(InventoryStockService)
+container.bind<InventoryMovementService>(TYPES.InventoryMovementService).to(InventoryMovementService).inSingletonScope();
 
 
 //product varient
@@ -1301,6 +1304,7 @@ container.bind<SalesTargetController>(TYPES.SalesTargetController).to(SalesTarge
 
 // //dashboard
  container.bind<DashboardService>(TYPES.DashboardService).to(DashboardService).inSingletonScope();
+container.bind<WeeklyBusinessPlanService>(TYPES.WeeklyBusinessPlanService).to(WeeklyBusinessPlanService).inSingletonScope();
 container.bind<DashboardController>(TYPES.DashboardController).to(DashboardController).inSingletonScope();
 // //registration report
 container.bind<NewRegistrationService>(TYPES.NewRegistrationService).to(NewRegistrationService).inSingletonScope();

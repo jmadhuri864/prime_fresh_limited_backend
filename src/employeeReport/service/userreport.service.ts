@@ -148,6 +148,7 @@ async totalPurchase(filters?: {
     .orderBy('MIN(grn.createdAt)', 'ASC');
 
   // 3️⃣ Apply filters
+  qb.andWhere('grn.id IS NOT NULL'); // exclude orphaned grnProduct rows with no associated GRN
   if (filters?.createdBy) qb.andWhere('grn.createdBy = :createdBy', { createdBy: filters.createdBy });
   if (filters?.date) qb.andWhere('DATE(grn.createdAt) = :date', { date: filters.date });
   if (filters?.month) qb.andWhere('EXTRACT(MONTH FROM grn.createdAt) = :month', { month: filters.month });
@@ -176,6 +177,7 @@ async totalPurchase(filters?: {
     .select("COUNT(DISTINCT TO_CHAR(grn.createdAt, 'DD-MM-YYYY'))", 'count');
 
   // Apply same filters to count query
+  countQb.andWhere('grn.id IS NOT NULL'); // exclude orphaned grnProduct rows with no associated GRN
   if (filters?.createdBy) countQb.andWhere('grn.createdBy = :createdBy', { createdBy: filters.createdBy });
   if (filters?.date) countQb.andWhere('DATE(grn.createdAt) = :date', { date: filters.date });
   if (filters?.month) countQb.andWhere('EXTRACT(MONTH FROM grn.createdAt) = :month', { month: filters.month });
@@ -205,11 +207,13 @@ async totalPurchase(filters?: {
   return {
     overallTotalQty: Number(totalResult?.overallTotalQty || 0),
     overallTotalAmount: Number(totalResult?.overallTotalAmount || 0),
-    dateWise: dateWiseResult.map((row) => ({
-      date: row.date,
-      totalQty: Number(row.totalQty || 0),
-      totalAmount: Number(row.totalAmount || 0),
-    })),
+    dateWise: dateWiseResult
+      .filter((row) => row.date !== null)
+      .map((row) => ({
+        date: row.date,
+        totalQty: Number(row.totalQty || 0),
+        totalAmount: Number(row.totalAmount || 0),
+      })),
     pagination: {
       totalRecords,
       totalPages,
@@ -217,10 +221,7 @@ async totalPurchase(filters?: {
       limit,
     },
   };
-}
-
-
-async totalSale(filters?: {
+}async totalSale(filters?: {
   createdBy?: string;
   date?: string;
   month?: number;
@@ -271,6 +272,7 @@ if (filters?.createdBy) {
     .orderBy('MIN(challan.createdAt)', 'ASC');
 
   // 🔍 Apply filters
+  qb.andWhere('challan.id IS NOT NULL'); // exclude orphaned item rows with no associated challan
   if (filters?.createdBy) qb.andWhere('challan.createdBy = :createdBy', { createdBy: filters.createdBy });
   if (filters?.date) qb.andWhere('DATE(challan.createdAt) = :date', { date: filters.date });
   if (filters?.month) qb.andWhere('EXTRACT(MONTH FROM challan.createdAt) = :month', { month: filters.month });
@@ -297,6 +299,7 @@ if (filters?.createdBy) {
     .select("COUNT(DISTINCT TO_CHAR(challan.createdAt, 'DD-MM-YYYY'))", 'count');
 
   // Apply same filters to count query
+  countQb.andWhere('challan.id IS NOT NULL'); // exclude orphaned item rows with no associated challan
   if (filters?.createdBy) countQb.andWhere('challan.createdBy = :createdBy', { createdBy: filters.createdBy });
   if (filters?.date) countQb.andWhere('DATE(challan.createdAt) = :date', { date: filters.date });
   if (filters?.month) countQb.andWhere('EXTRACT(MONTH FROM challan.createdAt) = :month', { month: filters.month });
@@ -324,11 +327,13 @@ if (filters?.createdBy) {
   return {
     overallTotalQty: Number(totalResult?.overallTotalQty || 0),
     overallTotalAmount: Number(totalResult?.overallTotalAmount || 0),
-    dateWise: dateWiseResult.map((row) => ({
-      date: row.date,
-      totalQty: Number(row.totalQty || 0),
-      totalAmount: Number(row.totalAmount || 0),
-    })),
+    dateWise: dateWiseResult
+      .filter((row) => row.date !== null)
+      .map((row) => ({
+        date: row.date,
+        totalQty: Number(row.totalQty || 0),
+        totalAmount: Number(row.totalAmount || 0),
+      })),
     pagination: {
       totalRecords,
       totalPages,
