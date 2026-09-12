@@ -196,5 +196,39 @@ export class ApprovalFlowController {
 
   }
 
-  
+  // GET /approval-flow/user/:userId/:department
+  // Params: userId (user uuid), department (DocumentTypeEnum value e.g. "Procurement", "Sale")
+  // Returns the approval flow with id+name for every user in the flow
+  @httpGet('/user/:userId/:department')
+  public async getFlowForUserAndDepartment(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const { userId, department } = req.params;
+
+      if (!userId || !department) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'userId and department are required',
+        });
+      }
+
+      const flow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, department);
+
+      if (!flow) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'No approval flow found for the given user and department',
+        });
+      }
+
+      return res.status(200).json({ status: 'success', data: flow });
+    } catch (err) {
+      ControllerLogger.logError('Get Approval Flow for user+department', err, req, res);
+      next(err);
+    }
+  }
+
 }

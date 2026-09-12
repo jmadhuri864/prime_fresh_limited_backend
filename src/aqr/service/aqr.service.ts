@@ -91,7 +91,23 @@ export class AqrService {
 
   // ─── Create ───────────────────────────────────────────────────────────────
 
+  // Creating a document without a configured approval flow leaves it with no
+  // approvers, so reject it up front — same guard as RFPA / Deal Slip.
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   public async createAqr(data: CreateAqrDto): Promise<Aqr> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(data.requestedBy, DocDefEnum.OPERATION);
+
     const requestedBy = data.requestedBy!;
 
     // const approvalFlow = await this.approvalFlowService.findApprovalFlowForLoggedUser(

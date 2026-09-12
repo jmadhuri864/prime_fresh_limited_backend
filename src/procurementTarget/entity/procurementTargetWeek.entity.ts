@@ -28,15 +28,15 @@ export class ProcurementTargetWeek extends Model {
   @JoinColumn({ name: 'product_target_id' })
   productTarget: ProcurementTargetProduct;
 
-  @Column({ type: 'enum', enum: WeekNo })
+  @Column({ type: 'enum', enum: WeekNo, nullable: true })
   weekNo: WeekNo;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
   qty: number;
 
-  @Column({type: 'date'})
+  @Column({ type: 'date', nullable: true })
   weekStartDate: Date;
 
-  @Column({type: 'date'})
+  @Column({ type: 'date', nullable: true })
   weekEndDate: Date;
 }

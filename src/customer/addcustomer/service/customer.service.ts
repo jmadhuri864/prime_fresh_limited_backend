@@ -22,6 +22,7 @@ import { PaymentTerms } from '../entity/paymentDetailsCust.entity';
 import { generateIncrementalCode } from '../../../utils/codeGeneration';
 import { UserRepository } from '../../../employee/repository/user.repository';
 ;
+import { NotificationService } from '../../../notification/service/notification.service';
 import { Status } from '../../../utils/status.enum';
 import { formatDateTime } from '../../../utils/dateUtils';
 import { CacheService } from '../../../global/cache.service';
@@ -80,6 +81,8 @@ export class CustomerService {
     private readonly auditLogService: AuditLogService,
     @inject(TYPES.CacheService)
     private readonly cacheService: CacheService,
+    @inject(TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
   ) {
     this.customerRepository = this.dataSource.getRepository(Customer) as CustomerRepository;
     this.customerCategoryService = customerCategoryService;
@@ -334,8 +337,47 @@ export class CustomerService {
       // Return customer without productSpecification to avoid circular reference
       const { productSpecification, ...customerWithoutSpecs } = savedCustomer;
       await this.invalidateCustomerCache();
+
+      // Fire notifications — non-blocking, never throws
+      this.notifyCustomerCreated(customerWithoutSpecs as Customer, customerData.createdBy ?? '').catch(() => {});
+
       return customerWithoutSpecs as Customer;
     });
+  }
+
+  // ─── Notification Helper ──────────────────────────────────────────────────
+
+  private async notifyCustomerCreated(customer: Customer, creatorId: string): Promise<void> {
+    try {
+      if (!creatorId) return;
+      const creator = await this.userRepository.findOneBy({ id: creatorId });
+      if (!creator) return;
+
+      const isPrivileged =
+        creator.roles?.includes(Role.ADMIN) || creator.roles?.includes(Role.VERIFIER);
+
+      const customerName = customer.organisationName || 'New Customer';
+      const creatorName = `${creator.firstName || ''} ${creator.lastName || ''}`.trim()
+        || (creator as any).username || 'Unknown';
+
+      if (isPrivileged) {
+        await this.notificationService.createNoti(
+          `Customer "${customerName}" created successfully`,
+          creatorId,
+        );
+      } else {
+        await this.notificationService.createNoti(
+          `Your customer "${customerName}" has been sent for approval`,
+          creatorId,
+        );
+        await this.notificationService.createNotiForRole(
+          `Customer "${customerName}" is awaiting your approval, created by ${creatorName}`,
+          Role.VERIFIER,
+        );
+      }
+    } catch {
+      // Notification failure must never break the create flow
+    }
   }
 
   //TODO:New Code
@@ -468,6 +510,7 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
       .leftJoin('customer.customerCategory', 'customerCategory')
       .leftJoin('customer.customerTypes', 'customerTypes')
       .leftJoin('customer.createdBy', 'createdBy')
+      .leftJoin('customer.approvedBy', 'approvedBy')
       .leftJoin('customer.bankDetails', 'bankDetails')
       .leftJoin('bankDetails.bankAddress', 'bankAddress')
       .leftJoin('customer.customerAddress', 'customerAddress')
@@ -487,8 +530,10 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
         'customer.organisationType', 'customer.otherType', 'customer.customerCode',
         'customer.emailPrimary', 'customer.emailSecondary',
         'customer.primaryContactNo', 'customer.secondaryContactNo', 'customer.createdAt',
+        'customer.status',
         'customerCategory.name', 'customerTypes.name',
         'createdBy.firstName', 'createdBy.lastName',
+        'approvedBy.firstName', 'approvedBy.lastName',
         'bankDetails.id', 'bankDetails.bankAccHolderFName', 'bankDetails.bankAccHolderMName',
         'bankDetails.bankAccHolderLName', 'bankDetails.ifscCode', 'bankDetails.bankBranch',
         'bankDetails.bankAccNo', 'bankDetails.accType', 'bankDetails.ifCancelledCheque',
@@ -575,6 +620,9 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
       createdBy: data.createdBy 
         ? `${data.createdBy.firstName} ${data.createdBy.lastName}`
         : 'Unknown User',
+      approvedBy: data.approvedBy
+        ? `${data.approvedBy.firstName} ${data.approvedBy.lastName}`
+        : null,
       createdTime: formatDateTime(data.createdAt).createdTime,
       createdDate: formatDateTime(data.createdAt).createdDate,
        customerCode: data.customerCode,
@@ -582,6 +630,7 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
        emailPrimary: data.emailPrimary,
        secondaryContactNo: data.secondaryContactNo,
        primaryContactNo: data.primaryContactNo,
+       status: data.status,
       // ? {
       //     id: data.customerCategory.id,
       //     name: data.customerCategory.name,
@@ -2174,9 +2223,51 @@ async findAllCustomers(queryOptions: PaginationOptions, userId: string): Promise
     }
 
     customer.status = status;
+    customer.approvedBy = { id: approverId } as any;
     const saved = await this.customerRepository.save(customer);
     await this.invalidateCustomerCache(customerId);
+
+    // Notify verifier + creator — non-blocking
+    this.notifyCustomerApproved(saved, approverId, status).catch(() => {});
+
     return saved;
+  }
+
+  private async notifyCustomerApproved(customer: Customer, approverId: string, status: Status): Promise<void> {
+    try {
+      const isApproved = status === Status.APPROVED;
+
+      const approver = await this.userRepository.findOneBy({ id: approverId });
+      const verifierName = `${approver?.firstName || ''} ${approver?.lastName || ''}`.trim()
+        || (approver as any)?.username || 'Verifier';
+
+      const customerName = customer.organisationName || 'Customer';
+
+      // Notify the verifier who acted
+      await this.notificationService.createNoti(
+        isApproved
+          ? `You approved customer "${customerName}" successfully`
+          : `You rejected customer "${customerName}"`,
+        approverId,
+      );
+
+      // Fetch customer with createdBy to notify creator
+      const customerWithCreator = await this.customerRepository.findOne({
+        where: { id: customer.id },
+        relations: ['createdBy'],
+      });
+      const creatorId = (customerWithCreator?.createdBy as any)?.id;
+      if (creatorId && creatorId !== approverId) {
+        await this.notificationService.createNoti(
+          isApproved
+            ? `Your customer "${customerName}" has been approved by ${verifierName}`
+            : `Your customer "${customerName}" has been rejected by ${verifierName}`,
+          creatorId,
+        );
+      }
+    } catch {
+      // Notification failure must never break the approve flow
+    }
   }
   public async deleteCustomer(id: string): Promise<{ organisationName: string } | null> {
     const customer = await this.customerRepository.findOne({

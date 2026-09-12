@@ -90,9 +90,6 @@ export class RFPAProduct extends Model {
   })
   deliveryDate: Date;
 
-  @Column('character varying', { name: 'delivery_location', nullable: true })
-  deliveryLocation: string;
-
   @ManyToOne(() => RFPA, (rfpa) => rfpa.rfpaProducts, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'rfpa_id' })
   rfpa: RFPA;

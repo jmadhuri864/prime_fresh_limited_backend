@@ -238,7 +238,7 @@ export class CrystalReportController {
               product.quantity, product.revisedQuantity, product.unitPrice,
               product.revisedRate, product.amount, product.uom, product.grossWeight,
               product.netWeight, product.packingMaterialWeight, product.purchaseDate,
-              product.deliveryDate, product.deliveryLocation
+              product.deliveryDate
             ]);
           });
         } else {

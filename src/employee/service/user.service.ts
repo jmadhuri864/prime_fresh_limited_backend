@@ -1006,31 +1006,73 @@ isAddressSame:user.isAddressSame,
     return results;
   }
 
-  async getWorkflowHierarchy(employeeId: string): Promise<any> {
+  async getWorkflowHierarchy(employeeId: string, options?: PaginationOptions & { department?: string }): Promise<any> {
     // Query to get all workflow hierarchy relationships for the given employee
-    // This will return all subordinates with their depth levels (1, 2, 3, etc.)
-    const hierarchyData = await this.workflowHierarchyRepository
+    // depth = 0 is self-reference, depth > 0 are subordinates
+    const qb = this.workflowHierarchyRepository
       .createQueryBuilder('wh')
       .leftJoinAndSelect('wh.descendant', 'descendant')
       .where('wh.ancestor_id = :employeeId', { employeeId })
-      .andWhere('wh.depth > 0') // Exclude self-reference (depth = 0)
+      .andWhere('wh.depth >= 0') // Include self (depth = 0) + all subordinates
       .orderBy('wh.depth', 'ASC')
-      .addOrderBy('descendant.firstName', 'ASC')
-      .getMany();
+      .addOrderBy('descendant.firstName', 'ASC');
 
-    if (!hierarchyData || hierarchyData.length === 0) {
-      return [];
+    // Apply department filter at DB level if provided
+    if (options?.department) {
+      qb.andWhere('wh.department = :department', { department: options.department });
     }
 
-    // Format the response to match filterUser format
-    const formattedHierarchy = hierarchyData.map((item) => ({
-      id: item.descendant.id,
-      fullName: `${item.descendant.firstName} ${item.descendant.middleName || ''} ${item.descendant.lastName}`.trim(),
-      employeeId: item.descendant.employeeId,
-      roles: item.descendant.roles || []
-    }));
+    const hierarchyData = await qb.getMany();
 
-    return formattedHierarchy;
+    if (!hierarchyData || hierarchyData.length === 0) {
+      return { data: [], meta: { total: 0, page: options?.page, pages: 0 } };
+    }
+
+    // Format and deduplicate by employee id (same employee can appear at multiple depths)
+    const seen = new Set<string>();
+    let formattedHierarchy = hierarchyData.reduce<{
+      id: string; fullName: string; employeeId: string; roles: string[]; department: string;
+    }[]>((acc, item) => {
+      if (!seen.has(item.descendant.id)) {
+        seen.add(item.descendant.id);
+        acc.push({
+          id: item.descendant.id,
+          fullName: `${item.descendant.firstName} ${item.descendant.middleName || ''} ${item.descendant.lastName}`.trim(),
+          employeeId: item.descendant.employeeId,
+          roles: item.descendant.roles || [],
+          department: item.department,
+        });
+      }
+      return acc;
+    }, []);
+
+    // Apply in-memory search
+    if (options?.search && options.search.trim()) {
+      const term = options.search.toLowerCase();
+      formattedHierarchy = formattedHierarchy.filter((item) =>
+        item.fullName.toLowerCase().includes(term) ||
+        item.employeeId?.toLowerCase().includes(term)
+      );
+    }
+
+    const total = formattedHierarchy.length;
+
+    // Apply pagination
+    const { page, limit } = options || {};
+    let paginatedData = formattedHierarchy;
+    if (page && limit) {
+      const offset = (page - 1) * limit;
+      paginatedData = formattedHierarchy.slice(offset, offset + limit);
+    }
+
+    return {
+      data: paginatedData,
+      meta: {
+        total,
+        page,
+        pages: page && limit ? Math.ceil(total / limit) : 1,
+      },
+    };
   }
 
 async softDeleteEmployees(userIds: string[]) {

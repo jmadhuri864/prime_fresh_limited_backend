@@ -720,6 +720,65 @@ export class ApprovalFlowService {
     }
   }
 
+  // Returns approval flow for a user+department with id+name for every user in the flow
+  async getApprovalFlowForUserAndDepartment(userId: string, department: string): Promise<any | null> {
+    try {
+      const approvalFlow = await this.approvalFlowRepository.findOne({
+        where: {
+          creator: { id: userId },
+          type: department as any,
+        },
+        relations: [
+          'verifiers',
+          'approvers',
+          'approvers.firstApprover',
+          'approvers.firstApprover.users',
+          'approvers.secondApprover',
+          'approvers.secondApprover.users',
+          'approvers.thirdApprover',
+          'approvers.thirdApprover.users',
+          'approvers.fourthApprover',
+          'approvers.fourthApprover.users',
+          'approvers.fifthApprover',
+          'approvers.fifthApprover.users',
+          'approvers.sixthApprover',
+          'approvers.sixthApprover.users',
+          'finalizers',
+          'finalizers.firstFinalizers',
+          'finalizers.secondFinalizers',
+        ],
+      });
+
+      if (!approvalFlow) return null;
+
+      const mapUser = (u: any) => ({ id: u.id, name: `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() });
+
+      return {
+        id: approvalFlow.id,
+        type: approvalFlow.type,
+        verifiers: (approvalFlow.verifiers ?? []).map(mapUser),
+        approvers: approvalFlow.approvers
+          ? {
+              firstApprover:  (approvalFlow.approvers.firstApprover?.users ?? []).map(mapUser),
+              secondApprover: (approvalFlow.approvers.secondApprover?.users ?? []).map(mapUser),
+              thirdApprover:  (approvalFlow.approvers.thirdApprover?.users ?? []).map(mapUser),
+              fourthApprover: (approvalFlow.approvers.fourthApprover?.users ?? []).map(mapUser),
+              fifthApprover:  (approvalFlow.approvers.fifthApprover?.users ?? []).map(mapUser),
+              sixthApprover:  (approvalFlow.approvers.sixthApprover?.users ?? []).map(mapUser),
+            }
+          : null,
+        finalizers: approvalFlow.finalizers
+          ? {
+              firstFinalizers:  (approvalFlow.finalizers.firstFinalizers ?? []).map(mapUser),
+              secondFinalizers: (approvalFlow.finalizers.secondFinalizers ?? []).map(mapUser),
+            }
+          : null,
+      };
+    } catch (error: any) {
+      throw new Error(`getApprovalFlowForUserAndDepartment error: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
 }
 
 

@@ -278,6 +278,7 @@ export interface VendorViewResponseDto {
 
   // ── Audit ─────────────────────────────────────────────────────────────────
   createdBy: string | null;
+  approvedBy: string | null;
   createdDate: string | null;
   createdTime: string | null;
 }

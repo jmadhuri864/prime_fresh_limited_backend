@@ -421,7 +421,6 @@ public async getFilteredGRNs(filters: any): Promise<any[]> {
         purchaseDate: product.purchaseDate,
         dispatchDate: product.dispatchDate,
         deliveryDate: product.deliveryDate,
-        deliveryLocation: product.deliveryLocation,
         expectedHarvestDate: product.expectedHarvestDate,
       }))
     };

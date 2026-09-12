@@ -105,8 +105,6 @@ export class GrnProduct extends Model {
 }) // Delivery Date
  deliveryDate: Date|null;
 
- @Column("character varying", { name: "delivery_location", nullable: true })
- deliveryLocation: string;
 }
 
 

@@ -14,6 +14,9 @@ import { SalesTargetProductRepository } from "../repository/salesTargetProduct.r
 import { SalesTargetWeekRepository } from "../repository/salesTargetWeek.repository";
 import { SalesAchievementRepository } from "../repository/salesAchievement.repository";
 import { WorkflowHierarchyRepository } from "../../workFlow/repository/WorkflowHierarchy.repository";
+import { DepartmentEnum } from "../../workFlow/entity/workflowClosure.entity";
+import { SalesTarget, Status } from "../entity/salesTarget.entity";
+import { User } from "../../employee/entity/user.entity";
 
 @injectable()
 export class SalesTargetService {
@@ -50,12 +53,19 @@ export class SalesTargetService {
 
             console.log("Creating sales target with month/year:", { month, year });
 
+            // Employee ने स्वतःसाठी create केला → PENDING (वरचा manager approve करेल)
+            // Manager ने subordinate साठी create केला → directly APPROVED (implicit approval)
+            const resolvedStatus = (payload.createdBy && payload.createdBy !== employeeId)
+                ? Status.APPROVED
+                : Status.PENDING;
+
             // Create monthly plan
             const monthlyPlan = this.salesTargetRepository.create({
                 employee: user,
+                createdBy: payload.createdBy ? { id: payload.createdBy } as User : user,
                 month: month,
                 year: year,
-                status: status ?? "DRAFT",
+                status: resolvedStatus,
                 totalMonthlySale: 0
             });
 
@@ -134,9 +144,32 @@ export class SalesTargetService {
 
 
     // Get all targets with pagination
-    async getalltargets(employeeId: string, page: number = 1, limit: number = 10) {
+    async getalltargets(
+    employeeId: string,
+    page?: number,
+    limit?: number,
+    filters: {
+      employeeId?: string;
+      customerId?: string;
+      month?: number;
+      year?: number;
+      fromMonth?: number;
+      fromYear?: number;
+      toMonth?: number;
+      toYear?: number;
+    } = {}
+  ) {
         try {
-            const skip = (page - 1) * limit;
+
+            console.log(
+                "month=",filters.month
+                , "year=",filters.year,
+                "fromMonth=",
+                filters.fromMonth, "fromYear",filters.fromYear,
+                "tomonth=",filters.toMonth, "toyear=",filters.toYear
+            )
+            const isPaginated = page !== undefined && limit !== undefined;
+            const skip = isPaginated ? (page! - 1) * limit! : 0;
 
             // Get all subordinates including self (depth >= 0)
             const subordinates = await this.workflowHierarchyRepo
@@ -146,27 +179,80 @@ export class SalesTargetService {
                 .andWhere('wh.depth >= 0')
                 .getRawMany();
 
-            const employeeIds = subordinates.map(s => s.descendant_id);
+            let employeeIds = subordinates.map(s => s.descendant_id);
+
+            // Filter by specific employeeId if provided
+            if (filters.employeeId) {
+                employeeIds = employeeIds.filter(id => id === filters.employeeId);
+            }
 
             if (employeeIds.length === 0) {
                 return {
                     targets: [],
                     totalItems: 0,
                     totalPages: 0,
-                    currentPage: page
+                    currentPage: page ?? 1
                 };
             }
 
-            const [targets, totalItems] = await this.salesTargetRepository
+            const qb = this.salesTargetRepository
                 .createQueryBuilder('target')
                 .leftJoinAndSelect('target.employee', 'employee')
                 .where('target.employee.id IN (:...employeeIds)', { employeeIds })
-                .orderBy('target.createdAt', 'DESC')
-                .skip(skip)
-                .take(limit)
-                .getManyAndCount();
+                .orderBy('target.createdAt', 'DESC');
 
-            const totalPages = Math.ceil(totalItems / limit);
+            // Legacy single month/year filter
+            if (filters.month !== undefined) {
+                qb.andWhere('target.month = :month', { month: filters.month });
+            }
+            if (filters.year !== undefined) {
+                qb.andWhere('target.year = :year', { year: filters.year });
+            }
+
+            // Date range filter — fromMonth/fromYear to toMonth/toYear
+            if (
+                filters.fromMonth !== undefined && filters.fromYear !== undefined &&
+                filters.toMonth !== undefined && filters.toYear !== undefined
+            ) {
+                qb.andWhere(
+                    '(target.year * 12 + target.month) >= :from AND (target.year * 12 + target.month) <= :to',
+                    {
+                        from: filters.fromYear * 12 + filters.fromMonth,
+                        to: filters.toYear * 12 + filters.toMonth,
+                    }
+                );
+            } else if (filters.fromMonth !== undefined && filters.fromYear !== undefined) {
+                qb.andWhere(
+                    '(target.year * 12 + target.month) >= :from',
+                    { from: filters.fromYear * 12 + filters.fromMonth }
+                );
+            } else if (filters.toMonth !== undefined && filters.toYear !== undefined) {
+                qb.andWhere(
+                    '(target.year * 12 + target.month) <= :to',
+                    { to: filters.toYear * 12 + filters.toMonth }
+                );
+            }
+
+            // customerId filter — keep only targets that have at least one
+            // SalesTargetProduct linked to the given customer
+            if (filters.customerId) {
+                qb.andWhere(
+                    `target.id IN (
+                        SELECT stp."monthly_sales_plan_id"
+                        FROM sales_target_products stp
+                        WHERE stp."customer_id" = :customerId
+                          AND stp."deletedAt" IS NULL
+                    )`,
+                    { customerId: filters.customerId }
+                );
+            }
+
+            if (isPaginated) {
+                qb.skip(skip).take(limit!);
+            }
+
+            const [targets, totalItems] = await qb.getManyAndCount();
+            const totalPages = isPaginated ? Math.ceil(totalItems / limit!) : 1;
 
             // Month names array (0-11 index)
             const monthNames = [
@@ -195,9 +281,9 @@ export class SalesTargetService {
                     });
                 }
 
-                // Convert month number to month name (month is 1-indexed: Jan=1, Dec=12)
-                const monthName = target.month !== null && target.month >= 1 && target.month <= 12
-                    ? monthNames[target.month - 1]
+                // Convert month number to month name (month is 0-indexed: Jan=1, Dec=12)
+                const monthName = target.month !== null && target.month >= 0 && target.month <= 11
+                    ? monthNames[target.month ]
                     : null;
 
                 const monthYear = monthName && target.year 
@@ -219,7 +305,7 @@ export class SalesTargetService {
                     week4Total: weeklyTotals.week4,
                     week5Total: weeklyTotals.week5,
                     totalTarget: target.totalMonthlySale || 0,
-                    status: target.status
+                    //status: target.status
                 };
             }));
 
@@ -227,7 +313,7 @@ export class SalesTargetService {
                 targets: formattedTargets,
                 totalItems,
                 totalPages,
-                currentPage: page
+                currentPage: page ?? 1
             };
         } catch (error) {
             throw error;
@@ -1047,6 +1133,111 @@ export class SalesTargetService {
             console.error('Error in getSalesSummary:', error);
             throw error;
         }
+    }
+
+    /**
+     * PATCH /sales-target/:id/approve
+     * Body: { action: 'approved' | 'rejected', remark?: string }
+     *
+     * Rules:
+     *  - PENDING (employee = createdBy, self-created) → workflow hierarchy नुसार
+     *    direct manager (depth=1 ancestor, department=sale) approve करेल
+     *  - Manager ने subordinate साठी create केले → directly APPROVED होते (approval ची गरज नाही)
+     */
+    async approveTarget(
+        targetId: string,
+        managerId: string,
+        action: 'approved' | 'rejected',
+    ): Promise<SalesTarget> {
+        const target = await this.salesTargetRepository.findOne({
+            where: { id: targetId },
+            relations: ['employee', 'createdBy'],
+        });
+
+        if (!target) {
+            throw new Error(`Sales target with ID ${targetId} not found`);
+        }
+
+        if (target.status === Status.APPROVED) {
+            throw new Error('Target is already approved');
+        }
+        if (target.status === Status.REJECTED) {
+            throw new Error('Target is already rejected');
+        }
+
+        const employeeId = target.employee?.id;
+        const createdById = target.createdBy?.id;
+
+        if (target.status === Status.PENDING) {
+            // Employee ने स्वतःसाठी create केला →
+            // managerId हा employeeId चा depth=1 ancestor असायला हवा (sale department)
+            const rows: { ancestor_id: string }[] = await this.workflowHierarchyRepo.query(
+                `SELECT ancestor_id
+                 FROM workflow_hierarchy
+                 WHERE descendant_id = $1
+                   AND ancestor_id   = $2
+                   AND department    = $3
+                   AND depth         = 1`,
+                [employeeId, managerId, DepartmentEnum.SALE],
+            );
+
+            if (rows.length === 0) {
+                throw new Error('You are not the direct manager of this employee in the sales workflow');
+            }
+        } else {
+            throw new Error(`Target cannot be approved in its current status: ${target.status}`);
+        }
+
+        target.status = action === 'approved' ? Status.APPROVED : Status.REJECTED;
+        return this.salesTargetRepository.save(target);
+    }
+
+    /**
+     * GET /sales-target/manager/pending-approval
+     * Manager ला दिसतात:
+     *  - PENDING targets — direct subordinates ने self-create केलेले
+     *  - Manager ने subordinate साठी create केलेले directly APPROVED होतात (pending list मध्ये येत नाहीत)
+     */
+    async getPendingTargetsForManager(managerId: string): Promise<any[]> {
+        const subordinateRows: { descendant_id: string }[] = await this.workflowHierarchyRepo.query(
+            `SELECT descendant_id
+             FROM workflow_hierarchy
+             WHERE ancestor_id  = $1
+               AND department   = $2
+               AND depth        = 1`,
+            [managerId, DepartmentEnum.SALE],
+        );
+
+        const subordinateIds = subordinateRows.map(r => r.descendant_id);
+        const results: SalesTarget[] = [];
+
+        // PENDING — subordinates ने self-create केलेले (employee = createdBy)
+        if (subordinateIds.length > 0) {
+            const pendingTargets = await this.salesTargetRepository
+                .createQueryBuilder('st')
+                .leftJoinAndSelect('st.employee', 'employee')
+                .leftJoinAndSelect('st.createdBy', 'createdBy')
+                .where('st.employee_id IN (:...subordinateIds)', { subordinateIds })
+                .andWhere('st.created_by_id = st.employee_id')
+                .andWhere('st.status = :pendingStatus', { pendingStatus: Status.PENDING })
+                .orderBy('st.createdAt', 'DESC')
+                .getMany();
+            results.push(...pendingTargets);
+        }
+
+        return results.map(t => ({
+            id: t.id,
+            status: t.status,
+            month: t.month,
+            year: t.year,
+            totalMonthlySale: t.totalMonthlySale,
+            employee: t.employee
+                ? { id: t.employee.id, name: `${(t.employee as any).firstName ?? ''} ${(t.employee as any).lastName ?? ''}`.trim() }
+                : null,
+            createdBy: t.createdBy
+                ? { id: t.createdBy.id, name: `${(t.createdBy as any).firstName ?? ''} ${(t.createdBy as any).lastName ?? ''}`.trim() }
+                : null,
+        }));
     }
 }
 

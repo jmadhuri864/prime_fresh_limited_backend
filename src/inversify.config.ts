@@ -3,6 +3,7 @@ import { Container } from "inversify";
 import { UserRepository } from "./employee/repository/user.repository";
 import { TYPES } from "./types";
 import { DataSource } from "typeorm";
+import { FileController } from "./file/file.controller";
 import { UserController } from "./employee/controller/user.controller";
 import { UserService } from "./employee/service/user.service";
 import { Role, User } from "./employee/entity/user.entity";
@@ -141,6 +142,7 @@ import { ApprovalLevelController } from "./approvalFlow/controller/approvalLevel
 import { DeliveryChallanRepository } from "./deliveryChallans/deliverychllan/repository/deliveryChallan.repository";
 import { DeliveryChallanPurchase } from "./deliveryChallans/deliverychllan/entity/deliveryChallan.entity";
 import { DeliveryChallanService } from "./deliveryChallans/deliverychllan/service/deliveryChallan.service";
+import { DeliveryChallanController } from "./deliveryChallans/deliverychllan/controller/deliveryChallan.controller";
 import { DitemRepository } from "./deliveryChallans/deliverychllan/repository/dItem.repository";
 import { Item } from "./deliveryChallans/deliverychllan/entity/dItem.entity";
 import { CustomerDeliveryChallanRepository } from "./deliveryChallans/customerDeliveryChllan/repository/customerDeliveryChallan.repository";
@@ -373,6 +375,7 @@ const container = new Container();
 // container.bind<SocketIOServer>(TYPES.SocketIoServerOne).toConstantValue(io);
 
 container.bind<DataSource>(TYPES.DataSource).toConstantValue(AppDataSource);
+container.bind<FileController>(TYPES.FileController).to(FileController).inSingletonScope();
 
 // ----- User-related bindings -----
 
@@ -816,7 +819,7 @@ container.bind<DeliveryChallanRepository>(TYPES.DeliveryChallanRepository).toDyn
   return dataSource.getRepository( DeliveryChallanPurchase).extend(DeliveryChallanRepository);
 }).inRequestScope(); // or .singletonScope() depending on your scope requirements
 container.bind<DeliveryChallanService>(TYPES.DeliveryChallanService).to(DeliveryChallanService);
-//container.bind<DeliveryChallanPurchase>(TYPES. DeliveryChallanController).to( DeliveryChallanController);
+container.bind<DeliveryChallanController>(TYPES.DeliveryChallanController).to(DeliveryChallanController);
 container.bind<DitemRepository>(TYPES.DitemRepository).toDynamicValue((context) => {
   const dataSource = context.container.get<DataSource>(TYPES.DataSource);
   return dataSource.getRepository( Item).extend(DitemRepository);

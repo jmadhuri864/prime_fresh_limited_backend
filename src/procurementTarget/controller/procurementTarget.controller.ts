@@ -9,8 +9,7 @@ import {
   response,
   next,
   requestParam,
-} from 'inversify-express-utils';
-import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
+} from 'inversify-express-utils';import { deserializeUser, requireUser } from '../../middleware/deserializeUser';
 import { TYPES } from '../../types';
 import { ProcurementTargetService } from '../service/procurementTarget.service';
 import AppError from '../../utils/appError';
@@ -40,7 +39,7 @@ public async createTarget(
     const loggedInUserId = res.locals.user.id;
     const payload = req.body;
 
-    // ✅ resolve employeeId
+    // resolve employeeId — frontend पाठवेल नाहीतर loggedIn user
     const employeeId = payload.employee ?? loggedInUserId;
 
     if (!employeeId) {
@@ -49,7 +48,9 @@ public async createTarget(
 
     const target = await this.procurementTargetService.create({
       ...payload,
-      employeeId, // 🔥 inject resolved employeeId
+      employeeId,
+      employee: employeeId,
+      createdBy: loggedInUserId, // नेहमी logged-in user = creator
     });
 
     return res.status(201).json({
@@ -74,10 +75,24 @@ async getAllTargets(
 ) {
   try {
     const employeeId = res.locals.user?.id;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    
-    const data = await this.procurementTargetService.getalltargets(employeeId, page, limit);
+    const pageRaw = req.query.page as string | undefined;
+    const limitRaw = req.query.limit as string | undefined;
+    const page = pageRaw ? parseInt(pageRaw) : undefined;
+    const limit = limitRaw ? parseInt(limitRaw) : undefined;
+
+    const filters = {
+      employeeId: req.query.employeeId as string | undefined,
+      // Legacy single month/year filters (kept for backward compatibility)
+      month: req.query.month ? parseInt(req.query.month as string) : undefined,
+      year: req.query.year ? parseInt(req.query.year as string) : undefined,
+      // Date range filters
+      fromMonth: req.query.fromMonth ? parseInt(req.query.fromMonth as string) : undefined,
+      fromYear: req.query.fromYear ? parseInt(req.query.fromYear as string) : undefined,
+      toMonth: req.query.toMonth ? parseInt(req.query.toMonth as string) : undefined,
+      toYear: req.query.toYear ? parseInt(req.query.toYear as string) : undefined,
+    };
+
+    const data = await this.procurementTargetService.getalltargets(employeeId, page, limit, filters);
 
     return res.status(200).json({
       status: "success",
@@ -166,7 +181,7 @@ async getMonthlyPlanViewStructured(
 }
 
 
-@httpGet('/monthly-plan-view/:id')
+@httpGet('/monthly-plan-update/:id')
 async getMonthlyPlanUpdateStructured(
   @request() req: Request,
   @response() res: Response
@@ -181,7 +196,7 @@ async getMonthlyPlanUpdateStructured(
       });
     }
 
-    const data = await this.procurementTargetService.getMonthlyPlanViewStructured(
+    const data = await this.procurementTargetService.getMonthlyPlanUpdateStructured(
       targetId as string
     );
 
@@ -309,8 +324,64 @@ public async downloadPlanInBriefExcel(
     }
   }
 
-  //TODO: Get procurement summary statistics
-  @httpGet('/procurement-summary/:employeeId/:month/:year')
+  //TODO: Approve / Reject Procurement Target
+  // PATCH /procurement-target/:id/approve
+  // Body: { action: 'approved' | 'rejected', remark?: string }
+  @httpPatch('/:id/approve')
+  public async approveTarget(
+    @requestParam('id') id: string,
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const managerId = res.locals.user.id;
+      const { action, remark } = req.body;
+
+      if (!action || !['approved', 'rejected'].includes(action)) {
+        throw new AppError(400, "action must be 'approved' or 'rejected'");
+      }
+
+      const result = await this.procurementTargetService.approveTarget(
+        id,
+        managerId,
+        action,
+        remark,
+      );
+
+      return res.status(200).json({
+        status: 'success',
+        message: `Procurement target ${action} successfully`,
+        data: { id: result.id, status: result.status },
+      });
+    } catch (error) {
+      logger.error('Error approving procurement target', error);
+      next(error);
+    }
+  }
+
+  //TODO: Get all targets pending approval for logged-in manager
+  // GET /procurement-target/manager/pending-approval
+  @httpGet('/manager/pending-approval')
+  public async getPendingApprovalTargets(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const managerId = res.locals.user.id;
+
+      const data = await this.procurementTargetService.getPendingTargetsForManager(managerId);
+
+      return res.status(200).json({
+        status: 'success',
+        data,
+      });
+    } catch (error) {
+      logger.error('Error fetching pending approval targets', error);
+      next(error);
+    }
+  }
   async getProcurementSummary(
     @requestParam("employeeId") employeeId: string,
     @requestParam("month") month: string,

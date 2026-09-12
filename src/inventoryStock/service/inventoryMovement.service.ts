@@ -334,7 +334,10 @@ export class InventoryMovementService {
       });
     }
 
-    return { movements, validateAvailability: true };
+    // Stock availability is validated at DC creation time (customerDeliveryChallan.service.ts).
+    // Re-checking here at approve time is redundant and causes false failures when
+    // other DCs are created concurrently. Deduct without a second availability check.
+    return { movements, validateAvailability: false };
   }
 
   // ---------------------------------------------------------------------

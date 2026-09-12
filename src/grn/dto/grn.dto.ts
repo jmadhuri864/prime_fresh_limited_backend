@@ -19,7 +19,6 @@ export interface GrnProductDto {
   purchaseDate?: string | Date | null;
   dispatchDate?: string | Date | null;
   deliveryDate?: string | Date | null;
-  deliveryLocation?: string | null;
   expectedHarvestDate?: string | Date | null;
 }
 

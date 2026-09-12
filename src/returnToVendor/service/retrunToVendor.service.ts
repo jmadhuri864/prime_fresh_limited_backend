@@ -7,6 +7,7 @@ import { ReturnToVendorRepository } from "../repository/returnToVendor.repositor
 import AppError from "../../utils/appError";
 import { DocumentStatus, DocumentTypeEnum } from "../../approvalFlow/entity/docuemnt.entity";
 import { DocumentTypeEnum as DocDefEnum } from "../../documentDef/entity/documentdef.entity";
+import { ApprovalFlowService } from "../../approvalFlow/service/approvalFlow.service";
 import { PaginationOptions } from "../../utils/pagination";
 import { formatDateTime } from "../../utils/dateUtils";
 import { CacheService } from "../../global/cache.service";
@@ -39,6 +40,8 @@ export class ReturnToVendorService {
     private readonly docDoubleApproverService: DocDoubleApproverService,
                     @inject(TYPES.CacheService)
     private readonly cacheService: CacheService,
+                    @inject(TYPES.ApprovalFlowService)
+    private readonly approvalFlowService: ApprovalFlowService,
         ) {}
 
     private readonly CACHE_PREFIX = 'returnToVendor';
@@ -90,7 +93,23 @@ export class ReturnToVendorService {
       return `${datePrefix}${nextSeq.toString().padStart(5, '0')}`;
     }
 
+  // Creating a document without a configured approval flow leaves it with no
+  // approvers, so reject it up front — same guard as RFPA / Deal Slip.
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
     public async createReturn(returnData: CreateRTVDto & Record<string, any>, requestedBy: string, clientIp?: string): Promise<ReturnToVendor> {
+      // Check if approval flow exists for the user
+      await this.checkApprovalFlowExists(requestedBy, DocDefEnum.OPERATION);
+
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();

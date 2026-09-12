@@ -48,8 +48,20 @@ const allowedOrigins = [
   "https://prime-fresh-erp.vercel.app",
   "http://139.59.83.235:80",
   "http://139.59.83.235",
-  "http://localhost:5173/","*"
+  "http://localhost:5173/",
+  "http://192.168.1.41:5173/",
+  "http://192.168.1.34:4000",
+  "http://192.168.1.34:4000/",
+  "http://192.168.1.48:4000",
 ];
+
+const normalizeOrigin = (origin: string): string =>
+  origin.trim().replace(/\/+$/, "").toLowerCase();
+
+const allowedOriginSet = new Set(allowedOrigins.map(normalizeOrigin));
+
+const isAllowedOrigin = (origin?: string): boolean =>
+  !!origin && allowedOriginSet.has(normalizeOrigin(origin));
 
 process.on('unhandledRejection', (reason: any) => {
   logger.error('Unhandled Promise Rejection:', {
@@ -98,10 +110,10 @@ const startServer = async () => {
       app.use(cookieParser());
       
       // Helmet security headers — CORP/COEP configured properly
-      app.use(helmet({
-        crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow CDN/image loads
-        crossOriginEmbedderPolicy: false, // disable COEP — not needed for this API
-      }));
+      // app.use(helmet({
+      //   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow CDN/image loads
+      //   crossOriginEmbedderPolicy: false, // disable COEP — not needed for this API
+      // }));
 
       // Rate limiting — apply before routes
       // app.use('/auth', authRateLimit);   // 5 requests / 15 min on auth endpoints
@@ -119,9 +131,17 @@ const startServer = async () => {
 
       // Main CORS handler - MUST be before any other middleware that might set headers
       app.use((req, res, next) => {
-        // Allow all origins
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, ngrok-skip-browser-warning, Cache-Control, X-Requested-With");
+        // Credentialed CORS: the browser rejects "*" when the request carries
+        // cookies (withCredentials), so the request's own origin is echoed back
+        // and only if it is on the allowlist.
+        const origin = req.headers.origin;
+        if (isAllowedOrigin(origin)) {
+          res.setHeader("Access-Control-Allow-Origin", origin as string);
+          res.setHeader("Access-Control-Allow-Credentials", "true");
+        }
+        // The response body/headers now depend on Origin — caches must key on it.
+        res.vary("Origin");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cache-Control, X-Requested-With");
         res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS,PUT");
 
         // Handle preflight requests
@@ -134,7 +154,12 @@ const startServer = async () => {
 
       // SSE-specific middleware - only for the streaming endpoint
       app.use("/sse/notifications", (req, res, next) => {
-        res.setHeader("Access-Control-Allow-Origin", "*");
+        const origin = req.headers.origin;
+        if (isAllowedOrigin(origin)) {
+          res.setHeader("Access-Control-Allow-Origin", origin as string);
+          res.setHeader("Access-Control-Allow-Credentials", "true");
+        }
+        res.vary("Origin");
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Connection", "keep-alive");
@@ -152,7 +177,7 @@ const startServer = async () => {
 
       app.get('/', (_req: Request, res: Response) => {
         logger.info('Request received');
-        res.send('Hello World!');
+        res.send('Hello World!.....');
       });
     });
 
@@ -180,11 +205,8 @@ const startServer = async () => {
     const app = inversifyServer.build();
 
     const port = process.env.PORT || 4000;
-    app.listen(port, () => {
-
-      // console.log(`🚀 Server started on port ${port}`);
-      // console.log(`📡 SSE endpoint: http://localhost:${port}/sse/notifications`);
-      // console.log(`🧪 SSE test: http://localhost:${port}/sse/test`);
+    app.listen(+port, '0.0.0.0', () => {
+      logger.info(`Server started on 0.0.0.0:${port}`);
     });
 
     process.on('SIGINT', () => {

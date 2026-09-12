@@ -84,14 +84,21 @@ export class CustomerDeliveryChallanService {
   ) { }
 
   // ─── Cache Helpers ────────────────────────────────────────────────────────
-  private async invalidateCDCCache(id?: string): Promise<void> {
+  // Public because other modules write delivery-challan data and must bust these
+  // keys: Return By Customer updates the challan items' returned/rejected/accepted
+  // quantities, which the view, update and list responses all carry.
+  // `id` is the delivery challan id.
+  public async invalidateCDCCache(id?: string): Promise<void> {
     const tasks: Promise<any>[] = [
       this.cacheService.invalidatePattern(`${CACHE_PREFIX}:list:*`),
     ];
     if (id) {
       tasks.push(
         this.cacheService.del(`${CACHE_PREFIX}:update:${id}`),
-        this.cacheService.del(`${CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by the Documentb id (the /view/:docid route
+        // param), not by this record's own id, so it can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${CACHE_PREFIX}:view:*`),
         this.cacheService.del(`${CACHE_PREFIX}:net:${id}`),
         this.cacheService.del(`${CACHE_PREFIX}:returnStatus:${id}`),
       );
@@ -116,7 +123,22 @@ export class CustomerDeliveryChallanService {
     const serialStr = (count + 1).toString().padStart(5, '0');
     return `CN${formattedDate}${typeCode}${serialStr}`;
   }
+
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async create(data: CreateCustomerDeliveryChallanDto & Record<string, any>, requestedBy: string): Promise<CustomerDeliveryChallan> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(requestedBy, DocDefEnum.SALE);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -465,6 +487,7 @@ export class CustomerDeliveryChallanService {
         'challan.netPackagingMaterialWeight', 'challan.totalPackagingMaterialAmount',
         'challan.totalAmtInWords', 'challan.requestingDepartment',
         'challan.remark', 'challan.anyAttachment', 'challan.createdAt',
+        'challan.isInvoiceCreated', 'challan.isReturned', 'challan.isReturnByCustomerCreated',
         'fromLocation.name',
         'customerName.organisationName',
         'billingAddress.id', 'billingAddress.address1', 'billingAddress.address2',
@@ -526,6 +549,9 @@ export class CustomerDeliveryChallanService {
       createdTime,
       overAllStatus: document.overAllStatus,
       createdBy: document.createdBy,
+      isInvoiceCreated: challan.isInvoiceCreated ?? false,
+      isReturned: challan.isReturned ?? false,
+      isReturnByCustomerCreated: (challan as any).isReturnByCustomerCreated ?? false,
       approvalSummary: document.approvalSummary ?? null,
       deliveryChallanProducts: (challan.deliveryChallanProducts ?? []).map((p) => ({
         id: p.id,

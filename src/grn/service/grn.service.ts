@@ -25,6 +25,7 @@ import { DocumentbRepository } from '../../approvalFlow/repository/documentb.rep
 import { AuditLogService } from '../../employeeActivity/service/auditLog.service';
 import { CacheService } from '../../global/cache.service';
 import { DocumentbService, DocumentWithRelatedData } from '../../approvalFlow/service/documentb.service';
+import { ApprovalFlowService } from '../../approvalFlow/service/approvalFlow.service';
 import { GrnProductHistoryService } from './grnProductHistory.service';
 import { CreateGrnDto, GrnDetailDto, GrnListItemDto, UpdateGrnDto } from '../dto/grn.dto';
 import { GRN } from '../entity/grn.entity';
@@ -51,6 +52,7 @@ export class GrnService {
     @inject(TYPES.CacheService) private readonly cacheService: CacheService,
     @inject(TYPES.AuditLogService) private readonly auditLogService: AuditLogService,
     @inject(TYPES.DocumentbService) private readonly documentbService: DocumentbService,
+    @inject(TYPES.ApprovalFlowService) private readonly approvalFlowService: ApprovalFlowService,
     @inject(TYPES.DataSource) private readonly dataSource: DataSource,
     @inject(TYPES.GrnProductHistoryService) private readonly grnProductHistoryService: GrnProductHistoryService,
   ) { }
@@ -67,8 +69,11 @@ export class GrnService {
     if (id) {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
+        // The view and update caches are keyed by the Documentb id (the route
+        // param), not by this record's own id, so they can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:update:*`),
         this.cacheService.del(`${this.CACHE_PREFIX}:details:${id}`),
       );
     }
@@ -148,7 +153,6 @@ public async getAllRecycleBinGrns(queryOptions: PaginationOptions, userId: strin
             purchaseDate: product.purchaseDate,
             dispatchDate: product.dispatchDate,
             deliveryDate: product.deliveryDate,
-            deliveryLocation: product.deliveryLocation,
             expectedHarvestDate: product.expectedHarvestDate,
           })) || [],
         };
@@ -196,7 +200,25 @@ public async getAllRecycleBinGrns(queryOptions: PaginationOptions, userId: strin
   await this.cacheService.set(cacheKey, recycleResult, this.CACHE_TTL);
   return recycleResult;
   }
+
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   public async createGrn(grnData: CreateGrnDto): Promise<any> {
+    // Check if approval flow exists for the user
+    if (!grnData.createdBy) {
+      throw new AppError(400, 'createdBy field is required for approval flow validation');
+    }
+    await this.checkApprovalFlowExists(grnData.createdBy, DocDefEnum.PROCUREMENT);
+    
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -534,7 +556,6 @@ public async getAllGrns(queryOptions: PaginationOptions, userId: string): Promis
           purchaseDate: product.purchaseDate,
           dispatchDate: product.dispatchDate,
           deliveryDate: product.deliveryDate,
-          deliveryLocation: product.deliveryLocation,
           expectedHarvestDate: product.expectedHarvestDate,
         })),
       };
@@ -669,7 +690,6 @@ public async getAllGrns(queryOptions: PaginationOptions, userId: string): Promis
         purchaseDate: product.purchaseDate,
         dispatchDate: product.dispatchDate,
         deliveryDate: product.deliveryDate,
-        deliveryLocation: product.deliveryLocation,
         expectedHarvestDate: product.expectedHarvestDate,
       })),
     };
@@ -805,7 +825,6 @@ public async getAllGrns(queryOptions: PaginationOptions, userId: string): Promis
         purchaseDate: product.purchaseDate,
         dispatchDate: product.dispatchDate,
         deliveryDate: product.deliveryDate,
-        deliveryLocation: product.deliveryLocation,
         expectedHarvestDate: product.expectedHarvestDate,
       }));
     }

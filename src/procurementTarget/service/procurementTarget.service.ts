@@ -8,6 +8,7 @@ import { ProcurementTargetProductRepository } from "../repository/procurmentTarg
 import { ProcurementTargetWeekRepository } from "../repository/procurmentTargetWeek.repository";
 
 import { WorkflowHierarchyRepository } from "../../workFlow/repository/WorkflowHierarchy.repository";
+import { DepartmentEnum } from "../../workFlow/entity/workflowClosure.entity";
 import * as ExcelJS from 'exceljs';
 import { AppDataSource } from "../../utils/data-source";
 import { toPlanMonth } from '../../utils/planMonth';
@@ -151,13 +152,16 @@ export class ProcurementTargetService {
       },
     );
 
-    let status:ProcurementStatus;
+    let status: ProcurementStatus;
     if(payload.createdBy == payload.employee)
     {
-        status=ProcurementStatus.DRAFT;
+        // Employee ने स्वतःसाठी create केला → PENDING (वरचा manager approve करेल)
+        status = ProcurementStatus.PENDING;
     }
-    else{
-        status=ProcurementStatus.APPROVED;
+    else {
+        // Manager ने subordinate साठी create केला → directly APPROVED
+        // (manager च creator आहे, त्याची implicit approval आहे)
+        status = ProcurementStatus.APPROVED;
     }
 
     // ✅ Create target entity
@@ -181,9 +185,23 @@ export class ProcurementTargetService {
  
 
     // Get all targets with pagination
-    async getalltargets(employeeId: string, page: number = 1, limit: number = 10) {
+    async getalltargets(
+        employeeId: string,
+        page?: number,
+        limit?: number,
+        filters: {
+            employeeId?: string;
+            month?: number;
+            year?: number;
+            fromMonth?: number;
+            fromYear?: number;
+            toMonth?: number;
+            toYear?: number;
+        } = {}
+    ) {
         try {
-            const skip = (page - 1) * limit;
+            const isPaginated = page !== undefined && limit !== undefined;
+            const skip = isPaginated ? (page! - 1) * limit! : 0;
 
             // Get all subordinates including self (depth >= 0)
             const subordinates = await this.workflowHierarchyRepo
@@ -193,27 +211,72 @@ export class ProcurementTargetService {
                 .andWhere('wh.depth >= 0')
                 .getRawMany();
 
-            const employeeIds = subordinates.map(s => s.descendant_id);
+            let employeeIds = subordinates.map(s => s.descendant_id);
+
+            // Filter by specific employeeId if provided
+            if (filters.employeeId) {
+                employeeIds = employeeIds.filter(id => id === filters.employeeId);
+            }
 
             if (employeeIds.length === 0) {
                 return {
                     targets: [],
                     totalItems: 0,
                     totalPages: 0,
-                    currentPage: page
+                    currentPage: page ?? 1  
                 };
             }
 
-            const [targets, totalItems] = await this.procurementTargetRepository
+            const qb = this.procurementTargetRepository
                 .createQueryBuilder('target')
                 .leftJoinAndSelect('target.employee', 'employee')
                 .where('target.employee.id IN (:...employeeIds)', { employeeIds })
-                .orderBy('target.createdAt', 'DESC')
-                .skip(skip)
-                .take(limit)
-                .getManyAndCount();
+                .orderBy('target.createdAt', 'DESC');
 
-            const totalPages = Math.ceil(totalItems / limit);
+            // Legacy single month/year filter
+            if (filters.month !== undefined) {
+                qb.andWhere('target.month = :month', { month: filters.month });
+            }
+            if (filters.year !== undefined) {
+                qb.andWhere('target.year = :year', { year: filters.year });
+            }
+
+            // Date range filter — fromMonth/fromYear to toMonth/toYear
+            // Converts month+year into a comparable integer (year*12 + month)
+            // so range queries work correctly across year boundaries
+            // e.g. fromMonth=8&fromYear=2026&toMonth=2&toYear=2027
+            if (
+                filters.fromMonth !== undefined && filters.fromYear !== undefined &&
+                filters.toMonth !== undefined && filters.toYear !== undefined
+            ) {
+                qb.andWhere(
+                    '(target.year * 12 + target.month) >= :from AND (target.year * 12 + target.month) <= :to',
+                    {
+                        from: filters.fromYear * 12 + filters.fromMonth,
+                        to: filters.toYear * 12 + filters.toMonth,
+                    }
+                );
+            } else if (filters.fromMonth !== undefined && filters.fromYear !== undefined) {
+                // Only from — no upper bound
+                qb.andWhere(
+                    '(target.year * 12 + target.month) >= :from',
+                    { from: filters.fromYear * 12 + filters.fromMonth }
+                );
+            } else if (filters.toMonth !== undefined && filters.toYear !== undefined) {
+                // Only to — no lower bound
+                qb.andWhere(
+                    '(target.year * 12 + target.month) <= :to',
+                    { to: filters.toYear * 12 + filters.toMonth }
+                );
+            }
+
+            if (isPaginated) {
+                qb.skip(skip).take(limit!);
+            }
+
+            const [targets, totalItems] = await qb.getManyAndCount();
+
+            const totalPages = isPaginated ? Math.ceil(totalItems / limit!) : 1;
 
             // Month names array (0-11 index)
             const monthNames = [
@@ -1219,6 +1282,122 @@ async getMonthlyPlanUpdateStructured(
             console.error('Error in getProcurementSummary:', error);
             throw error;
         }
+    }
+
+    /**
+     * PATCH /procurement-target/:id/approve
+     * Body: { action: 'approved' | 'rejected', remark?: string }
+     *
+     * Rules:
+     *  - Target employee स्वतः create केला (PENDING) → workflow hierarchy नुसार
+     *    direct manager (depth=1 ancestor, department=procurement) approve करेल
+     *  - Manager ने employee साठी create केला → directly APPROVED होतो (approval ची गरज नाही)
+     */
+    async approveTarget(
+        targetId: string,
+        managerId: string,
+        action: 'approved' | 'rejected',
+        remark?: string,
+    ): Promise<ProcurementTarget> {
+        const target = await this.procurementTargetRepository.findOne({
+            where: { id: targetId },
+            relations: ['employee', 'creatdeBy'],
+        });
+
+        if (!target) {
+            throw new Error(`Procurement target with ID ${targetId} not found`);
+        }
+
+        // Terminal state guard
+        if (target.status === ProcurementStatus.APPROVED) {
+            throw new Error('Target is already approved');
+        }
+        if (target.status === ProcurementStatus.REJECTED) {
+            throw new Error('Target is already rejected');
+        }
+
+        const employeeId = target.employee?.id;
+        const createdById = target.creatdeBy?.id;
+
+        if (target.status === ProcurementStatus.PENDING) {
+            // Employee ने स्वतःसाठी create केला →
+            // workflow_hierarchy मध्ये managerId चा depth=1 ancestor approve करेल
+            const rows: { ancestor_id: string }[] = await this.workflowHierarchyRepo.query(
+                `SELECT ancestor_id
+                 FROM workflow_hierarchy
+                 WHERE descendant_id = $1
+                   AND ancestor_id   = $2
+                   AND department    = $3
+                   AND depth         = 1`,
+                [employeeId, managerId, DepartmentEnum.PURCHASE],
+            );
+
+            if (rows.length === 0) {
+                throw new Error('You are not the direct manager of this employee in the procurement workflow');
+            }
+        } else {
+            throw new Error(`Target cannot be approved in its current status: ${target.status}`);
+        }
+
+        target.status = action === 'approved'
+            ? ProcurementStatus.APPROVED
+            : ProcurementStatus.REJECTED;
+
+        return this.procurementTargetRepository.save(target);
+    }
+
+    /**
+     * GET /procurement-target/manager/pending-approval
+     * Manager ला दिसतात:
+     *  - PENDING targets — workflow hierarchy नुसार manager चे direct subordinates चे
+     *    subordinates ने स्वतःसाठी create केलेले (employee = createdBy, depth=1 under managerId)
+     *  - Manager ने subordinate साठी create केलेले directly APPROVED होतात (pending list मध्ये येत नाहीत)
+     */
+    async getPendingTargetsForManager(managerId: string): Promise<any[]> {
+        // workflow hierarchy मधून direct subordinates (depth=1) मिळवतो
+        // यात subordinates ने स्वतःसाठी create केलेले PENDING targets cover होतात
+        const subordinateRows: { descendant_id: string }[] = await this.workflowHierarchyRepo.query(
+            `SELECT descendant_id
+             FROM workflow_hierarchy
+             WHERE ancestor_id  = $1
+               AND department   = $2
+               AND depth        = 1`,
+            [managerId, DepartmentEnum.PURCHASE],
+        );
+
+        const subordinateIds = subordinateRows.map(r => r.descendant_id);
+
+        const results: ProcurementTarget[] = [];
+
+        // PENDING targets — subordinates ने स्वतःसाठी create केलेले
+        // (employee IN subordinateIds AND createdBy = employee AND status = PENDING)
+        if (subordinateIds.length > 0) {
+            const pendingTargets = await this.procurementTargetRepository
+                .createQueryBuilder('pt')
+                .leftJoinAndSelect('pt.employee', 'employee')
+                .leftJoinAndSelect('pt.creatdeBy', 'creatdeBy')
+                .where('pt.employee_id IN (:...subordinateIds)', { subordinateIds })
+                .andWhere('pt.createdby_id = pt.employee_id') // self-created
+                .andWhere('pt.status = :pendingStatus', { pendingStatus: ProcurementStatus.PENDING })
+                .orderBy('pt.createdAt', 'DESC')
+                .getMany();
+
+            results.push(...pendingTargets);
+        }
+
+        return results.map(t => ({
+            id: t.id,
+            status: t.status,
+            month: t.month,
+            year: t.year,
+            monthlyTotalQty: t.monthlyTotalQty,
+            employee: t.employee
+                ? { id: t.employee.id, name: `${(t.employee as any).firstName ?? ''} ${(t.employee as any).lastName ?? ''}`.trim() }
+                : null,
+            createdBy: t.creatdeBy
+                ? { id: t.creatdeBy.id, name: `${(t.creatdeBy as any).firstName ?? ''} ${(t.creatdeBy as any).lastName ?? ''}`.trim() }
+                : null,
+        }));
     }
 }
 

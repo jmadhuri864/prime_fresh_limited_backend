@@ -215,6 +215,7 @@ export interface BulkDeleteFarmerResultDto {
   idProofNo: string | null;
   /** S3 URL string (frontend IFarmer has File | null — on response it is always a URL) */
   idProofCopy: string | null;
+  idProofCopyDownloadUrl: string | null;
 
   // ── Sell info ─────────────────────────────────────────────────────────────
   howDoYouSell: string | null;
@@ -227,12 +228,15 @@ export interface BulkDeleteFarmerResultDto {
   sevenTwelveNo: string | null;
   /** S3 URL string */
   sevenTwelveCopy: string | null;
+  sevenTwelveCopyDownloadUrl: string | null;
 
   // ── Photos ────────────────────────────────────────────────────────────────
   /** S3 URL string (frontend IFarmer has File | null — on response it is always a URL) */
   farmerPhoto: string | null;
+  farmerPhotoDownloadUrl: string | null;
   /** S3 URL string */
   farmPhoto: string | null;
+  farmPhotoDownloadUrl: string | null;
 
   // ── Crops ─────────────────────────────────────────────────────────────────
   crops: CropDto[];
@@ -268,6 +272,7 @@ export interface FarmerResponseDto {
   createdBy?: string | null;
   createdDate?: string | null;
   createdTime?: string | null;
+  approvedBy?: string | null;
   residensialAddress?: AddressDto | Record<string, any>;
   farmAddress?: AddressDto | Record<string, any>;
   crops?: CropDto[];

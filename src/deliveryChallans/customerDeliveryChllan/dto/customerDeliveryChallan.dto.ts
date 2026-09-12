@@ -221,6 +221,9 @@ export interface CustomerDeliveryChallanViewDto {
   createdTime: string | null;
   overAllStatus: string | null;
   createdBy: any | null;
+  isInvoiceCreated: boolean;
+  isReturned: boolean;
+  isReturnByCustomerCreated: boolean;
   approvalSummary?: {
     createdBy?: { userId: string; name: string } | null;
     verified?: { userId: string; name: string; status: string; reason: string | null } | null;

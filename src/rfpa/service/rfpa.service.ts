@@ -116,7 +116,24 @@ export class RfpaService {
     await Promise.all(tasks);
   }
 
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async createRfpa(rfpaData: CreateRfpaDto & Record<string, any>): Promise<RFPA> {
+    // Check if approval flow exists for the user
+    if (!rfpaData.createdBy) {
+      throw new AppError(400, 'createdBy field is required for approval flow validation');
+    }
+    await this.checkApprovalFlowExists(rfpaData.createdBy, DocDefEnum.PROCUREMENT);
+    
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -184,7 +201,6 @@ export class RfpaService {
           rfpaProduct.expectedHarvestDate = product.expectedHarvestDate;
           rfpaProduct.dispatchDate = product.dispatchDate;
           rfpaProduct.deliveryDate = product.deliveryDate;
-          rfpaProduct.deliveryLocation = product.deliveryLocation;
           return rfpaProduct;
         });
       }
@@ -560,7 +576,6 @@ export class RfpaService {
             expectedHarvestDate: p.expectedHarvestDate || null,
             dispatchDate: p.dispatchDate || null,
             deliveryDate: p.deliveryDate || null,
-            deliveryLocation: p.deliveryLocation || null,
           })) : [],
           companyName: rd.companyName?.name || null,
           purchaseLocation: rd.purchaseLocation?.name || null,
@@ -996,7 +1011,6 @@ export class RfpaService {
         expectedHarvestDate: p.expectedHarvestDate || null,
         dispatchDate: p.dispatchDate || null,
         deliveryDate: p.deliveryDate || null,
-        deliveryLocation: p.deliveryLocation || null,
       })) : [],
 
       companyName: rfpaEntity.companyName?.name || null,
@@ -1133,7 +1147,6 @@ export class RfpaService {
       purchaseDate: product.purchaseDate,
       dispatchDate: product.dispatchDate,
       deliveryDate: product.deliveryDate,
-      deliveryLocation: product.deliveryLocation,
       expectedHarvestDate: product.expectedHarvestDate,
     })),
   };

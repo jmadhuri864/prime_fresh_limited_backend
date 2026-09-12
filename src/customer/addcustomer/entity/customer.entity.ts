@@ -157,6 +157,10 @@ export class Customer extends Model {
   @JoinColumn({ name: 'created_by' })
   createdBy: User;
 
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'approved_by' })
+  approvedBy: User;
+
   @Column({
     type: 'enum',
     enum: Status,
@@ -164,12 +168,6 @@ export class Customer extends Model {
     name: 'status',
   })
   status: Status;
-  // @ManyToOne(
-  //   () => CustomerDeliveryChallan,
-  //   (deliveryChallan) => deliveryChallan.customerName,
-  //   { onDelete: 'SET NULL' },
-  // )
-  // deliveryChallan: DeliveryChallanPurchase;
   @BeforeInsert()
   async setCustomerCode() {
     // Use the createdAt field which is set by TypeORM before insertion

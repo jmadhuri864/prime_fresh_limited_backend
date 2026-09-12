@@ -14,7 +14,7 @@ const postgresConfig = config.get<{
 export const AppDataSource = new DataSource({
   ...postgresConfig,
   type: 'postgres',
-  synchronize: true,
+  synchronize: true, // Temporary for enum fix
   //logging: true,  // Enable logging to see actual SQL queries
   
   // Connection pool optimization

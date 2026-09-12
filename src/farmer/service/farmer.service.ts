@@ -19,6 +19,7 @@ import { parseExcelDate } from '../../utils/excelParser';
 import { UserRepository } from '../../employee/repository/user.repository';
 
 import { Status } from '../../utils/status.enum';
+import { NotificationService } from '../../notification/service/notification.service';
 import { formatDateTime } from '../../utils/dateUtils';
 import { CreateFarmerDto, FarmerListResponseDto, FarmerListItemDto, AddressDto, CropDto, LandHoldingStatusType, LandStatusType, UpdateFarmerDto, FarmerResponseDto } from '../dto/farmer.dto';
 import { In } from 'typeorm';
@@ -64,6 +65,8 @@ export class FarmerService {
     private readonly auditLogService: AuditLogService,
     @inject(TYPES.CacheService)
     private readonly cacheService: CacheService,
+    @inject(TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
   ) {}
 
   // ─── Cache Helpers ────────────────────────────────────────────────────────
@@ -334,6 +337,7 @@ export class FarmerService {
       .leftJoin('farmer.residensialAddress', 'residensialAddress')
       .leftJoin('farmer.farmAddress', 'farmAddress')
       .leftJoin('farmer.createdBy', 'createdBy')
+      .leftJoin('farmer.approvedBy', 'approvedBy')
       .leftJoin('farmer.crops', 'crops')
       .leftJoin('crops.crop', 'crop')
       .select([
@@ -343,8 +347,9 @@ export class FarmerService {
         'farmer.totalLandArea', 'farmer.cultivationArea', 'farmer.sevenTwelveNo',
         'farmer.sevenTwelveCopy', 'farmer.primaryMobileNo', 'farmer.secondaryMobileNo',
         'farmer.email', 'farmer.farmerCode', 'farmer.farmerPhoto', 'farmer.farmPhoto',
-        'farmer.createdAt',
+        'farmer.status', 'farmer.createdAt',
         'createdBy.firstName', 'createdBy.lastName',
+        'approvedBy.firstName', 'approvedBy.lastName',
         'residensialAddress.id', 'residensialAddress.address1', 'residensialAddress.address2',
         'residensialAddress.location', 'residensialAddress.city', 'residensialAddress.state', 'residensialAddress.pincode',
         'farmAddress.id', 'farmAddress.address1', 'farmAddress.address2',
@@ -375,6 +380,7 @@ export class FarmerService {
       farmermName: farmer.farmermName ?? null,
       farmerlName: farmer.farmerlName ?? null,
       gender: farmer.gender,
+      status: farmer.status,
       dob: farmer.dob ? String(farmer.dob) : null,
       idProofNo: farmer.idProofNo,
       idProofCopy: farmer.idProofCopy,
@@ -393,6 +399,9 @@ export class FarmerService {
       farmerCode: farmer.farmerCode,
       createdBy: farmer.createdBy
         ? `${farmer.createdBy.firstName} ${farmer.createdBy.lastName}`
+        : null,
+      approvedBy: farmer.approvedBy
+        ? `${farmer.approvedBy.firstName} ${farmer.approvedBy.lastName}`
         : null,
       createdDate,
       createdTime,
@@ -691,9 +700,53 @@ export class FarmerService {
     }
 
     farmer.status = status;
+    farmer.approvedBy = { id: approverId } as any;
     const saved = await this.farmerRepository.save(farmer);
     await this.invalidateFarmerCache(farmerId);
+
+    // Notify verifier + creator — non-blocking
+    this.notifyFarmerApproved(saved, approverId, status).catch(() => {});
+
     return saved;
+  }
+
+  private async notifyFarmerApproved(farmer: Farmer, approverId: string, status: Status): Promise<void> {
+    try {
+      const isApproved = status === Status.APPROVED;
+
+      // Fetch approver name
+      const approver = await this.userRepository.findOneBy({ id: approverId });
+      const verifierName = `${approver?.firstName || ''} ${approver?.lastName || ''}`.trim()
+        || (approver as any)?.username || 'Verifier';
+
+      const farmerFullName = [farmer.farmerfName, farmer.farmermName, farmer.farmerlName]
+        .filter(Boolean).join(' ');
+
+      // Notify the verifier who acted
+      await this.notificationService.createNoti(
+        isApproved
+          ? `You approved farmer "${farmerFullName}" successfully`
+          : `You rejected farmer "${farmerFullName}"`,
+        approverId,
+      );
+
+      // Fetch farmer with createdBy to notify the creator
+      const farmerWithCreator = await this.farmerRepository.findOne({
+        where: { id: farmer.id },
+        relations: ['createdBy'],
+      });
+      const creatorId = (farmerWithCreator?.createdBy as any)?.id;
+      if (creatorId && creatorId !== approverId) {
+        await this.notificationService.createNoti(
+          isApproved
+            ? `Your farmer "${farmerFullName}" has been approved by ${verifierName}`
+            : `Your farmer "${farmerFullName}" has been rejected by ${verifierName}`,
+          creatorId,
+        );
+      }
+    } catch {
+      // Notification failure must never break the approve flow
+    }
   }
   async getFarmerById(id: string): Promise<Farmer | null> {
     const key = `${CACHE_PREFIX}:id:${id}`;
@@ -782,7 +835,54 @@ export class FarmerService {
     const farmer = this.farmerRepository.create(entityData as unknown as Farmer);
     const saved = await this.farmerRepository.save(farmer);
     await this.invalidateFarmerCache();
+
+    // Fire notifications — non-blocking, never throws
+    this.notifyFarmerCreated(saved, farmerData.createdBy ?? '').catch(() => {});
+
     return saved;
+  }
+
+  // ─── Notification Helpers ─────────────────────────────────────────────────
+
+  /**
+   * Sends role-aware notifications after a farmer is created.
+   * - Admin / Verifier creator → "created successfully" to self only.
+   * - Regular employee creator → "sent for approval" to self,
+   *   + "awaiting your approval, created by <name>" to all Verifiers & Admins.
+   */
+  private async notifyFarmerCreated(farmer: Farmer, creatorId: string): Promise<void> {
+    try {
+      if (!creatorId) return;
+
+      const creator = await this.userRepository.findOneBy({ id: creatorId });
+      if (!creator) return;
+
+      const isPrivileged =
+        creator.roles?.includes(Role.ADMIN) || creator.roles?.includes(Role.VERIFIER);
+
+      const farmerFullName = [farmer.farmerfName, farmer.farmermName, farmer.farmerlName]
+        .filter(Boolean).join(' ');
+      const creatorName = `${creator.firstName || ''} ${creator.lastName || ''}`.trim()
+        || creator.username || 'Unknown';
+
+      if (isPrivileged) {
+        await this.notificationService.createNoti(
+          `Farmer "${farmerFullName}" created successfully`,
+          creatorId,
+        );
+      } else {
+        await this.notificationService.createNoti(
+          `Your farmer "${farmerFullName}" has been sent for approval`,
+          creatorId,
+        );
+        await this.notificationService.createNotiForRole(
+          `Farmer "${farmerFullName}" is awaiting your approval, created by ${creatorName}`,
+          Role.VERIFIER,
+        );
+      }
+    } catch (err) {
+      // Notification failure must never break the create flow
+    }
   }
 
 

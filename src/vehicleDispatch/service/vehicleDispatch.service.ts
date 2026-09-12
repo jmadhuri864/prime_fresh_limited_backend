@@ -14,7 +14,7 @@ import { ApprovalFlowService } from '../../approvalFlow/service/approvalFlow.ser
 import { CacheService } from '../../global/cache.service';
 import { CreateVehicleDispatchDto, UpdateVehicleDispatchDto } from '../dto/vehicleDispatch.dto';
 import { VehicleDispatch } from '../entity/vehicleDispatch.entity';
-import { DocumentTypeEnum } from '../../documentDef/entity/documentdef.entity';
+import { DocumentTypeEnum, DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
 import { DocumentStatus } from '../../approvalFlow/entity/docuemnt.entity';
 import { formatDateTime } from '../../utils/dateUtils';
 import { buildQuery, PaginationOptions } from '../../utils/pagination';
@@ -53,7 +53,9 @@ export class VehicleDispatchService {
     if (id) {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by Documentb id (+ userId), not by the vehicle
+        // dispatch id, so it can only be busted by pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
       );
     }
     await Promise.all(tasks);
@@ -75,7 +77,23 @@ private async generateSerialNo(): Promise<string> {
 
 
 
+  // Creating a document without a configured approval flow leaves it with no
+  // approvers, so reject it up front — same guard as RFPA / Deal Slip.
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async create(data: CreateVehicleDispatchDto): Promise<VehicleDispatch> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(data.requestedBy, DocumentTypeEnum.OPERATION);
+
     // Check approval flow exists for logged user
     // const approvalFlowExit = await this.approvalFlowService.findApprovalFlowForLoggedUser(
     //   data.requestedBy!,
@@ -641,7 +659,10 @@ const serialNo = await this.generateSerialNo();
 
     //TODO:Get Vehical Dispatch By Id For View..By Vaishali
 public async getVehicalDispatchByIdForView(docid: string, userId:string): Promise<any> {
-    const cacheKey = `${this.CACHE_PREFIX}:view:${docid}`;
+    // Keyed by userId as well: access is checked per user (non creator/approver
+    // gets null -> 403), so a shared key would serve the document to users who
+    // are not allowed to see it.
+    const cacheKey = `${this.CACHE_PREFIX}:view:${docid}:${userId}`;
     const cached = await this.cacheService.get<any>(cacheKey);
     if (cached) return cached;
 

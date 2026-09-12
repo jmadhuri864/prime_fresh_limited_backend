@@ -14,6 +14,7 @@ import { format } from 'date-fns-tz';
 import { GRN } from '../../../grn/entity/grn.entity';
 import { User } from '../../../employee/entity/user.entity';
 import { Company } from '../../../company/entity/company.entity';
+import { Branches } from '../../../branch/entity/branches.entity';
   
   @Entity("labour_payment_voucher")
   export class LPVoucher  extends Model {
@@ -37,8 +38,9 @@ import { Company } from '../../../company/entity/company.entity';
     @Column({nullable:true})
     payReceivedFrom: string;
   
-    @Column({nullable:true})
-    location: string;
+    @ManyToOne(() => Branches, { onDelete: 'SET NULL', nullable: true })
+    @JoinColumn({ name: 'location_id' })
+    location: Branches;
   
     @Column('int',{nullable:true})
     noOfLabours: number;

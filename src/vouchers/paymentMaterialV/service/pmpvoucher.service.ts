@@ -53,7 +53,10 @@ export class PMPVoucherService {
     if (id) {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by the Documentb id (the /view/:docid route
+        // param), not by this record's own id, so it can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
         this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
       );
     }
@@ -86,6 +89,7 @@ export class PMPVoucherService {
           .leftJoinAndSelect('materials.itemUom', 'itemUom')
           .leftJoinAndSelect('v.address', 'address')
           .leftJoinAndSelect('v.requestedBy', 'requestedBy')
+          .leftJoinAndSelect('v.location', 'location')
           .where('v.id IN (:...ids)', { ids: voucherIds })
           .andWhere('v.isDeleted = false')
           .andWhere('v.deletedAt IS NULL')
@@ -133,6 +137,7 @@ export class PMPVoucherService {
           receiverName: rd.receiverName || null,
           remark: rd.remark || null,
           requestingDepartment: rd.requestingDepartment || null,
+          location: rd.location ? rd.location.name : null,
         };
       });
 
@@ -205,6 +210,7 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
           .leftJoinAndSelect('materials.itemUom', 'itemUom')
           .leftJoinAndSelect('v.address', 'address')
           .leftJoinAndSelect('v.requestedBy', 'requestedBy')
+          .leftJoinAndSelect('v.location', 'location')
           .where('v.id IN (:...ids)', { ids: voucherIds })
           .andWhere('v.isDeleted = true')
           .getMany()
@@ -291,6 +297,7 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
       .leftJoinAndSelect('pmpVoucher.grnNo', 'grn')
       .leftJoinAndSelect('pmpVoucher.passBy', 'passBy')
       .leftJoinAndSelect('pmpVoucher.approveBy', 'approveBy')
+      .leftJoinAndSelect('pmpVoucher.location', 'location')
       .where('pmpVoucher.id = :id', { id })
       .getOne();
     if (!voucher) return null;
@@ -351,7 +358,7 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
         createdBy: document.createdBy,
         approvalSummary: document.approvalSummary ?? null,
         documentId: document.id,
-
+        location: voucher.location ? voucher.location.name : null,
     }
     await this.cacheService.set(cacheKey, formatResponse, this.CACHE_TTL);
     return formatResponse;
@@ -370,7 +377,7 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
       .leftJoinAndSelect('pmpVoucher.requestedBy', 'requestedBy')
       .leftJoinAndSelect('pmpVoucher.companyName', 'company') 
       .leftJoinAndSelect('pmpVoucher.grnNo', 'grn') 
-    
+      .leftJoinAndSelect('pmpVoucher.location', 'location')
       .where('pmpVoucher.id = :id', { id })
       .getOne();
     if (!voucher) return null;
@@ -438,13 +445,28 @@ public async getAllRecycleBinVouchers(queryOptions: PaginationOptions, userId: s
         amt: material.amt,
         itemUom: material.itemUom?.id ?? null,
       })),
+      location: voucher.location?.id ?? null,
     };
 
     await this.cacheService.set(cacheKey, formatResponse, this.CACHE_TTL);
     return formatResponse;
   }
 
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   public async createVoucher(voucherData: CreatePMPVoucherDto): Promise<any> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(voucherData.requestedBy, DocDefEnum.PROCUREMENT);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();

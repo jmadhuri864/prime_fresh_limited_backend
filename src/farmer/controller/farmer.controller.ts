@@ -34,6 +34,7 @@ import { uploadSingle } from '../../middleware/uploadsingle.middleware';
 import { UserActivityLogService } from '../../employeeActivity/service/userActivityLog.service';
 import { NotificationService } from '../../notification/service/notification.service';
 import { ActivityAction, ActivityModule } from '../../employeeActivity/entity/userActivityLog.entity';
+import { Role } from '../../employee/entity/user.entity';
 
 
 @controller('/farmers',deserializeUser, requireUser)
@@ -94,13 +95,11 @@ export class FarmerController {
         return next(new AppError(400, 'Farmer could not be created'));
       }
       
-      await this.notificationService.createNoti(
-        `New farmer created: ${farmer.farmerfName} ${farmer.farmermName} ${farmer.farmerlName}`,
-        res.locals.user.id,
-      );
-// Log login activity (fire-and-forget) - skip for admin role
+      // Log login activity (fire-and-forget) - skip for admin role
       const currentUser = res.locals.user;
-      const isAdmin = currentUser.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = currentUser.roles?.some((role: any) =>
+        (role?.name ?? role)?.toLowerCase() === Role.ADMIN,
+      );
       if (!isAdmin) {
       const userName = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || 'Unknown User';
       this.activityLogService.logActivity({
@@ -269,19 +268,7 @@ export class FarmerController {
       const status = req.query.status as Status;
 
       const approvedFarmer = await this.farmerService.approveFarmer(farmerId, adminUser, status);
-      
-      // 🔔 Send notification for farmer approval
-      try {
-        const userId = res.locals.user?.id;
-        if (userId) {
-          await this.notificationService.createNoti(
-            `Farmer approved with status: ${status}`,
-            userId
-          );
-        }
-      } catch (notifError) {
-      }
-      
+
       ControllerLogger.logSuccess('Farmer approved', farmerId, req, res);
       return res.status(200).json({ message: "Farmer approved successfully", farmer: approvedFarmer });
     } catch (error: any) {
@@ -607,6 +594,91 @@ export class FarmerController {
       });
     } catch (err) {
       ControllerLogger.logError('Update Farmer', err, req, res);
+      next(err);
+    }
+  }
+
+  // ─── Per-farmer file download endpoints ──────────────────────────────────
+  // Frontend hits these to download a specific document for a given farmer.
+  // The raw S3 URL is fetched from the DB and proxied through /files/download
+  // so the download is always gated behind JWT auth.
+
+  @httpGet('/:id/download/id-proof')
+  public async downloadIdProof(
+    @requestParam('id') id: string,
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const farmer = await this.farmerService.getFarmerById(id);
+      if (!farmer?.idProofCopy) {
+        return next(new AppError(404, 'ID proof document not found for this farmer'));
+      }
+      const redirectUrl = `/files/download?url=${encodeURIComponent(farmer.idProofCopy)}`;
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      ControllerLogger.logError('Download Farmer ID Proof', err, req, res);
+      next(err);
+    }
+  }
+
+  @httpGet('/:id/download/seven-twelve')
+  public async downloadSevenTwelve(
+    @requestParam('id') id: string,
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const farmer = await this.farmerService.getFarmerById(id);
+      if (!farmer?.sevenTwelveCopy) {
+        return next(new AppError(404, '7/12 document not found for this farmer'));
+      }
+      const redirectUrl = `/files/download?url=${encodeURIComponent(farmer.sevenTwelveCopy)}`;
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      ControllerLogger.logError('Download Farmer 7/12', err, req, res);
+      next(err);
+    }
+  }
+
+  @httpGet('/:id/download/farmer-photo')
+  public async downloadFarmerPhoto(
+    @requestParam('id') id: string,
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const farmer = await this.farmerService.getFarmerById(id);
+      if (!farmer?.farmerPhoto) {
+        return next(new AppError(404, 'Farmer photo not found for this farmer'));
+      }
+      const redirectUrl = `/files/download?url=${encodeURIComponent(farmer.farmerPhoto)}`;
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      ControllerLogger.logError('Download Farmer Photo', err, req, res);
+      next(err);
+    }
+  }
+
+  @httpGet('/:id/download/farm-photo')
+  public async downloadFarmPhoto(
+    @requestParam('id') id: string,
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const farmer = await this.farmerService.getFarmerById(id);
+      if (!farmer?.farmPhoto) {
+        return next(new AppError(404, 'Farm photo not found for this farmer'));
+      }
+      const redirectUrl = `/files/download?url=${encodeURIComponent(farmer.farmPhoto)}`;
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      ControllerLogger.logError('Download Farm Photo', err, req, res);
       next(err);
     }
   }

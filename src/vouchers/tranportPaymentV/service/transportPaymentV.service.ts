@@ -57,14 +57,31 @@ export class TPVoucherService {
     if (id) {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by the Documentb id (the /view/:docid route
+        // param), not by this record's own id, so it can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
         this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
       );
     }
     await Promise.all(tasks);
   }
 
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async createTPVoucher(tpvoucherData: CreateTPVoucherDto & Record<string, any>): Promise<TPVoucher> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(tpvoucherData.requestedBy, DocDefEnum.PROCUREMENT);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -145,6 +162,7 @@ export class TPVoucherService {
           .createQueryBuilder('tpv')
           .leftJoinAndSelect('tpv.grnNo', 'grnNo')
           .leftJoinAndSelect('tpv.companyName', 'companyName')
+          .leftJoinAndSelect('tpv.location', 'location')
           .where('tpv.id IN (:...ids)', { ids: voucherIds })
           .andWhere('tpv.isDeleted = true')
           .getMany()
@@ -248,6 +266,7 @@ public async getAllTPVouchers(
           .createQueryBuilder('tpv')
           .leftJoinAndSelect('tpv.grnNo', 'grnNo')
           .leftJoinAndSelect('tpv.companyName', 'companyName')
+          .leftJoinAndSelect('tpv.location', 'location')
           .where('tpv.id IN (:...ids)', { ids: voucherIds })
           .andWhere('tpv.isDeleted = false')
           .andWhere('tpv.deletedAt IS NULL')
@@ -279,7 +298,7 @@ public async getAllTPVouchers(
           dispatchLocation: rd.dispatchLocation || null,
           driverName: rd.driverName || null,
           kyc: rd.kyc || null,
-          location: rd.location || null,
+          location: rd.location?.name || null,
           payReceivedFrom: rd.payReceivedFrom || null,
           paymentMode: rd.paymentMode || null,
           receiverName: rd.receiverName || null,
@@ -353,6 +372,7 @@ public async getAllTPVouchers(
       .leftJoinAndSelect('tpVoucher.requestedBy', 'requestedBy')
       .leftJoinAndSelect('tpVoucher.products', 'products')
       .leftJoinAndSelect('tpVoucher.companyName', 'companyName')
+      .leftJoinAndSelect('tpVoucher.location', 'location')
       .where('tpVoucher.id = :id', { id })
       .getOne();
     if (!voucher) return null;
@@ -362,7 +382,7 @@ public async getAllTPVouchers(
       id: voucher.id,
       debitCreditTo: voucher.debitCreditTo,
       payReceivedFrom: voucher.payReceivedFrom,
-      location: voucher.location,
+      location: voucher.location?.name || null,
       voucherNo: voucher.voucherNo,
       companyName: voucher.companyName?.name || null,
       remark: voucher.remark || null,
@@ -415,6 +435,7 @@ public async getAllTPVouchers(
       .leftJoinAndSelect('tpVoucher.requestedBy', 'requestedBy')
       .leftJoinAndSelect('tpVoucher.products', 'products')
       .leftJoinAndSelect('tpVoucher.companyName', 'companyName')
+      .leftJoinAndSelect('tpVoucher.location', 'location')
       .where('tpVoucher.id = :id', { id })
       .getOne();
     if (!voucher) return null;
@@ -425,7 +446,7 @@ public async getAllTPVouchers(
 
       debitCreditTo: voucher.debitCreditTo,
       payReceivedFrom: voucher.payReceivedFrom,
-      location: voucher.location,
+      location: voucher.location?.id || null,
       voucherNo: voucher.voucherNo,
       companyName: voucher.companyName?.id || null,
       remark: voucher.remark || null,

@@ -61,7 +61,6 @@ export interface ProcurementProductDetail {
     uom: string;
     purchaseDate: string;
     deliveryDate: string;
-    deliveryLocation: string;
 }
 
 export interface ProcurementSummary {
@@ -565,7 +564,6 @@ export class ProcurementCrystalReportService {
                     deliveryDate: product.deliveryDate
                         ? format(new Date(product.deliveryDate), 'dd-MM-yyyy')
                         : '',
-                    deliveryLocation: product.deliveryLocation || '',
                 })) || [],
         };
     }

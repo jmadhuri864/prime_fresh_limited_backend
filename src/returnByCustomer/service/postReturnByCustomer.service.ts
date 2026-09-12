@@ -10,6 +10,9 @@ import { DocumentTypeEnum, Documentb } from '../../approvalFlow/entity/docuemnt.
 import { UserLogger } from '../../utils/logger';
 import { DocumentStatus } from '../../approvalFlow/entity/docuemnt.entity';
 import { DocumentTypeEnum as DocDefEnum } from "../../documentDef/entity/documentdef.entity";
+import { ApprovalFlowService } from "../../approvalFlow/service/approvalFlow.service";
+import { CustomerDeliveryChallanService } from "../../deliveryChallans/customerDeliveryChllan/service/customerDeliveryChallan.service";
+import AppError from "../../utils/appError";
 import { DataSource, ILike, In } from 'typeorm';
 import { CustomerRepository } from '../../customer/addcustomer/repository/customer.repository';
 import { UserRepository } from '../../employee/repository/user.repository';
@@ -95,6 +98,10 @@ export class PostReturnByCustomerService {
     private readonly documentbRepository: DocumentbRepository,
     @inject(TYPES.CacheService)
     private readonly cacheService: CacheService,
+    @inject(TYPES.ApprovalFlowService)
+    private readonly approvalFlowService: ApprovalFlowService,
+    @inject(TYPES.CustomerDeliveryChallanService)
+    private readonly customerDeliveryChallanService: CustomerDeliveryChallanService,
   ) {}
 
   private readonly CACHE_PREFIX = 'rbc';
@@ -107,9 +114,11 @@ export class PostReturnByCustomerService {
     ];
     if (id) {
       tasks.push(
-        this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
+        // view/update/id all accept the Documentb id as well as this record's
+        // own id, so they can only be busted by pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:id:*`),
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:update:*`),
       );
     }
     await Promise.all(tasks);
@@ -154,7 +163,23 @@ export class PostReturnByCustomerService {
 
 
 
+  // Creating a document without a configured approval flow leaves it with no
+  // approvers, so reject it up front — same guard as RFPA / Deal Slip.
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async createReturn(returnData: CreateRBCDto & Record<string, any>, requestedBy: string, clientIp?: string): Promise<PostReturnByCustomer> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(requestedBy, DocDefEnum.OPERATION);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -292,7 +317,13 @@ export class PostReturnByCustomerService {
 
       // Start approval flow after commit so RBC is visible to other DB connections
       await this.documentbService.startApprovalFlow(document.id);
-      await this.invalidateCache();
+      // This return rewrote the delivery challan's item quantities (returned /
+      // rejected / accepted) and its isReturned flags, so the challan's own
+      // caches are now stale — bust them alongside ours.
+      await Promise.all([
+        this.invalidateCache(),
+        this.customerDeliveryChallanService.invalidateCDCCache(returnData.deliveryChallanNo),
+      ]);
       return savedReturnEntity;
 
     } catch (error: any) {
@@ -856,6 +887,15 @@ public async deleteMultipleRBC(ids: string[]): Promise<BulkDeleteResultDto> {
         postReturn.deliveryChallanNo.id
       );
     }
+
+    // Same staleness as createReturn: this edit changed both this return and the
+    // delivery challan's item quantities.
+    await Promise.all([
+      this.invalidateCache(id),
+      ...(postReturn.deliveryChallanNo?.id
+        ? [this.customerDeliveryChallanService.invalidateCDCCache(postReturn.deliveryChallanNo.id)]
+        : []),
+    ]);
 
     // Log the update
     UserLogger.logRfpaUpdated(id, updatedBy, clientIp);

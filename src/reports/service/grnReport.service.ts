@@ -419,7 +419,6 @@ export class GrnReportService {
           expectedHarvestDate: product.expectedHarvestDate,
           dispatchDate: product.dispatchDate,
           deliveryDate: product.deliveryDate,
-          deliveryLocation: product.deliveryLocation,
         })) || [],
         createdAt: grn.createdAt,
         updatedAt: grn.updatedAt,
@@ -989,25 +988,24 @@ export class GrnReportService {
             row.getCell(14).value = parseFloat(product.amount) || 0;
             row.getCell(15).value = dispatchDate;
             row.getCell(16).value = deliveryDate;
-            row.getCell(17).value = product.deliveryLocation || '';
-            row.getCell(18).value = product.rtv || '';
+            row.getCell(17).value = product.rtv || '';
 
             // Format numbers
             row.getCell(12).numFmt = '#,##0.00';
             row.getCell(13).numFmt = '#,##0.00';
             row.getCell(14).numFmt = '#,##0.00';
+            row.getCell(18).numFmt = '#,##0.00';
             row.getCell(19).numFmt = '#,##0.00';
-            row.getCell(20).numFmt = '#,##0.00';
 
             // Format dates - only if value is not null
             if (createdAtDate) row.getCell(1).numFmt = 'dd/mm/yyyy';
             if (dispatchDate) row.getCell(15).numFmt = 'dd/mm/yyyy';
             if (deliveryDate) row.getCell(16).numFmt = 'dd/mm/yyyy';
-            if (paymentDate) row.getCell(23).numFmt = 'dd/mm/yyyy';
-            if (dueDate) row.getCell(24).numFmt = 'dd/mm/yyyy';
+            if (paymentDate) row.getCell(22).numFmt = 'dd/mm/yyyy';
+            if (dueDate) row.getCell(23).numFmt = 'dd/mm/yyyy';
 
             // Add borders
-            for (let i = 1; i <= 28; i++) {
+            for (let i = 1; i <= 27; i++) {
               row.getCell(i).border = {
                 top: { style: 'thin' },
                 left: { style: 'thin' },

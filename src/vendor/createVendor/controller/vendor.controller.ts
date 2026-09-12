@@ -20,6 +20,7 @@ import { deserializeUser, requireUser } from "../../../middleware/deserializeUse
 import { TYPES } from "../../../types";
 import { VendorService } from "../service/vendor.service";
 import { NotificationService } from "../../../notification/service/notification.service";
+import { Role } from "../../../employee/entity/user.entity";
 import AppError from "../../../utils/appError";
 import { ControllerLogger } from "../../../utils/controllerLogger";
 import { PaginationOptions } from "../../../utils/pagination";
@@ -286,15 +287,6 @@ public async getAllVendorsWithselectedSub(
       }
       
       ControllerLogger.logSuccess('Vendor created', newVendor.id, req, res);
-
-      // Send notification for vendor creation
-      const userId = res.locals.user?.id;
-      if (userId) {
-        await this.notificationService.createNoti(
-          `Vendor created successfully`,
-          userId
-        );
-      }
 
       console.log("......................................................")
       console.log("new cendor............",newVendor);

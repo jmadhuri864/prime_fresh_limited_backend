@@ -20,6 +20,7 @@ import { PackingMaterialRepository } from "../../../packingMaterial/repository/p
 import { Status } from "../../../utils/status.enum";
 import { formatDateTime } from "../../../utils/dateUtils";
 
+import { NotificationService } from "../../../notification/service/notification.service";
 import { formatAddress } from "../../../utils/addressFormate.utils";
 import { CacheService } from "../../../global/cache.service";
 import { createHash } from "crypto";
@@ -91,6 +92,8 @@ export class VendorService {
     private readonly auditLogService: AuditLogService,
     @inject(TYPES.CacheService)
     private readonly cacheService: CacheService,
+    @inject(TYPES.NotificationService)
+    private readonly notificationService: NotificationService,
   ) {}
 
   // ─── Cache Helpers ────────────────────────────────────────────────────────
@@ -231,7 +234,46 @@ async createVendor(vendorDto: CreateVendorDto & Record<string, any>): Promise<Ve
     }
 
     await this.invalidateVendorCache();
+
+    // Fire notifications — non-blocking, never throws
+    this.notifyVendorCreated(saved!, vendorDto.createdBy ?? '').catch(() => {});
+
     return saved!;
+  }
+
+  // ─── Notification Helper ──────────────────────────────────────────────────
+
+  private async notifyVendorCreated(vendor: Vendor, creatorId: string): Promise<void> {
+    try {
+      if (!creatorId) return;
+      const creator = await this.userRepository.findOneBy({ id: creatorId });
+      if (!creator) return;
+
+      const isPrivileged =
+        creator.roles?.includes(Role.ADMIN) || creator.roles?.includes(Role.VERIFIER);
+
+      const vendorName = vendor.companyName || 'New Vendor';
+      const creatorName = `${creator.firstName || ''} ${creator.lastName || ''}`.trim()
+        || (creator as any).username || 'Unknown';
+
+      if (isPrivileged) {
+        await this.notificationService.createNoti(
+          `Vendor "${vendorName}" created successfully`,
+          creatorId,
+        );
+      } else {
+        await this.notificationService.createNoti(
+          `Your vendor "${vendorName}" has been sent for approval`,
+          creatorId,
+        );
+        await this.notificationService.createNotiForRole(
+          `Vendor "${vendorName}" is awaiting your approval, created by ${creatorName}`,
+          Role.VERIFIER,
+        );
+      }
+    } catch {
+      // Notification failure must never break the create flow
+    }
   }
 
   async submitVendor(
@@ -344,9 +386,51 @@ async approveVendor(vendorId: string, approverId: string, status: Status) {
   }
 
   vendor.status = status;
+  vendor.approvedBy = { id: approverId } as any;
   const saved = await this.vendorRepository.save(vendor);
   await this.invalidateVendorCache(vendorId);
+
+  // Notify verifier + creator — non-blocking
+  this.notifyVendorApproved(saved, approverId, status).catch(() => {});
+
   return saved;
+}
+
+private async notifyVendorApproved(vendor: Vendor, approverId: string, status: Status): Promise<void> {
+  try {
+    const isApproved = status === Status.APPROVED;
+
+    const approver = await this.userRepository.findOneBy({ id: approverId });
+    const verifierName = `${approver?.firstName || ''} ${approver?.lastName || ''}`.trim()
+      || (approver as any)?.username || 'Verifier';
+
+    const vendorName = vendor.companyName || 'Vendor';
+
+    // Notify the verifier who acted
+    await this.notificationService.createNoti(
+      isApproved
+        ? `You approved vendor "${vendorName}" successfully`
+        : `You rejected vendor "${vendorName}"`,
+      approverId,
+    );
+
+    // Fetch vendor with createdBy to notify creator
+    const vendorWithCreator = await this.vendorRepository.findOne({
+      where: { id: vendor.id },
+      relations: ['createdBy'],
+    });
+    const creatorId = (vendorWithCreator?.createdBy as any)?.id;
+    if (creatorId && creatorId !== approverId) {
+      await this.notificationService.createNoti(
+        isApproved
+          ? `Your vendor "${vendorName}" has been approved by ${verifierName}`
+          : `Your vendor "${vendorName}" has been rejected by ${verifierName}`,
+        creatorId,
+      );
+    }
+  } catch {
+    // Notification failure must never break the approve flow
+  }
 }
   
   async getVendorById(id: string): Promise<Vendor | null> {
@@ -404,6 +488,7 @@ async getVendorByIdforview(id: string): Promise<VendorViewResponseDto> {
     .leftJoin('vendor.mainPackingMaterial', 'mainPackingMaterial')
     .leftJoin('vendor.listOfPackingMaterial', 'listOfPackingMaterial')
     .leftJoin('vendor.createdBy', 'createdBy')
+    .leftJoin('vendor.approvedBy', 'approvedBy')
     .select([
       'vendor.id', 'vendor.vendorCode', 'vendor.companyName', 'vendor.classification',
       'vendor.status', 'vendor.vendorGrade', 'vendor.paymentMode', 'vendor.creditTerms',
@@ -437,6 +522,7 @@ async getVendorByIdforview(id: string): Promise<VendorViewResponseDto> {
       'mainProduct.name', 'listOfAllProducts.name',
       'mainPackingMaterial.packagingMaterialName', 'listOfPackingMaterial.packagingMaterialName',
       'createdBy.firstName', 'createdBy.lastName',
+      'approvedBy.firstName', 'approvedBy.lastName',
     ])
     .where('vendor.id = :id', { id })
     .getOne();
@@ -596,6 +682,9 @@ async getVendorByIdforview(id: string): Promise<VendorViewResponseDto> {
   
 
     createdBy: vendor.createdBy?.firstName+' '+vendor.createdBy?.lastName,
+    approvedBy: vendor.approvedBy
+      ? `${vendor.approvedBy.firstName} ${vendor.approvedBy.lastName}`
+      : null,
     createdTime:formatDateTime(vendor.createdAt).createdTime,
     createdDate: formatDateTime(vendor.createdAt).createdDate,
       // ? {
@@ -631,6 +720,7 @@ async getVendorByIdforupdate(id: string): Promise<VendorUpdateFormDto> {
     .leftJoin('vendor.mainPackingMaterial', 'mainPackingMaterial')
     .leftJoin('vendor.listOfPackingMaterial', 'listOfPackingMaterial')
     .leftJoin('vendor.createdBy', 'createdBy')
+    .leftJoin('vendor.approvedBy', 'approvedBy')
     .select([
       'vendor.id', 'vendor.vendorCode', 'vendor.companyName', 'vendor.classification',
       'vendor.status', 'vendor.vendorGrade', 'vendor.paymentMode', 'vendor.creditTerms',

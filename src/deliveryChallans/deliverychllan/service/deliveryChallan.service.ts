@@ -17,6 +17,7 @@ import { buildQuery, PaginationOptions } from '../../../utils/pagination';
 import { formatDateTime } from '../../../utils/dateUtils';
 import { DeleteResultDto } from '../../../global/general.dto';
 import { DocumentTypeEnum as DocDefEnum } from '../../../documentDef/entity/documentdef.entity';
+import { DocumentbRepository } from '../../../approvalFlow/repository/documentb.repository';
 
 @injectable()
 export class DeliveryChallanService {
@@ -34,6 +35,8 @@ export class DeliveryChallanService {
     private readonly variantRepository: ProductVarientsRepository,
     @inject(TYPES.InventoryStockRepository)
     private readonly inventoryStockRepository: InventoryStockRepository,
+    @inject(TYPES.DocumentbRepository)
+    private readonly documentbRepository: DocumentbRepository,
   ) {}
 
   
@@ -620,6 +623,8 @@ export class DeliveryChallanService {
     page?: number,
     limit?: number,
     search?: string,
+    isReturnByCustomerCreated?: boolean,
+    overAllStatus?: string,
   ): Promise<any> {
     const typeMap: Record<string, string> = {
       'stock-transfer': 'stock-transfer-delivery-challan',
@@ -628,88 +633,76 @@ export class DeliveryChallanService {
     };
 
     const type = typeMap[dcType];
-    if (!type) throw new Error(`Invalid dcType: ${dcType}. Use 'stock-transfer', 'other', or 'customer'`);
+    if (!type) throw new AppError(400, `Invalid dcType: ${dcType}. Use 'stock-transfer', 'other', or 'customer'`);
 
-    // Build where condition with search
-    const whereCondition: any = { type };
-    
-    if (search?.trim()) {
-      // Search by ID or challanNo using OR condition
-      whereCondition.id = search.trim();
+    // 1. Fetch all DCs of the given type
+    const whereCondition: any = { type, isDeleted: false };
+    if (typeof isReturnByCustomerCreated === 'boolean') {
+      whereCondition.isReturnByCustomerCreated = isReturnByCustomerCreated;
     }
 
-    if (!page || !limit) {
-      let data: any[];
-      
-      if (search?.trim()) {
-        // If search provided, try ID match first, then challanNo
-        const byId = await this.deliveryChallanRepo.findOne({
-          where: { id: search.trim(), type } as any,
-          select: ['id', 'challanNo'],
-        });
-        
-        if (byId) {
-          data = [byId];
-        } else {
-          data = await this.deliveryChallanRepo
-            .createQueryBuilder('dc')
-            .select(['dc.id', 'dc.challanNo'])
-            .where('dc.type = :type', { type })
-            .andWhere('dc.challanNo ILIKE :search', { search: `%${search.trim()}%` })
-            .orderBy('dc.createdAt', 'DESC')
-            .getMany();
-        }
-      } else {
-        data = await this.deliveryChallanRepo.find({
-          where: { type } as any,
-          select: ['id', 'challanNo'],
-          order: { createdAt: 'DESC' },
+    const challans = await this.deliveryChallanRepo.find({
+      select: ['id', 'challanNo'],
+      where: whereCondition,
+      order: { createdAt: 'DESC' },
+    });
+
+    const validChallans = challans.filter(c => c.id && c.challanNo);
+    if (!validChallans.length) {
+      return { data: [], total: 0, page: page || 1, totalPages: 0 };
+    }
+
+    // 2. Fetch matching documents (same pattern as RFPA)
+    const challanIds = validChallans.map(c => c.id);
+    const documents = await this.documentbRepository
+      .createQueryBuilder('doc')
+      .select(['doc.id', 'doc.status', 'doc.document_type_id'])
+      .where('doc.document_type_id IN (:...ids)', { ids: challanIds })
+      .getMany();
+
+    const docMap = new Map(documents.map(d => [d.document_type_id, d]));
+
+    // 3. Filter by overAllStatus + search (same pattern as RFPA)
+    let filteredResults: { id: string; challanNo: string; documentId: string | null; overAllStatus: string | null }[] = [];
+
+    for (const challan of validChallans) {
+      const doc = docMap.get(challan.id);
+      const documentId = doc?.id || null;
+      const documentStatus = doc?.status || null;
+
+      // overAllStatus filter — case-insensitive like RFPA
+      const matchesStatus = !overAllStatus ||
+        (documentStatus?.toLowerCase() === overAllStatus.toLowerCase());
+
+      if (matchesStatus) {
+        filteredResults.push({
+          id: challan.id,
+          challanNo: challan.challanNo,
+          documentId,
+          overAllStatus: documentStatus,
         });
       }
-      
-      return { data, total: data.length, page: 1, totalPages: 1 };
     }
 
-    // With pagination
-    let data: any[];
-    let total: number;
-    
+    // 4. Search filter
     if (search?.trim()) {
-      // Try ID match first
-      const byId = await this.deliveryChallanRepo.findOne({
-        where: { id: search.trim(), type } as any,
-        select: ['id', 'challanNo'],
-      });
-      
-      if (byId) {
-        data = [byId];
-        total = 1;
-      } else {
-        [data, total] = await this.deliveryChallanRepo
-          .createQueryBuilder('dc')
-          .select(['dc.id', 'dc.challanNo'])
-          .where('dc.type = :type', { type })
-          .andWhere('dc.challanNo ILIKE :search', { search: `%${search.trim()}%` })
-          .orderBy('dc.createdAt', 'DESC')
-          .skip((page - 1) * limit)
-          .take(limit)
-          .getManyAndCount();
-      }
-    } else {
-      [data, total] = await this.deliveryChallanRepo.findAndCount({
-        where: { type } as any,
-        select: ['id', 'challanNo'],
-        order: { createdAt: 'DESC' },
-        skip: (page - 1) * limit,
-        take: limit,
-      });
+      const term = search.trim().toLowerCase();
+      filteredResults = filteredResults.filter(item =>
+        item.challanNo.toLowerCase().includes(term) ||
+        item.id.toLowerCase() === term,
+      );
     }
+
+    // 5. Paginate
+    const currentPage = page || 1;
+    const currentLimit = limit || 10;
+    const paginated = filteredResults.slice((currentPage - 1) * currentLimit, currentPage * currentLimit);
 
     return {
-      data,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
+      data: paginated,
+      total: filteredResults.length,
+      page: currentPage,
+      totalPages: Math.ceil(filteredResults.length / currentLimit),
     };
   }
 

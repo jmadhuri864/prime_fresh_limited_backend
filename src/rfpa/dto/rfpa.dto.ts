@@ -37,7 +37,6 @@ export interface RfpaProductInputDto {
   expectedHarvestDate?: string | Date | null;
   dispatchDate?: string | Date | null;
   deliveryDate?: string | Date | null;
-  deliveryLocation?: string | null;
 }
 
 /** Product line — view response (names resolved). */
@@ -53,7 +52,6 @@ export interface RfpaProductViewDto {
   expectedHarvestDate: string | Date | null;
   dispatchDate: string | Date | null;
   deliveryDate: string | Date | null;
-  deliveryLocation: string | null;
 }
 
 /** Product line — update-form response (IDs for pre-selection). */
@@ -69,7 +67,6 @@ export interface RfpaProductUpdateDto {
   expectedHarvestDate: string | Date | null;
   dispatchDate: string | Date | null;
   deliveryDate: string | Date | null;
-  deliveryLocation: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,7 +252,6 @@ export interface RfpaDocumentViewProductDto {
   expectedHarvestDate: string | Date | null;
   dispatchDate: string | Date | null;
   deliveryDate: string | Date | null;
-  deliveryLocation: string | null;
 }
 
 export interface RfpaDocumentViewResponseDto {

@@ -6,6 +6,7 @@ import { GRN } from '../../../grn/entity/grn.entity';
 import { Company } from '../../../company/entity/company.entity';
 import { Product } from '../../../product/createproduct/entity/product.entity';
 import { User } from '../../../employee/entity/user.entity';
+import { Branches } from '../../../branch/entity/branches.entity';
 
 
 @Entity('transport_payment_voucher')
@@ -42,8 +43,9 @@ export class TPVoucher extends Model {
   @Column({ nullable: true })
   payReceivedFrom: string;
 
-  @Column({ nullable: true })
-  location: string;
+  @ManyToOne(() => Branches, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'location_id' })
+  location: Branches;
 
   @Column({ nullable: true })
   driverName: string;

@@ -65,7 +65,17 @@ export class DocSingalApproverService {
     const tasks: Promise<any>[] = patterns.map(p => this.cacheService.invalidatePattern(p));
 
     if (documentId) {
-      tasks.push(this.cacheService.invalidatePattern(`singledoc:view:${documentId}:*`));
+      tasks.push(
+        this.cacheService.invalidatePattern(`singledoc:view:${documentId}:*`),
+        this.cacheService.del(`doc:byid:${documentId}`),
+      );
+      // Module "view" caches are keyed by the Documentb id (the /view/:docid route
+      // param), NOT by document_type_id — they must be busted with documentId.
+      if (type === DocumentTypeEnum.INWARD_REGISTER) {
+        tasks.push(this.cacheService.invalidatePattern(`iwr:view:${documentId}:*`));
+      } else if (type === DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER) {
+        tasks.push(this.cacheService.invalidatePattern(`vehicleDispatch:view:${documentId}:*`));
+      }
     }
 
     // Bust per-document view/id/update caches
@@ -96,7 +106,6 @@ export class DocSingalApproverService {
         }
       } else if (type === DocumentTypeEnum.INWARD_REGISTER) {
         tasks.push(
-          this.cacheService.del(`iwr:view:${documentTypeId}`),
           this.cacheService.del(`iwr:id:${documentTypeId}`),
           this.cacheService.del(`iwr:update:${documentTypeId}`),
         );
@@ -104,7 +113,6 @@ export class DocSingalApproverService {
         tasks.push(
           this.cacheService.del(`vehicleDispatch:id:${documentTypeId}`),
           this.cacheService.del(`vehicleDispatch:update:${documentTypeId}`),
-          ...(documentId ? [this.cacheService.del(`vehicleDispatch:view:${documentId}`)] : []),
         );
       }
     }

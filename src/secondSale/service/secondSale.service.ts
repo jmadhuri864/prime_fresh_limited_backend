@@ -57,7 +57,10 @@ export class SecondSaleService {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
         this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by the Documentb id (the /view/:docid route
+        // param), not by this record's own id, so it can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
       );
     }
     await Promise.all(tasks);
@@ -78,7 +81,23 @@ export class SecondSaleService {
   }
 
 
+  // Creating a document without a configured approval flow leaves it with no
+  // approvers, so reject it up front — same guard as RFPA / Deal Slip.
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   public async createSecondSale(secondSaleData: CreateSecondSaleDto, requestedBy: string): Promise<any> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(requestedBy, DocDefEnum.SALE);
+
     const queryRunner = this.AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();

@@ -59,7 +59,6 @@ export interface ProcurementProductData {
   packingMaterialWeight: number;
   purchaseDate: string;
   deliveryDate: string;
-  deliveryLocation: string;
 }
 
 export interface ProcurementSummaryData {
@@ -337,7 +336,6 @@ export class CrystalReportService {
         packingMaterialWeight: product.packingMaterialWeight || 0,
         purchaseDate: product.purchaseDate ? format(new Date(product.purchaseDate), 'dd-MM-yyyy') : '',
         deliveryDate: product.deliveryDate ? format(new Date(product.deliveryDate), 'dd-MM-yyyy') : '',
-        deliveryLocation: product.deliveryLocation || ''
       })) || []
     };
   }

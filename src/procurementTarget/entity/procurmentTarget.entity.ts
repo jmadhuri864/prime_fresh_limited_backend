@@ -8,8 +8,7 @@ import { Levels } from "../../levels/entity/levels.entity";
 
 
 export enum ProcurementStatus {
-  DRAFT = 'draft',
-  SUBMITTED = 'submitted',
+  PENDING = 'pending',
   APPROVED = 'approved',
   REJECTED = 'rejected',
 }
@@ -32,7 +31,7 @@ export class ProcurementTarget extends Model {
 
   @Column({ nullable: true })
   year: number;
-  @Column({ default: ProcurementStatus.DRAFT, type: 'enum', enum: ProcurementStatus })
+  @Column({ default: ProcurementStatus.PENDING, type: 'enum', enum: ProcurementStatus })
   status: ProcurementStatus;
 
   // ✅ TOTAL of ALL PRODUCTS (WEEK-WISE)

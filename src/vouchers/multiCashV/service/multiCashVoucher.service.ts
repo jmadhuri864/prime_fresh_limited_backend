@@ -66,7 +66,10 @@ export class MultiCashVoucherService {
     if (id) {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by the Documentb id (the /view/:docid route
+        // param), not by this record's own id, so it can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
         this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
       );
     }
@@ -96,6 +99,7 @@ export class MultiCashVoucherService {
           .leftJoinAndSelect('v.companyName', 'companyName')
           .leftJoinAndSelect('v.grnNo', 'grnNo')
           .leftJoinAndSelect('v.challanNo', 'challanNo')
+          .leftJoinAndSelect('v.location', 'location')
           .where('v.id IN (:...ids)', { ids: voucherIds })
           .andWhere('v.isDeleted = false')
           .andWhere('v.deletedAt IS NULL')
@@ -122,7 +126,7 @@ export class MultiCashVoucherService {
           debitCreditTo: rd.debitCreditTo,
           voucherNo: rd.voucherNo,
           payReceivedFrom: rd.payReceivedFrom,
-          location: rd.location,
+          location: rd.location?.name || null,
           totalAmt: rd.totalAmt,
           amtWords: rd.amtWords,
           paymentMode: rd.paymentMode,
@@ -186,13 +190,13 @@ export class MultiCashVoucherService {
     const voucher = await this.cashVoucherRepository
       .createQueryBuilder('voucher')
       .leftJoinAndSelect('voucher.particulars', 'particulars')
-
       .leftJoinAndSelect('voucher.companyName', 'companyName')
       .leftJoinAndSelect('voucher.passBy', 'passBy')
       .leftJoinAndSelect('voucher.approveBy', 'approveBy')
       .leftJoinAndSelect('voucher.grnNo', 'grn')
       .leftJoinAndSelect('voucher.requestedBy', 'requestedBy')
       .leftJoinAndSelect('voucher.challanNo', 'deliveryChallan')
+      .leftJoinAndSelect('voucher.location', 'location')
       .select([
         'voucher.id',
         'voucher.requestingDepartment',
@@ -201,7 +205,8 @@ export class MultiCashVoucherService {
         'voucher.debitCreditTo',
         'voucher.voucherNo',
         'voucher.payReceivedFrom',
-        'voucher.location',
+        'location.id',
+        'location.name',
         'voucher.totalAmt',
         'voucher.remark',
         'voucher.amtWords',
@@ -210,7 +215,6 @@ export class MultiCashVoucherService {
         'voucher.approvalStatus',
         'voucher.createdAt',
         'voucher.receiverName',
-
         'particulars.id',
         'particulars.description',
         'particulars.amt',
@@ -238,7 +242,7 @@ export class MultiCashVoucherService {
       debitCreditTo: voucher.debitCreditTo,
       voucherNo: voucher.voucherNo,
       payReceivedFrom: voucher.payReceivedFrom,
-      location: voucher.location,
+      location: voucher.location?.id ?? null,
       particulars: voucher.particulars?.map(p => ({ id: p.id, description: p.description, amt: p.amt })) || [],
       challanNo: voucher.challanNo?.id || null,
       totalAmt: voucher.totalAmt,
@@ -268,13 +272,13 @@ export class MultiCashVoucherService {
     const voucher = await this.cashVoucherRepository
       .createQueryBuilder('voucher')
       .leftJoinAndSelect('voucher.particulars', 'particulars')
-
       .leftJoinAndSelect('voucher.companyName', 'companyName')
       .leftJoinAndSelect('voucher.passBy', 'passBy')
       .leftJoinAndSelect('voucher.approveBy', 'approveBy')
       .leftJoinAndSelect('voucher.grnNo', 'grn')
       .leftJoinAndSelect('voucher.requestedBy', 'requestedBy')
       .leftJoinAndSelect('voucher.challanNo', 'deliveryChallan')
+      .leftJoinAndSelect('voucher.location', 'location')
       .select([
         'voucher.id',
         'voucher.requestingDepartment',
@@ -283,7 +287,8 @@ export class MultiCashVoucherService {
         'voucher.debitCreditTo',
         'voucher.voucherNo',
         'voucher.payReceivedFrom',
-        'voucher.location',
+        'location.id',
+        'location.name',
         'voucher.totalAmt',
         'voucher.amtWords',
         'voucher.paymentMode',
@@ -295,7 +300,6 @@ export class MultiCashVoucherService {
         'particulars.id',
         'particulars.description',
         'particulars.amt',
-
         'requestedBy.id',
         'requestedBy.firstName',
         'requestedBy.lastName',
@@ -318,7 +322,7 @@ export class MultiCashVoucherService {
       voucherNo: voucher.voucherNo,
       debitCreditTo: voucher.debitCreditTo,
       payReceivedFrom: voucher.payReceivedFrom,
-      location: voucher.location,
+      location: voucher.location?.name || null,
       totalAmt: voucher.totalAmt,
       amtWords: voucher.amtWords,
       paymentMode: voucher.paymentMode,
@@ -343,7 +347,21 @@ export class MultiCashVoucherService {
     return viewResult;
   }
 
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   public async createVoucher(voucherData: CreateMultiCashVoucherDto): Promise<any> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(voucherData.requestedBy, DocDefEnum.PROCUREMENT);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -437,6 +455,7 @@ public async getAllRecycleBinVouchers(
           .leftJoinAndSelect('v.companyName', 'companyName')
           .leftJoinAndSelect('v.grnNo', 'grnNo')
           .leftJoinAndSelect('v.challanNo', 'challanNo')
+          .leftJoinAndSelect('v.location', 'location')
           .where('v.id IN (:...ids)', { ids: voucherIds })
           .andWhere('v.isDeleted = true')
           .getMany()

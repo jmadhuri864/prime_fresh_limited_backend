@@ -464,8 +464,8 @@ export class DocumentbService {
         ],
         [DocumentTypeEnum.GRN]: [
           'grn:all:*', 'grn:recycle:*', 'grn:numbers:*',
-          ...(typeId ? [`grn:id:${typeId}`, `grn:update:${typeId}`, `grn:details:${typeId}`] : []),
-          `grn:view:${documentId}`,
+          ...(typeId ? [`grn:id:${typeId}`, `grn:details:${typeId}`] : []),
+          `grn:view:${documentId}`, `grn:update:${documentId}`,
         ],
         [DocumentTypeEnum.AQR]: [
           'aqr:list:*', 'aqr:all:*', 'aqr:recycle:*',
@@ -475,7 +475,7 @@ export class DocumentbService {
         [DocumentTypeEnum.INWARD_REGISTER]: [
           'iwr:list:*', 'iwr:all:*', 'iwr:recycle:*',
           ...(typeId ? [`iwr:id:${typeId}`, `iwr:update:${typeId}`] : []),
-          `iwr:view:${documentId}`,
+          `iwr:view:${documentId}:*`,
         ],
         [DocumentTypeEnum.DUMP_REGISTER]: [
           'dump:list:*', 'dump:all:*', 'dump:recycle:*',
@@ -485,7 +485,7 @@ export class DocumentbService {
         [DocumentTypeEnum.VEHICLE_DISPATCH_REGISTER]: [
           'vehicleDispatch:list:*', 'vehicleDispatch:all:*', 'vehicleDispatch:recycle:*',
           ...(typeId ? [`vehicleDispatch:id:${typeId}`, `vehicleDispatch:update:${typeId}`] : []),
-          `vehicleDispatch:view:${documentId}`,
+          `vehicleDispatch:view:${documentId}:*`,
         ],
         [DocumentTypeEnum.SECOND_SALE]: [
           'secondSale:list:*', 'secondSale:all:*', 'secondSale:recycle:*',
@@ -530,7 +530,7 @@ export class DocumentbService {
         [DocumentTypeEnum.RETURN_BY_CUSTOMER]: [
           'rbc:list:*', 'rbc:all:*', 'rbc:recycle:*',
           ...(typeId ? [`rbc:id:${typeId}`, `rbc:update:${typeId}`] : []),
-          `rbc:view:${documentId}`,
+          `rbc:view:${documentId}`, `rbc:update:${documentId}`, `rbc:id:${documentId}`,
         ],
         [DocumentTypeEnum.RETURN_TO_VENDOR]: [
           'returnToVendor:list:*', 'returnToVendor:all:*', 'returnToVendor:recycle:*',
@@ -998,7 +998,7 @@ function isWithinRange(min: number | string | null, max: number | string | null,
             (!requiresThird || (a1 && a2 && a3));
           //console.log('status: ', document.status);
 
-          if (document.status !== 'approved') {
+          if (document.status !== DocumentStatus.APPROVED || !requiredApprovalsPassed) {
             throw new Error('Required approver levels have not approved yet for Finalizer 1 to act.');
           }
           //console.log("REqui: ", requiredApprovalsPassed);
@@ -1267,18 +1267,101 @@ function isWithinRange(min: number | string | null, max: number | string | null,
       .leftJoinAndSelect('finalizerBlock.firstFinalizers', 'firstFinalizerUser')
       .leftJoinAndSelect('finalizerBlock.secondFinalizers', 'secondFinalizerUser')
       .leftJoinAndSelect('document.lastActionBy', 'lastActionBy')
+      .leftJoinAndSelect('document.approvalInfo', 'approvalInfo')
+      .leftJoinAndSelect('approvalInfo.firstFinalized', 'firstFinalized')
+      .leftJoinAndSelect('approvalInfo.secondFinalized', 'secondFinalized')
       .where(
         new Brackets((qb) => {
-          qb.where('verifier.id = :userId', { userId })
-            .orWhere('firstApproverUser.id = :userId', { userId })
-            .orWhere('secondApproverUser.id = :userId', { userId })
-            .orWhere('thirdApproverUser.id = :userId', { userId })
-            .orWhere('fourthApproverUser.id = :userId', { userId })
-            .orWhere('fifthApproverUser.id = :userId', { userId })
-            .orWhere('sixthApproverUser.id = :userId', { userId })
-            .orWhere('firstFinalizerUser.id = :userId', { userId })
-            .orWhere('secondFinalizerUser.id = :userId', { userId })
-            .orWhere('lastActionBy.id = :userId', { userId });
+          // Creator — नेहमी दिसतो (सर्व statuses)
+          qb.where('lastActionBy.id = :userId', { userId })
+
+          // Verifier — HOLD (act करायचं आहे) + VERIFIED/APPROVED/COMPLETE/REJECT (act केलं आहे)
+          .orWhere(
+            new Brackets((vb) => {
+              vb.where('verifier.id = :userId', { userId })
+                .andWhere(`document.status IN (:...verifierStatuses)`, {
+                  verifierStatuses: [
+                    DocumentStatus.HOLD,
+                    DocumentStatus.VERIFIED,
+                    DocumentStatus.APPROVED,
+                    DocumentStatus.FINALIZING,
+                    DocumentStatus.COMPLETE,
+                    DocumentStatus.REJECT,
+                  ],
+                });
+            }),
+          )
+
+          // Approvers (L1/L2/L3/L4/L5/L6) — VERIFIED (act करायचं आहे) + APPROVED/COMPLETE/REJECT (act केलं आहे)
+          .orWhere(
+            new Brackets((ab) => {
+              ab.where(
+                new Brackets((inner) => {
+                  inner
+                    .where('firstApproverUser.id = :userId', { userId })
+                    .orWhere('secondApproverUser.id = :userId', { userId })
+                    .orWhere('thirdApproverUser.id = :userId', { userId })
+                    .orWhere('fourthApproverUser.id = :userId', { userId })
+                    .orWhere('fifthApproverUser.id = :userId', { userId })
+                    .orWhere('sixthApproverUser.id = :userId', { userId });
+                }),
+              ).andWhere(`document.status IN (:...approverStatuses)`, {
+                approverStatuses: [
+                  DocumentStatus.VERIFIED,
+                  DocumentStatus.APPROVED,
+                  DocumentStatus.FINALIZING,
+                  DocumentStatus.COMPLETE,
+                  DocumentStatus.REJECT,
+                ],
+              });
+            }),
+          )
+
+          // First Finalizers — APPROVED (act करायचं आहे) + COMPLETE/REJECT (act केलं आहे) + FINALIZING जर firstFinalized नाही
+          .orWhere(
+            new Brackets((fb) => {
+              fb.where('firstFinalizerUser.id = :userId', { userId })
+                .andWhere(
+                  new Brackets((inner) => {
+                    // APPROVED status - first finalizer needs to act
+                    inner.where('document.status = :approvedStatusF1', { approvedStatusF1: DocumentStatus.APPROVED })
+                    // FINALIZING status but firstFinalized is null - first finalizer needs to act
+                    .orWhere(
+                      new Brackets((sub) => {
+                        sub.where('document.status = :finalizingStatusF1', { finalizingStatusF1: DocumentStatus.FINALIZING })
+                           .andWhere('firstFinalized.id IS NULL');
+                      })
+                    )
+                    // COMPLETE/REJECT - first finalizer has acted
+                    .orWhere('document.status IN (:...completedStatusesF1)', {
+                      completedStatusesF1: [DocumentStatus.COMPLETE, DocumentStatus.REJECT]
+                    });
+                  })
+                );
+            }),
+          )
+
+          // Second Finalizers — FINALIZING जर firstFinalized आहे (act करायचं आहे) + COMPLETE/REJECT (act केलं आहे)
+          .orWhere(
+            new Brackets((fb) => {
+              fb.where('secondFinalizerUser.id = :userId', { userId })
+                .andWhere(
+                  new Brackets((inner) => {
+                    // FINALIZING status and firstFinalized exists - second finalizer needs to act
+                    inner.where(
+                      new Brackets((sub) => {
+                        sub.where('document.status = :finalizingStatusF2', { finalizingStatusF2: DocumentStatus.FINALIZING })
+                           .andWhere('firstFinalized.id IS NOT NULL');
+                      })
+                    )
+                    // COMPLETE/REJECT - second finalizer has acted
+                    .orWhere('document.status IN (:...completedStatusesF2)', {
+                      completedStatusesF2: [DocumentStatus.COMPLETE, DocumentStatus.REJECT]
+                    });
+                  })
+                );
+            }),
+          );
         }),
       )
       .andWhere('document.document_type_id IS NOT NULL')
@@ -1315,10 +1398,6 @@ function isWithinRange(min: number | string | null, max: number | string | null,
         page: currentPage,
         pages: currentLimit ? Math.ceil(total / currentLimit) : 1,
       },
-    };
-
-    return null;
-    {
     };
   }
 

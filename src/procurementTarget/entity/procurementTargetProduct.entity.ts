@@ -30,7 +30,7 @@ export class ProcurementTargetProduct extends Model {
 })
     weeklyTotalQtyPerProduct: number;
 
-    @Column({type: 'text'})
+    @Column({type: 'text', nullable: true})
     remark : string;
 
   @OneToMany(

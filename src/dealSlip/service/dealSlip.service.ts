@@ -72,7 +72,8 @@ export class DealSlipService {
         this.cacheService.del(`${CACHE_PREFIX}:id:${id}`),
         this.cacheService.del(`${CACHE_PREFIX}:view:${id}`),
         this.cacheService.del(`${CACHE_PREFIX}:update:${id}`),
-        this.cacheService.del(`${CACHE_PREFIX}:docview:${id}`),
+        // docview is keyed by the Documentb id, not by the deal slip id.
+        this.cacheService.invalidatePattern(`${CACHE_PREFIX}:docview:*`),
       );
     }
     await Promise.all(tasks);
@@ -195,7 +196,20 @@ export class DealSlipService {
 
   
 
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async createDealSlip(dealSlipData: CreateDealSlipDto & Record<string, any>): Promise<DealSlip> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(dealSlipData.requestedBy, DocDefEnum.PROCUREMENT);
 
       // const approvalFlow = await this.approvalFlowService.findApprovalFlowForLoggedUser(dealSlipData.requestedBy, DocDefEnum.PROCUREMENT);
 

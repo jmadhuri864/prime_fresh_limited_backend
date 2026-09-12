@@ -59,7 +59,7 @@ export class DocDoubleApproverService {
       [DocumentTypeEnum.RETURN_BY_CUSTOMER]: [
         'rbc:list:*', 'rbc:all:*', 'rbc:recycle:*',
         ...(typeId ? [`rbc:id:${typeId}`, `rbc:view:${typeId}`, `rbc:update:${typeId}`] : []),
-        `rbc:view:${documentId}`,
+        `rbc:view:${documentId}`, `rbc:update:${documentId}`, `rbc:id:${documentId}`,
       ],
       [DocumentTypeEnum.SECOND_SALE]: [
         'secondSale:list:*', 'secondSale:all:*', 'secondSale:recycle:*',

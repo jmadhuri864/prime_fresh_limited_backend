@@ -53,14 +53,31 @@ export class LabourPaymentVoucherService {
     if (id) {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by the Documentb id (the /view/:docid route
+        // param), not by this record's own id, so it can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
         this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
       );
     }
     await Promise.all(tasks);
   }
 
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async createLPVoucher(data: CreateLPVoucherDto & Record<string, any>): Promise<LPVoucher> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(data.requestedBy, DocDefEnum.PROCUREMENT);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -125,6 +142,7 @@ export class LabourPaymentVoucherService {
           .createQueryBuilder('v')
           .leftJoinAndSelect('v.companyName', 'companyName')
           .leftJoinAndSelect('v.grnNo', 'grnNo')
+          .leftJoinAndSelect('v.location', 'location')
           .where('v.id IN (:...ids)', { ids: voucherIds })
           .andWhere('v.isDeleted = false')
           .andWhere('v.deletedAt IS NULL')
@@ -148,6 +166,7 @@ export class LabourPaymentVoucherService {
           id: rd.id,
           companyName: rd.companyName?.name || null,
           grnNo: rd.grnNo?.grnNo || null,
+          location: rd.location?.name || null,
         };
       });
 
@@ -208,7 +227,7 @@ export class LabourPaymentVoucherService {
       .leftJoinAndSelect('lpVoucher.grnNo', 'grn')
       .leftJoinAndSelect('lpVoucher.companyName', 'companyName')
       .leftJoinAndSelect('lpVoucher.requestedBy', 'requestedBy')
-
+      .leftJoinAndSelect('lpVoucher.location', 'location')
       .where('lpVoucher.id = :id', { id })
       .getOne();
     if (!voucher) {
@@ -223,7 +242,7 @@ export class LabourPaymentVoucherService {
       debitCreditTo: voucher.debitCreditTo,
       payReceivedFrom: voucher.payReceivedFrom,
       receiverName: voucher.receiverName,
-      location: voucher.location,
+      location: voucher.location?.name || null,
       noOfLabours: voucher.noOfLabours,
       loadingDate: voucher.loadingDate,
 
@@ -276,6 +295,7 @@ remark:voucher.remark || null,
           .createQueryBuilder('v')
           .leftJoinAndSelect('v.companyName', 'companyName')
           .leftJoinAndSelect('v.grnNo', 'grnNo')
+          .leftJoinAndSelect('v.location', 'location')
           .where('v.id IN (:...ids)', { ids: voucherIds })
           .andWhere('v.isDeleted = true')
           .getMany()
@@ -298,6 +318,7 @@ remark:voucher.remark || null,
           id: rd.id,
           companyName: rd.companyName?.name || null,
           grnNo: rd.grnNo?.grnNo || null,
+          location: rd.location?.name || null,
         };
       });
 
@@ -352,7 +373,7 @@ remark:voucher.remark || null,
       .leftJoinAndSelect('lpVoucher.grnNo', 'grn')
       .leftJoinAndSelect('lpVoucher.companyName', 'companyName')
       .leftJoinAndSelect('lpVoucher.requestedBy', 'requestedBy')
-
+      .leftJoinAndSelect('lpVoucher.location', 'location')
       .where('lpVoucher.id = :id', { id })
       .getOne();
     if (!voucher) {
@@ -367,7 +388,7 @@ remark:voucher.remark || null,
       debitCreditTo: voucher.debitCreditTo,
       payReceivedFrom: voucher.payReceivedFrom,
       receiverName: voucher.receiverName,
-      location: voucher.location,
+      location: voucher.location?.id || null,
       noOfLabours: voucher.noOfLabours,
       loadingDate: voucher.loadingDate,
 

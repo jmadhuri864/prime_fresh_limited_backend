@@ -15,7 +15,7 @@ export interface CreateTPVoucherDto {
   requestingDepartment?: Department | null;
   debitCreditTo?: string | null;
   payReceivedFrom?: string | null;
-  location?: string | null;
+  location?: string | null; // Branch id
   driverName?: string | null;
   contactNo?: string | null;
   altContactNo?: string | null;
@@ -66,7 +66,7 @@ export interface TPVoucherListItemDto {
   grnNo: string | null;
   debitCreditTo: string | null;
   payReceivedFrom: string | null;
-  location: string | null;
+  location: string | null; // Branch name (display)
   driverName: string | null;
   contactNo: string | null;
   altContactNo: string | null;
@@ -135,7 +135,7 @@ export interface TPVoucherViewDto {
   requestingDepartment: Department | null;
   debitCreditTo: string | null;
   payReceivedFrom: string | null;
-  location: string | null;
+  location: string | null; // Branch name (display)
   driverName: string | null;
   contactNo: string | null;
   altContactNo: string | null;
@@ -193,7 +193,7 @@ export interface TPVoucherUpdateFormDto {
   requestingDepartment: Department | null;
   debitCreditTo: string | null;
   payReceivedFrom: string | null;
-  location: string | null;
+  location: string | null; // Branch id (for form pre-selection)
   driverName: string | null;
   contactNo: string | null;
   altContactNo: string | null;

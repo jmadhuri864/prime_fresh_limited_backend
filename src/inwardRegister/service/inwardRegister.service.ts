@@ -18,6 +18,7 @@ import { InventoryStockRepository } from '../../inventoryStock/repository/invent
 
 import { DocumentStatus, DocumentTypeEnum } from '../../approvalFlow/entity/docuemnt.entity';
 import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
+import { ApprovalFlowService } from '../../approvalFlow/service/approvalFlow.service';
 
 import { InwardProductRepository } from '../repository/inwardProduct.repository';
 import { ProductVarientRepository } from '../../product/productVarient/repository/varients.repository';
@@ -78,6 +79,8 @@ export class InwardRegisterService {
         private readonly dataSource: DataSource,
         @inject(TYPES.CacheService)
         private readonly cacheService: CacheService,
+        @inject(TYPES.ApprovalFlowService)
+        private readonly approvalFlowService: ApprovalFlowService,
   ) {}
 
   private readonly CACHE_PREFIX = 'iwr';
@@ -95,8 +98,10 @@ export class InwardRegisterService {
         this.cacheService.del(`${this.CACHE_PREFIX}:id:${id}`),
         this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
         this.cacheService.del(`${this.CACHE_PREFIX}:get:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
       );
+      // The view cache is keyed by Documentb id (+ userId), not by the inward
+      // register id, so it can only be busted by pattern from here.
+      tasks.push(this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`));
     }
     await Promise.all(tasks);
   }
@@ -121,8 +126,23 @@ export class InwardRegisterService {
 
 
     
+  
+
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+    
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
 
 public async createInwardRegister(data: CreateInwardRegisterInput): Promise<any> {
+  // Check if approval flow exists for the user
+  await this.checkApprovalFlowExists(data.requestedBy, DocDefEnum.OPERATION);
+
   const queryRunner = this.dataSource.createQueryRunner();
   await queryRunner.connect();
   await queryRunner.startTransaction();
@@ -369,7 +389,6 @@ incomingGrossQty: rd.incomingGrossQty,
         expectedHarvestDate: p.expectedHarvestDate || null,
         dispatchDate: p.dispatchDate || null,
         deliveryDate: p.deliveryDate || null,
-        deliveryLocation: p.deliveryLocation || null,
         count: p.count || null,
         size: p.size || null,
         origin: p.origin || null,
@@ -964,7 +983,10 @@ public async getAllInwardRegisters(queryOptions: PaginationOptions, userId: stri
 
   //TODO:Get Inward Register By Id For View..By Vaishali
 public async getInwardregisterByIdForView(docid: string, userId: string): Promise<InwardRegisterViewDto | null> {
-    const cacheKey = `${this.CACHE_PREFIX}:view:${docid}`;
+    // Keyed by userId as well: access is checked per user (non creator/approver
+    // gets null -> 403), so a shared key would serve the document to users who
+    // are not allowed to see it.
+    const cacheKey = `${this.CACHE_PREFIX}:view:${docid}:${userId}`;
     const cached = await this.cacheService.get<any>(cacheKey);
     if (cached) return cached;
 

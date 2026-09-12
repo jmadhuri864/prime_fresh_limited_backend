@@ -96,9 +96,11 @@ export interface CustomerViewResponseDto {
   customerCategory: string | null;
   customerTypes: string | null;
   createdBy: string | null;
+  approvedBy: string | null;
   createdDate: string | null;
   createdTime: string | null;
   customerCode: string;
+  status?: string | null;
   emailPrimary: string;
   emailSecondary: string | null;
   primaryContactNo: string;

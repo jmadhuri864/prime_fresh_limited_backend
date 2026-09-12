@@ -494,9 +494,21 @@ public async partialAllUser(
     
     // If id is provided, return workflow hierarchy
     if (id) {
-      const workflowHierarchy = await this.userService.getWorkflowHierarchy(id as string);
+      const { department } = req.query;
+      console.log(department,"this is depart")
+      const queryOptions = {
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+        searchFields: ['fullName', 'employeeId'],
+        filters: {},
+        sort: sort as string || undefined,
+        search: search as string || '',
+        department: department as string || undefined,
+      };
+
+      const workflowHierarchy = await this.userService.getWorkflowHierarchy(id as string, queryOptions);
       
-      if(!workflowHierarchy || workflowHierarchy.length === 0){
+      if(!workflowHierarchy || workflowHierarchy.data.length === 0){
         logger.error("Workflow hierarchy not found for the given employee");
         ControllerLogger.logError('Workflow hierarchy retrieval', new AppError(404, "Workflow hierarchy not found"), req, res);
         return next(new AppError(404, "Workflow hierarchy not found"));
@@ -507,7 +519,10 @@ public async partialAllUser(
       
       return res.status(200).json({
         status: "success",
-        data: workflowHierarchy,
+        data: workflowHierarchy.data,
+        allRecords: workflowHierarchy.meta.total,
+        totalPages: workflowHierarchy.meta.pages,
+        page: workflowHierarchy.meta.page,
       });
     }
 

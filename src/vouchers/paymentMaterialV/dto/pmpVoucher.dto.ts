@@ -27,7 +27,6 @@ export interface CreatePMPVoucherDto {
   approvalStatus?: Status;
   debitCreditTo?: string | null;
   payReceivedFrom?: string | null;
-  location?: string | null;
   sellerName?: string | null;
   address?: string | PMPVoucherAddressDto | null;
   contactNo?: string | null;
@@ -46,6 +45,7 @@ export interface CreatePMPVoucherDto {
   passBy?: string | null;
   approveBy?: string | null;
   remark?: string | null;
+  location?: string | null; // Branch id
 }
 
 export type UpdatePMPVoucherDto = Partial<CreatePMPVoucherDto>;
@@ -57,7 +57,6 @@ export interface PMPVoucherListItemDto {
   approvalStatus?: Status | null;
   debitCreditTo?: string | null;
   payReceivedFrom?: string | null;
-  location?: string | null;
   sellerName?: string | null;
   address?: PMPVoucherAddressDto | null;
   companyName?: string | null;
@@ -76,6 +75,7 @@ export interface PMPVoucherListItemDto {
   purpose?: string | null;
   contactNo?: string | null;
   altContactNo?: string | null;
+  location?: string | null; // Branch name (display)
 }
 
 
@@ -95,7 +95,7 @@ export interface PMPVoucherDetailDto {
   approvalStatus?: Status | null;
   debitCreditTo?: string | null;
   payReceivedFrom?: string | null;
-  location?: string | null;
+  location?: string | null; // Branch name (display)
   sellerName?: string | null;
   address?: PMPVoucherAddressDto | null;
   contactNo?: string | null;

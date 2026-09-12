@@ -19,6 +19,7 @@ import { CacheService } from '../../global/cache.service';
 import AppError from '../../utils/appError';
 import { Documentb, DocumentStatus, DocumentTypeEnum } from '../../approvalFlow/entity/docuemnt.entity';
 import { DocumentTypeEnum as DocDefEnum } from '../../documentDef/entity/documentdef.entity';
+import { ApprovalFlowService } from '../../approvalFlow/service/approvalFlow.service';
 import { formatDateTime } from '../../utils/dateUtils';
 import logger from '../../utils/logger';
 import { PaginationOptions } from '../../utils/pagination';
@@ -43,6 +44,8 @@ export class FinalInvoiceService {
     private readonly documentbRepository: DocumentbRepository,
     @inject(TYPES.CacheService)
     private readonly cacheService: CacheService,
+    @inject(TYPES.ApprovalFlowService)
+    private readonly approvalFlowService: ApprovalFlowService,
   ) {
     this.invoiceRepository = this.dataSource.getRepository(Invoice);
     this.invoiceProductRepository = this.dataSource.getRepository(InvoiceProduct);
@@ -58,14 +61,33 @@ export class FinalInvoiceService {
     if (id) {
       tasks.push(
         this.cacheService.del(`${this.CACHE_PREFIX}:update:${id}`),
-        this.cacheService.del(`${this.CACHE_PREFIX}:view:${id}`),
+        // The view cache is keyed by the Documentb id (the /view/:docid route
+        // param), not by this record's own id, so it can only be busted by
+        // pattern from here.
+        this.cacheService.invalidatePattern(`${this.CACHE_PREFIX}:view:*`),
         this.cacheService.del(`${this.CACHE_PREFIX}:pdf:${id}`),
       );
     }
     await Promise.all(tasks);
   }
 
+  // Creating a document without a configured approval flow leaves it with no
+  // approvers, so reject it up front — same guard as RFPA / Deal Slip.
+  private async checkApprovalFlowExists(userId: string | null | undefined, documentType: DocDefEnum): Promise<void> {
+    if (!userId) {
+      throw new AppError(400, 'Creator is required to validate the approval flow before creating this document.');
+    }
+    const approvalFlow = await this.approvalFlowService.getApprovalFlowForUserAndDepartment(userId, documentType);
+
+    if (!approvalFlow) {
+      throw new AppError(400, `Approval flow not configured for user. Please configure approval flow for ${documentType} type documents before creating.`);
+    }
+  }
+
   async create(deliveryChallanId: string, additionalData: CreateInvoiceDto, requestedBy: any): Promise<any> {
+    // Check if approval flow exists for the user
+    await this.checkApprovalFlowExists(requestedBy, DocDefEnum.SALE);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();

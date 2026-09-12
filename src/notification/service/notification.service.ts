@@ -8,6 +8,8 @@ import ExcelJS from 'exceljs';
 import { NotificationRepository } from '../repository/notification.repository';
 import { Notification } from '../entity/notifications.entity';
 import { UserService } from '../../employee/service/user.service';
+import { UserRepository } from '../../employee/repository/user.repository';
+import { Role } from '../../employee/entity/user.entity';
 
 
 @injectable()
@@ -17,6 +19,8 @@ export class NotificationService {
     private readonly notificationRepository: NotificationRepository,
     @inject(TYPES.UserService)
     private readonly userService: UserService,
+    @inject(TYPES.UserRepository)
+    private readonly userRepository: UserRepository,
     @inject(TYPES.SSEService)
     private readonly sseService: SSEService,
   ) {}
@@ -191,6 +195,28 @@ export class NotificationService {
 
     } catch (error) {
       logger.error(`createBatchNoti failed:`, error);
+    }
+  }
+
+  /**
+   * Send a notification to every user who holds the given role.
+   * Uses a direct raw query on the injected userRepository — avoids the
+   * .extend() limitation where custom methods are not available at runtime.
+   */
+  async createNotiForRole(message: string, role: Role): Promise<void> {
+    try {
+      // Raw SQL — safe because `role` is a trusted enum value, not user input
+      const rows: Array<{ id: string }> = await this.userRepository.query(
+        `SELECT id FROM employees WHERE $1::employees_roles_enum = ANY(roles)`,
+        [role],
+      );
+      const userIds = rows.map((r) => r.id);
+      logger.info(`createNotiForRole: found ${userIds.length} user(s) with role "${role}"`);
+      if (userIds.length === 0) return;
+
+      await Promise.all(userIds.map((id) => this.createNoti(message, id)));
+    } catch (error) {
+      logger.error(`createNotiForRole failed for role "${role}":`, error);
     }
   }
 

@@ -25,6 +25,7 @@ import { Status } from '../../../utils/status.enum';
 import { CustomerService } from '../service/customer.service';
 import { deserializeUser, requireUser } from '../../../middleware/deserializeUser';
 import { NotificationService } from '../../../notification/service/notification.service';
+import { Role } from '../../../employee/entity/user.entity';
 import { UserActivityLogService } from '../../../employeeActivity/service/userActivityLog.service';
 import { handleMulterFields, upload } from '../../../middleware/upload.middleware';
 import { CreateCustomerDto } from '../dto/createCustomer.dto';
@@ -136,16 +137,11 @@ export class CustomerController {
         });
       }
       
-      // 🔔 Send notification for customer creation
-      const userId = res.locals.user?.id;
-      if (userId) {
-        const customerName = customerData.organisationName || 'New Customer';
-        this.notificationService.createNoti(`Customer "${customerName}" created successfully`, userId).catch(() => {});
-      }
-
       // 📝 Activity log
       // Log login activity (fire-and-forget) - skip for admin role
-      const isAdmin = res.locals.user?.roles?.some((role: any) => role.name?.toLowerCase() === 'admin');
+      const isAdmin = res.locals.user?.roles?.some((role: any) =>
+        (role?.name ?? role)?.toLowerCase() === 'admin',
+      );
       if (!isAdmin) {
       const userName = `${res.locals.user.firstName || ''} ${res.locals.user.lastName || ''}`.trim() || res.locals.user.username || 'Unknown User';
       this.activityLogService.logActivity({
@@ -365,27 +361,14 @@ async approveCustomer(
     const status = req.query.status as Status;
 
     const approvedCustomer = await this.customerService.approveCustomer(customerId, adminUser, status);
-    
+
     if (!approvedCustomer) {
       ControllerLogger.logOperationFailed('Approve', 'Customer', 'not found or could not be approved', req, res);
       return res.status(404).json({ message: "Customer not found or could not be approved" });
     }
-    
-    // 🔔 Send notification for customer approval
-    try {
-      const userId = res.locals.user?.id;
-      if (userId) {
-        await this.notificationService.createNoti(
-          `Customer approved with status: ${status}`,
-          userId
-        );
-      }
-    } catch (notifError) {
-    }
-    
+
     // Log successful approval
     ControllerLogger.logSuccess('Customer approved', customerId, req, res);
-    
     return res.status(200).json({ message: "Customer approved successfully", customer: approvedCustomer });
   } catch (error: any) {
     ControllerLogger.logError('Customer approval', error, req, res);

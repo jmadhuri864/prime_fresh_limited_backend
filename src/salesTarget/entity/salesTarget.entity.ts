@@ -6,9 +6,8 @@ import { User } from "../../employee/entity/user.entity";
 import Model from "../../global/model.entity";
 
 export enum Status {
-  DRAFT = "draft",
-  SUBMITTED = "submitted",
-  REJECTED ="rejected",
+  PENDING = "pending", 
+  REJECTED = "rejected",
   APPROVED = "approved"
 }
 
@@ -19,6 +18,10 @@ export class SalesTarget extends Model {
   @JoinColumn({ name: "employee_id" })
   employee: User;
 
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: "created_by_id" })
+  createdBy: User;
+
   @Column({ nullable: true })
   month: number;
 
@@ -28,8 +31,8 @@ export class SalesTarget extends Model {
   @Column({ type: "decimal", default: 0 })
   totalMonthlySale: number; // auto-calculated
 
-  @Column({ default: "DRAFT" })
-  status: Status; // DRAFT, SUBMITTED, APPROVED
+  @Column({ type: 'enum', enum: Status, default: Status.PENDING })
+  status: Status; // DRAFT, PENDING, APPROVED, REJECTED
 
 
 }

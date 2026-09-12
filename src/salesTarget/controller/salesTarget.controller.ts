@@ -24,13 +24,14 @@ async createMonthlySalesPlan (@request() req: Request, @response() res: Response
    const loggedInUserId = res.locals.user.id;
     const payload = req.body;
 
-    // ✅ resolve employeeId
+    // resolve employeeId — frontend पाठवेल नाहीतर loggedIn user
     const employeeId = payload.employee ?? loggedInUserId;
-    
    
     const result = await this.salesTargetService.create({
       ...payload,
-      employeeId
+      employeeId,
+      employee: employeeId,
+      createdBy: loggedInUserId, // नेहमी logged-in user = creator
     });
     return res.status(201).json({
       success: true,
@@ -122,10 +123,25 @@ async getAllTargets(
 ) {
   try {
     const employeeid = res.locals.user?.id;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    
-    const data = await this.salesTargetService.getalltargets(employeeid, page, limit);
+    const pageRaw = req.query.page as string | undefined;
+    const limitRaw = req.query.limit as string | undefined;
+    const page = pageRaw ? parseInt(pageRaw) : undefined;
+    const limit = limitRaw ? parseInt(limitRaw) : undefined;
+
+    const filters = {
+      employeeId: req.query.employeeId as string | undefined,
+      customerId: req.query.customerId as string | undefined,
+      // Legacy single month/year filters (kept for backward compatibility)
+      month: req.query.month ? parseInt(req.query.month as string) : undefined,
+      year: req.query.year ? parseInt(req.query.year as string) : undefined,
+      // Date range filters
+      fromMonth: req.query.fromMonth ? parseInt(req.query.fromMonth as string) : undefined,
+      fromYear: req.query.fromYear ? parseInt(req.query.fromYear as string) : undefined,
+      toMonth: req.query.toMonth ? parseInt(req.query.toMonth as string) : undefined,
+      toYear: req.query.toYear ? parseInt(req.query.toYear as string) : undefined,
+    };
+
+    const data = await this.salesTargetService.getalltargets(employeeid, page, limit, filters);
 
     return res.status(200).json({
       status: "success",
@@ -344,7 +360,63 @@ async getSalesPerProduct(
   }
 }
 
-//TODO: Get sales summary statistics
+  //TODO: Approve / Reject Sales Target
+  // PATCH /sales-target/:id/approve
+  // Body: { action: 'approved' | 'rejected' }
+  @httpPatch('/:id/approve')
+  async approveTarget(
+    @requestParam('id') id: string,
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const managerId = res.locals.user.id;
+      const { action } = req.body;
+
+      if (!action || !['approved', 'rejected'].includes(action)) {
+        return res.status(400).json({
+          status: 'error',
+          message: "action must be 'approved' or 'rejected'",
+        });
+      }
+
+      const result = await this.salesTargetService.approveTarget(id, managerId, action);
+
+      return res.status(200).json({
+        status: 'success',
+        message: `Sales target ${action} successfully`,
+        data: { id: result.id, status: result.status },
+      });
+    } catch (error: any) {
+      logger.error('Error approving sales target', error);
+      next(error);
+    }
+  }
+
+  //TODO: Get all targets pending approval for logged-in manager
+  // GET /sales-target/manager/pending-approval
+  @httpGet('/manager/pending-approval')
+  async getPendingApprovalTargets(
+    @request() req: Request,
+    @response() res: Response,
+    @next() next: NextFunction,
+  ) {
+    try {
+      const managerId = res.locals.user.id;
+      const data = await this.salesTargetService.getPendingTargetsForManager(managerId);
+
+      return res.status(200).json({
+        status: 'success',
+        data,
+      });
+    } catch (error: any) {
+      logger.error('Error fetching pending approval sales targets', error);
+      next(error);
+    }
+  }
+
+  //TODO: Get sales summary statistics
 @httpGet('/sales-summary/:employeeId/:month/:year')
 async getSalesSummary(
   @requestParam("employeeId") employeeId: string,
